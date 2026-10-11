@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.vercel/
+vercel-preview-figma-ui/
+*.local
+.env
+
+.env.*
+!.env.example

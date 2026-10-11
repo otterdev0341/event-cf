@@ -1,0 +1,75 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button } from './Button';
+import { supabase } from '../lib/supabase';
+import type { CampaignDraft } from '../lib/campaigns';
+import { botnoiFetch } from '../services/botnoi/client';
+import { effectiveOutcome, outcomeLabels, resultsCsv, type Outcome } from '../../shared/call-results.mjs';
+import { terminalCall } from '../../shared/campaign-queue.mjs';
+
+type Followup={checked_at:string;answered_at:string|null;completed_at:string|null;ended_by:string|null;outcome:Outcome;transcript:string;log_state:string};
+type Attempt={id:string;call_id:string|null;destination:string;status:string;created_at:string;metadata:{campaign_version?:string;contact_row?:number;variables?:Record<string,string>};response:{review?:Outcome;callback?:{outcome:Outcome;received_at:string};followup?:Followup}|null;warning?:string};
+const statusLabels:Record<string,string>={completed:'จบสาย',queued:'เข้าคิว',ringing:'กำลังเรียกสาย','in-progress':'กำลังสนทนา',failed:'โทรไม่สำเร็จ',busy:'สายไม่ว่าง','no-answer':'ไม่รับสาย',cancelled:'ยกเลิก',canceled:'ยกเลิก',unknown:'รอตรวจสอบ',submitting:'กำลังส่งคำขอ'};
+const date=(v?:string|null)=>v && Number.isFinite(Date.parse(v))?new Date(v).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'}):'—';
+const sourceLabel=(value:string)=>value==='manual'?'ผู้ใช้ตรวจและบันทึก':value==='agent_tool'?'Agent ส่งผลผ่าน Tool':value==='provider'?'ผลจากบริการ Voice Bot':'ยังไม่มีผลจากบริการ';
+export function CampaignResults({campaign,queueRunning,revision,onStatus}:{campaign:CampaignDraft;queueRunning:boolean;revision:number;onStatus:(row:number,status:string,callId:string)=>void}) {
+  const [items,setItems]=useState<Attempt[]>([]), [loading,setLoading]=useState(true), [error,setError]=useState(''), [notice,setNotice]=useState('');
+  const [syncing,setSyncing]=useState(false), [page,setPage]=useState(0), [selected,setSelected]=useState<string|null>(null), [filter,setFilter]=useState('all');
+  const [reviewResult,setReviewResult]=useState('UNDETERMINED'), [needs,setNeeds]=useState('unknown'), [evidence,setEvidence]=useState(''), [saving,setSaving]=useState(false);
+  const [reviewVersion,setReviewVersion]=useState<string|null>(null);
+  const alive=useRef(true), syncingRef=useRef(false), stopSync=useRef(false), itemsRef=useRef<Attempt[]>([]), onStatusRef=useRef(onStatus);
+  onStatusRef.current=onStatus;
+  function replace(updated:Attempt) { if(!alive.current)return;setItems(old=>{const next=old.map(a=>a.id===updated.id?updated:a);itemsRef.current=next;return next;});
+    if(updated.metadata.campaign_version===campaign.updatedAt && Number.isInteger(updated.metadata.contact_row) && updated.call_id) onStatusRef.current(updated.metadata.contact_row!,updated.status,updated.call_id);
+  }
+  const load=useCallback(async()=>{
+    if(!supabase)return; const all:Attempt[]=[];
+    for(let offset=0;;offset+=500){const {data,error}=await supabase.from('voice_call_requests').select('id,call_id,destination,status,created_at,metadata,response').eq('metadata->>campaign_id',campaign.id).order('created_at',{ascending:false}).order('id').range(offset,offset+499);if(error)throw Error('โหลดผลการโทรไม่ได้ กรุณาลองอีกครั้ง');all.push(...data as Attempt[]);if(data.length<500)break;}
+    if(alive.current){itemsRef.current=all;setItems(all);setLoading(false);} return all;
+  },[campaign.id]);
+  async function refresh(list:Attempt[],quiet=false){
+    if(syncingRef.current || queueRunning || saving)return;syncingRef.current=true;stopSync.current=false;setSyncing(true);if(!quiet){setError('');setNotice('');}let failed=0,done=0;
+    try{for(const item of list){if(!alive.current || stopSync.current)break;if(!item.call_id)continue;try{replace(await botnoiFetch<Attempt>(`/workspace/calls/${item.id}/result`));done++;}catch{failed++;}}
+      if(alive.current){if(failed)setError(`ตรวจผลไม่ได้ ${failed} สาย ข้อมูลเดิมยังอยู่ กดรีเฟรชเพื่อลองใหม่`);else setError('');if(!quiet)setNotice(`อัปเดตแล้ว ${done} สาย${stopSync.current?' · หยุดการรีเฟรชแล้ว':''}`);}
+    } finally{syncingRef.current=false;if(alive.current)setSyncing(false);}
+  }
+  useEffect(()=>{alive.current=true;return()=>{alive.current=false;stopSync.current=true;};},[]);
+  useEffect(()=>{let active=true;setLoading(true);void load().then(data=>{if(active && data && !queueRunning)void refresh(data.slice(0,25),true);}).catch(e=>{if(active){setError(e.message);setLoading(false);}});return()=>{active=false;};},[load,revision,queueRunning]);
+  const current=items.filter(a=>a.metadata.campaign_version===campaign.updatedAt);
+  const visible=items.filter(a=>filter==='all' || effectiveOutcome(a.response).call_result===filter);
+  const pageItems=visible.slice(page*25,page*25+25);
+  useEffect(()=>{if(queueRunning)return;const timer=window.setInterval(()=>{
+    const rows=itemsRef.current.filter(a=>a.call_id && !terminalCall(a.status)).slice(0,25);
+    if(document.hidden || syncingRef.current || saving)return;
+    // Callback results may arrive after the phone status is terminal.
+    void load().then(()=>{if(rows.length)void refresh(rows,true);}).catch(()=>setError('โหลดผลล่าสุดไม่ได้ กรุณากดรีเฟรช'));
+
+  },15000);return()=>window.clearInterval(timer);},[queueRunning,saving,load]);
+  const target=items.find(a=>a.id===selected);
+  function open(item:Attempt){const result=effectiveOutcome(item.response);setSelected(item.id);setReviewVersion(item.response?.review?.updated_at || null);setReviewResult(result.call_result);setNeeds(result.needs_agent===null?'unknown':String(result.needs_agent));setEvidence(item.response?.review?.evidence || '');setError('');}
+  async function saveReview(){if(!target || saving || syncing)return;setSaving(true);setError('');try{const updated=await botnoiFetch<Attempt>(`/workspace/calls/${target.id}/result`,{method:'POST',body:{call_result:reviewResult,needs_agent:needs==='unknown'?null:needs==='true',evidence,expected_review_at:reviewVersion}});replace(updated);setReviewVersion(updated.response?.review?.updated_at || null);setNotice('บันทึกผลที่คุณตรวจสอบแล้ว');}catch(e){setError((e as Error).message);}finally{setSaving(false);}}
+  function exportResults(){
+    const extra=['vc_csv_row','vc_call_id','vc_call_status','vc_call_result','vc_needs_agent','vc_result_source','vc_evidence','vc_checked_at'];
+    const rows=campaign.csv.rows.flatMap((cells,index)=>{const matches=current.filter(a=>a.metadata.contact_row===index);return matches.length?matches.map(a=>{const result=effectiveOutcome(a.response);return [...cells,index+1,a.call_id,a.status,result.call_result,result.needs_agent===null?'':String(result.needs_agent),sourceLabel(result.source),result.evidence || '',a.response?.callback?.received_at || a.response?.followup?.checked_at || ''];}):[[...cells,index+1,'','not_sent','','','','','']];});
+    const blob=new Blob([resultsCsv([...campaign.csv.headers,...extra],rows)],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=`campaign-results-${campaign.id}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  return <section className="campaign-results wizard-summary-card" id="call-results" aria-labelledby="results-title">
+    <header className="results-header"><div><span className="ui-kicker">หลังจบสาย</span><h2 id="results-title">ผลตอบรับและบทสนทนา</h2><p>แยกสถานะการโทรออกจากคำตอบของผู้รับ</p></div><div className="draft-actions"><Button size="compact" variant="secondary" disabled={loading || syncing || saving || queueRunning} onClick={()=>void load().then(data=>refresh(data || [])).catch(e=>setError(e.message))}>{syncing?'กำลังตรวจผล…':'รีเฟรชผลทุกสาย'}</Button>{syncing && <Button size="compact" variant="secondary" onClick={()=>{stopSync.current=true;}}>หยุดรีเฟรช</Button>}<Button size="compact" disabled={loading || syncing || queueRunning} onClick={exportResults}>ดาวน์โหลดผล CSV</Button></div></header>
+    <div className="results-counts"><div><strong>{new Set(current.map(a=>a.metadata.contact_row)).size}/{campaign.csv.rows.length}</strong><span>รายชื่อที่ส่งคำขอแล้ว</span></div><div><strong>{current.filter(a=>effectiveOutcome(a.response).call_result==='CONFIRMED').length}</strong><span>สายที่ตอบตกลง</span></div><div><strong>{current.filter(a=>effectiveOutcome(a.response).call_result==='DECLINED').length}</strong><span>สายที่ปฏิเสธ</span></div><div><strong>{current.filter(a=>effectiveOutcome(a.response).needs_agent===true).length}</strong><span>ต้องการเจ้าหน้าที่</span></div><div><strong>{current.filter(a=>effectiveOutcome(a.response).call_result==='UNDETERMINED').length}</strong><span>สายที่ยังไม่ทราบคำตอบ</span></div></div>
+    <p className="workspace-note">สรุปและ CSV ใช้แคมเปญเวอร์ชันปัจจุบัน · ตรวจผลที่บันทึกใหม่ทุก 15 วินาทีขณะเปิดหน้านี้ · กดรีเฟรชเพื่อตรวจข้อมูลจากบริการ</p>
+    {items.some(a=>a.metadata.campaign_version!==campaign.updatedAt) && <p className="workspace-alert">มีสายจากแคมเปญเวอร์ชันก่อนหน้า แสดงแยกในตารางและไม่นำไปรวมกับ CSV ปัจจุบัน</p>}
+    {error && <p className="workspace-alert" role="alert">{error}</p>}{notice && <p className="workspace-notice" role="status">{notice}</p>}
+    <label className="results-filter">กรองผลตอบรับ<select className="workspace-select" value={filter} onChange={e=>{setFilter(e.target.value);setPage(0);}}><option value="all">ทุกผลตอบรับ</option>{Object.entries(outcomeLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
+    {loading?<p role="status">กำลังโหลดผล…</p>:items.length===0?<p>ยังไม่มีคำขอโทร เมื่อเริ่มคิวแล้วผลจะปรากฏที่นี่</p>:<><div className="csv-preview"><table><thead><tr><th>ผู้ติดต่อ / สาย</th><th>สถานะสาย</th><th>ผลตอบรับ</th><th>เจ้าหน้าที่</th><th>รายละเอียด</th></tr></thead><tbody>{pageItems.map(a=>{const result=effectiveOutcome(a.response);return <tr key={a.id}><td><strong>{a.metadata.variables?.applicant_name || a.metadata.variables?.guest_name || a.destination}</strong><div>{a.destination}</div><small>แถว {(a.metadata.contact_row ?? -1)+1}{a.metadata.campaign_version!==campaign.updatedAt?' · เวอร์ชันก่อนหน้า':''}</small></td><td><span className="result-badge">{statusLabels[a.status] || a.status}</span><small className="result-date">{date(a.response?.followup?.completed_at)}</small></td><td><span className="result-badge" data-result={result.call_result}>{outcomeLabels[result.call_result] || 'รอตรวจสอบ'}</span><small className="result-date">{sourceLabel(result.source)}</small></td><td>{result.needs_agent===null?'ยังไม่ทราบ':result.needs_agent?'ต้องการ':'ไม่ต้องการ'}</td><td><Button size="compact" variant="secondary" onClick={()=>open(a)}>ดู / ตรวจผล</Button></td></tr>;})}</tbody></table></div><div className="wizard-summary-actions"><Button size="compact" variant="secondary" disabled={page===0} onClick={()=>setPage(p=>p-1)}>ก่อนหน้า</Button><span>{visible.length} สาย · หน้า {page+1}/{Math.max(1,Math.ceil(visible.length/25))}</span><Button size="compact" variant="secondary" disabled={(page+1)*25>=visible.length} onClick={()=>setPage(p=>p+1)}>ถัดไป</Button></div></>}
+    {target && <section className="result-detail" aria-label="รายละเอียดผลการโทร"><header className="results-header"><div><h3>รายละเอียดสาย {target.destination}</h3><small>Call ID: {target.call_id || 'ยังไม่ได้รับ'}</small></div><Button size="compact" variant="secondary" disabled={saving} onClick={()=>setSelected(null)}>ปิดรายละเอียด</Button></header>
+      <dl className="result-times"><div><dt>รับสาย</dt><dd>{date(target.response?.followup?.answered_at)}</dd></div><div><dt>จบสาย</dt><dd>{date(target.response?.followup?.completed_at)}</dd></div><div><dt>ตรวจล่าสุด</dt><dd>{date(target.response?.followup?.checked_at)}</dd></div></dl>
+      {target.response?.callback && <div className="workspace-notice"><strong>Agent ส่งผลผ่าน Tool</strong><p>{outcomeLabels[target.response.callback.outcome.call_result]} · {target.response.callback.outcome.needs_agent===null?'ยังไม่ทราบว่าต้องการเจ้าหน้าที่':target.response.callback.outcome.needs_agent?'ต้องการเจ้าหน้าที่':'ไม่ต้องการเจ้าหน้าที่'}</p><p>{target.response.callback.outcome.evidence}</p><small>รับผลเมื่อ {date(target.response.callback.received_at)}</small></div>}
+      <h4>บทสนทนาจากบริการ</h4>{target.response?.followup?.transcript?<pre className="result-transcript">{target.response.followup.transcript}</pre>:<p className="workspace-notice">{target.response?.followup?.log_state==='error'?'โหลดบันทึกจากบริการไม่สำเร็จ กดรีเฟรชเพื่อลองใหม่':'บริการยังไม่มีบทสนทนาที่เชื่อมกับ Call ID นี้'}</p>}
+      {target.response?.followup?.outcome.source==='provider' && <p>ผลจากบริการ: {outcomeLabels[target.response.followup.outcome.call_result]} · ต้องการเจ้าหน้าที่: {String(target.response.followup.outcome.needs_agent ?? 'ยังไม่ทราบ')}</p>}
+      <h4>บันทึกผลที่ตรวจสอบด้วยตนเอง</h4><p className="workspace-note">ใช้เมื่อคุณได้ยินคำตอบหรือมีหลักฐานยืนยัน ผลนี้จะแสดงว่า “ผู้ใช้ตรวจและบันทึก” และเก็บแยกจากผลของบริการ</p>
+      <div className="review-fields"><label>ผลตอบรับ<select className="workspace-select" value={reviewResult} onChange={e=>setReviewResult(e.target.value)}>{Object.entries(outcomeLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label><label>ต้องการเจ้าหน้าที่<select className="workspace-select" value={needs} onChange={e=>setNeeds(e.target.value)}><option value="unknown">ยังไม่ทราบ</option><option value="true">ต้องการ</option><option value="false">ไม่ต้องการ</option></select></label></div>
+      <label>ข้อความที่ได้ยิน / เหตุผลประกอบ<textarea className="workspace-select" rows={3} maxLength={2000} value={evidence} onChange={e=>setEvidence(e.target.value)} placeholder="บันทึกตามคำตอบจริง ไม่ต้องกรอกหากยังไม่ทราบ" /></label>
+      {target.response?.review && <p className="workspace-note">บันทึกเมื่อ {date(target.response.review.updated_at)}</p>}
+      <Button size="compact" disabled={!evidence.trim() || saving || syncing || queueRunning} onClick={saveReview}>{saving?'กำลังบันทึก…':'บันทึกผลที่ตรวจแล้ว'}</Button>
+    </section>}
+  </section>;
+}

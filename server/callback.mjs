@@ -1,0 +1,71 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
+import { createClient } from '@supabase/supabase-js';
+import { outcomeLabels } from '../shared/call-results.mjs';
+
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const digest = value => createHash('sha256').update(value).digest();
+export const callbackConfigured = env => Boolean(
+  (env.SUPABASE_URL || env.VITE_SUPABASE_URL) && env.SUPABASE_SERVICE_ROLE_KEY &&
+  typeof env.VOICE_RESULT_CALLBACK_SECRET === 'string' && env.VOICE_RESULT_CALLBACK_SECRET.length >= 32
+);
+
+// Provider-only ingress. It never dials, accepts an owner from the body, or changes call status.
+export async function handleResultCallback(req, res, env = process.env) {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  const send = (status, data) => { res.statusCode = status; res.end(JSON.stringify(data)); };
+  try {
+    if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return send(405, { error: 'POST required' }); }
+    if (!callbackConfigured(env)) return send(503, { error: 'Result receiver is not configured' });
+    const authorization = req.headers.authorization;
+    if (typeof authorization !== 'string' || authorization.length > 4096 || !authorization.startsWith('Bearer ') ||
+      !timingSafeEqual(digest(authorization.slice(7)), digest(env.VOICE_RESULT_CALLBACK_SECRET))) {
+      return send(401, { error: 'Invalid callback credentials' });
+    }
+    if (!/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) return send(415, { error: 'JSON required' });
+    let raw = '';
+    if (req.body !== undefined) raw = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    else for await (const chunk of req) { raw += chunk; if (Buffer.byteLength(raw) > 16000) return send(413, { error: 'Payload too large' }); }
+    if (Buffer.byteLength(raw) > 16000) return send(413, { error: 'Payload too large' });
+    let body;
+    try { body = JSON.parse(raw); } catch { return send(400, { error: 'Invalid JSON' }); }
+    const allowed = ['request_id', 'agent_id', 'call_result', 'needs_agent', 'evidence'];
+    if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => !allowed.includes(k)) ||
+      typeof body.request_id !== 'string' || !uuid.test(body.request_id) || typeof body.agent_id !== 'string' || !/^agt_[a-zA-Z0-9_-]+$/.test(body.agent_id) ||
+      typeof body.call_result !== 'string' || !Object.hasOwn(outcomeLabels, body.call_result) || ![true, false, null].includes(body.needs_agent) ||
+      typeof body.evidence !== 'string' || !body.evidence.trim() || body.evidence.length > 2000) {
+      return send(400, { error: 'Invalid result fields; explicit outcome, boolean/null needs_agent and evidence required' });
+    }
+    const db = createClient(env.SUPABASE_URL || env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch: (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(10000) }) }
+    });
+    const { data: record, error } = await db.from('voice_call_requests')
+      .select('id,owner_id,agent_id,call_id,metadata,response,status').eq('id', body.request_id).maybeSingle();
+    if (error) return send(503, { error: 'Storage unavailable; retry later' });
+    if (!record || record.agent_id !== body.agent_id || record.metadata?.result_callback !== 1 ||
+      record.metadata?.variables?.vc_call_reference !== record.id) return send(404, { error: 'Unknown callback reference' });
+    // Initial call persistence owns response until call_id is saved. Retry rather than race it.
+    if (!record.call_id) return send(409, { error: 'Call not yet persisted; retry later' });
+    const outcome = { call_result: body.call_result, needs_agent: body.needs_agent, evidence: body.evidence.trim(), source: 'agent_tool' };
+    const fingerprint = digest(JSON.stringify([record.id, record.agent_id, outcome])).toString('hex');
+    if (record.response?.callback) {
+      return record.response.callback.fingerprint === fingerprint
+        ? send(200, { received: true, duplicate: true })
+        : send(409, { error: 'A final result already exists; review corrections in Voice Confirm' });
+    }
+    const original = record.response;
+    const callback = { outcome, fingerprint, received_at: new Date().toISOString(), call_id: record.call_id };
+    let update = db.from('voice_call_requests').update({ response: { ...(original || {}), callback } })
+      .eq('id', record.id).eq('owner_id', record.owner_id).eq('agent_id', record.agent_id)
+      .eq('call_id', record.call_id).is('response->callback->>received_at', null);
+    for (const [path, value] of [['response->review->>updated_at', original?.review?.updated_at], ['response->followup->>checked_at', original?.followup?.checked_at]]) {
+      update = value ? update.eq(path, value) : update.is(path, null);
+    }
+    const saved = await update.select('id');
+    if (saved.error) return send(503, { error: 'Result was not saved; retry later' });
+    if (!saved.data?.length) return send(409, { error: 'Concurrent update; retry the same payload' });
+    return send(200, { received: true });
+  } catch { return send(503, { error: 'Result receiver unavailable; retry later' }); }
+}

@@ -1,0 +1,45 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_id",
+    "agent_id",
+    "call_result",
+    "needs_agent",
+    "evidence"
+  ],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "description": "Exact system-provided vc_call_reference; never invent or ask the recipient"
+    },
+    "agent_id": {
+      "type": "string",
+      "description": "Exact configured Agent ID"
+    },
+    "call_result": {
+      "type": "string",
+      "enum": [
+        "CONFIRMED",
+        "DECLINED",
+        "CALLBACK_REQUESTED",
+        "REQUEST_AGENT",
+        "WRONG_PERSON",
+        "NO_ANSWER",
+        "UNDETERMINED"
+      ]
+    },
+    "needs_agent": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "evidence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "Actual recipient words supporting the final result or reason result is undetermined"
+    }
+  }
+}

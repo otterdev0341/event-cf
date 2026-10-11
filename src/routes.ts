@@ -1,0 +1,19 @@
+export const routes = {
+  home: "/",
+  login: "/login",
+  dashboard: "/dashboard",
+  liveAgent: "/live-agent",
+  campaigns: "/campaigns",
+  createCampaign: "/campaigns/new",
+  dataMapping: "/campaigns/data-mapping",
+  campaignSummary: "/campaigns/summary",
+  apiAgent: "/campaigns/api-agent",
+  apiTest: "/campaigns/api-test",
+  campaignCall: (id: string) => `/campaigns/api-test?campaign=${encodeURIComponent(id)}`,
+  contacts: "/contacts",
+  contactDetail: "/contacts/1",
+  contactDetailWithId: (id: number | string) => `/contacts/${encodeURIComponent(String(id))}`,
+  analytics: "/analytics",
+  settings: "/settings",
+} as const;
+

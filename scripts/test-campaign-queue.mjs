@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { campaignBindings, prepareCampaignRows } from '../shared/campaign-inputs.mjs';
+import { runCampaignQueue } from '../shared/campaign-queue.mjs';
+let passed=0;
+async function test(name,run){await run();passed++;console.log('PASS',name);}
+const campaign={csv:{headers:['name','phone','id'],rows:[['One','0812345678','A1'],['Two','0898765432','A2']]},mapping:{phone:'phone',name:'applicant_name'},variableBindings:{applicant_name:{source:'csv',column:'name'},phone_number:{source:'csv',column:'phone'},applicant_id:{source:'csv',column:'id'},call_result:{source:'output'}}};
+const vars=['applicant_name','phone_number','applicant_id','call_result'];
+await test('Every CSV row produces its own destination and inputs',()=>{
+ const p=prepareCampaignRows(campaign,vars);assert.deepEqual(p.errors,[]);assert.ok(p.rows.every(r=>!r.errors.length));assert.equal(p.rows[0].variables.applicant_name,'One');assert.equal(p.rows[1].variables.applicant_name,'Two');assert.equal(p.rows[1].destination,'0898765432');assert.equal(p.rows[1].variables.applicant_id,'A2');
+});
+await test('Destination column is reusable for phone_number without duplicate mapping',()=>{assert.equal(prepareCampaignRows(campaign,vars).rows[0].variables.phone_number,'0812345678');});
+await test('Explicit output variables are omitted, never filled with mock values',()=>{assert.equal(prepareCampaignRows(campaign,vars).rows[0].variables.call_result,undefined);});
+await test('No output classification is guessed from a variable name',()=>{const p=prepareCampaignRows({...campaign,variableBindings:{}},vars);assert.ok(p.errors.some(e=>e.includes('call_result')));});
+await test('Empty fields anywhere in CSV are caught before the batch starts',()=>{const c=structuredClone(campaign);c.csv.rows[1][2]='';assert.deepEqual(prepareCampaignRows(c,vars).rows[1].errors,['applicant_id ว่าง']);});
+await test('Prompt and removed-column changes invalidate bindings',()=>{assert.ok(prepareCampaignRows(campaign,vars.slice(0,2)).errors.length);const c=structuredClone(campaign);c.variableBindings.applicant_id.column='removed';assert.ok(prepareCampaignRows(c,vars).errors.some(e=>e.includes('applicant_id')));});
+await test('Legacy mapping supplies actual CSV fields and no global overrides',()=>{const c={...campaign,variableBindings:undefined,variables:{applicant_id:'should not leak'}};const p=prepareCampaignRows(c,vars);assert.equal(campaignBindings(c,vars).phone_number.column,'phone');assert.equal(p.rows[0].variables.applicant_id,undefined);});
+await test('Invalid numbers and excessive input size are rejected',()=>{const c=structuredClone(campaign);c.csv.rows[1][1]='wrong';c.csv.rows[1][0]='a'.repeat(2001);assert.equal(prepareCampaignRows(c,vars).rows[1].errors.length,2);});
+const rows=prepareCampaignRows(campaign,vars).rows;
+function harness(extra={}){
+ let clock=100000, sent=[],updates=[],waits=[];
+ return {sent,updates,waits,options:{rows,attempts:[],shouldStop:()=>false,now:()=>clock,wait:async ms=>{clock+=ms;waits.push(ms);},submit:async row=>{sent.push({index:row.index,time:clock,variables:row.variables});return {call_id:'call-'+row.index,status:'queued'};},readStatus:async()=>({status:'completed'}),onUpdate:(...event)=>updates.push(event),...extra}};
+}
+await test('Batch sends different row data sequentially with at least 13 seconds spacing',async()=>{const h=harness();assert.equal(await runCampaignQueue(h.options),'complete');assert.equal(h.sent.length,2);assert.ok(h.sent[1].time-h.sent[0].time>=13000);assert.equal(h.sent[1].variables.applicant_name,'Two');});
+await test('Resume checks existing Call ID instead of redialing the row',async()=>{const h=harness({attempts:[{call_id:'old-call',metadata:{contact_row:0},created_at:new Date(0).toISOString()}]});await runCampaignQueue(h.options);assert.deepEqual(h.sent.map(r=>r.index),[1]);});
+await test('Unknown durable attempt blocks retries and later recipients',async()=>{const h=harness({attempts:[{call_id:null,metadata:{contact_row:0},created_at:new Date(0).toISOString()}]});await assert.rejects(runCampaignQueue(h.options),/ป้องกันโทรซ้ำ/);assert.equal(h.sent.length,0);});
+await test('Uncertain submit is never automatically retried',async()=>{let calls=0;const h=harness({submit:async()=>{calls++;throw new Error('uncertain');}});await assert.rejects(runCampaignQueue(h.options),/uncertain/);assert.equal(calls,1);assert.equal(h.updates.at(-1)[1],'unknown');});
+await test('Pause prevents further submissions without cancelling an accepted call',async()=>{let stop=false;const h=harness({shouldStop:()=>stop});const original=h.options.submit;h.options.submit=async row=>{const r=await original(row);stop=true;return r;};assert.equal(await runCampaignQueue(h.options),'paused');assert.equal(h.sent.length,1);});
+await test('Unfinished status and status failures stop before the next row',async()=>{const h=harness({maxPolls:2,readStatus:async()=>({status:'ringing'})});await assert.rejects(runCampaignQueue(h.options),/นานเกินไป/);assert.equal(h.sent.length,1);const j=harness({readStatus:async()=>{throw new Error('status offline');}});await assert.rejects(runCampaignQueue(j.options),/status offline/);assert.equal(j.sent.length,1);});
+await test('Missing Call ID or failed persistence stops the queue',async()=>{for(const result of [{call_id:''},{call_id:'accepted',persistence_warning:'save failed'}]){let calls=0;const h=harness({submit:async()=>{calls++;return result;}});await assert.rejects(runCampaignQueue(h.options));assert.equal(calls,1);}});
+console.log(`\n${passed} campaign checks passed; all calls and clocks are simulated in this process.`);
