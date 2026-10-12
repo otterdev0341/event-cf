@@ -8,9 +8,9 @@ export async function handleCallResult({id,method,body,db,upstream,user,fail,sen
   let response={...(original || {})};
   let status=record.status;
   if(method==='POST') {
-    if(!body || !Object.hasOwn(outcomeLabels,body.call_result) || ![true,false,null].includes(body.needs_agent) || typeof body.evidence!=='string' || !body.evidence.trim() || body.evidence.length>2000) fail(400,'กรุณาเลือกผลและระบุข้อความหรือเหตุผลที่ตรวจสอบแล้ว');
+    if(!body || !Object.hasOwn(outcomeLabels,body.call_result) || ![true,false,null].includes(body.needs_agent) || (body.evidence!==undefined && (typeof body.evidence!=='string' || body.evidence.length>2000))) fail(400,'กรุณาเลือกผลตอบรับและความต้องการเจ้าหน้าที่ให้ถูกต้อง');
     if((body.expected_review_at ?? null)!==(response.review?.updated_at ?? null)) fail(409,'ผลถูกแก้ไขแล้ว กรุณารีเฟรชก่อนบันทึก');
-    response.review={call_result:body.call_result,needs_agent:body.needs_agent,evidence:body.evidence.trim(),updated_at:new Date().toISOString(),reviewed_by:user.id,source:'manual'};
+    response.review={call_result:body.call_result,needs_agent:body.needs_agent,evidence:body.evidence===undefined?(response.review?.evidence || ''):body.evidence.trim(),updated_at:new Date().toISOString(),reviewed_by:user.id,source:'manual'};
   } else {
     if(accountId!==undefined && (!accountId || record.metadata?.voice_account_id!==accountId)) {
       return send(200,{...record,warning:'แสดงผลที่บันทึกไว้ · ต้องเชื่อมบัญชี Voice Bot เดิมเพื่อตรวจข้อมูลใหม่'});

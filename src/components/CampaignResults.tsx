@@ -14,7 +14,7 @@ const sourceLabel=(value:string)=>value==='manual'?'ผู้ใช้ตรว�
 export function CampaignResults({campaign,queueRunning,revision,onStatus}:{campaign:CampaignDraft;queueRunning:boolean;revision:number;onStatus:(row:number,status:string,callId:string)=>void}) {
   const [items,setItems]=useState<Attempt[]>([]), [loading,setLoading]=useState(true), [error,setError]=useState(''), [notice,setNotice]=useState('');
   const [syncing,setSyncing]=useState(false), [page,setPage]=useState(0), [selected,setSelected]=useState<string|null>(null), [filter,setFilter]=useState('all');
-  const [reviewResult,setReviewResult]=useState('UNDETERMINED'), [needs,setNeeds]=useState('unknown'), [evidence,setEvidence]=useState(''), [saving,setSaving]=useState(false);
+  const [reviewResult,setReviewResult]=useState('UNDETERMINED'), [needs,setNeeds]=useState('unknown'), [saving,setSaving]=useState(false);
   const [reviewVersion,setReviewVersion]=useState<string|null>(null);
   const [view,setView]=useState<'latest'|'history'>('latest');
   const [contactHistory,setContactHistory]=useState<{row:number;version?:string}|null>(null);
@@ -55,8 +55,8 @@ export function CampaignResults({campaign,queueRunning,revision,onStatus}:{campa
 
   },15000);return()=>window.clearInterval(timer);},[queueRunning,saving,load]);
   const target=items.find(a=>a.id===selected);
-  function open(item:Attempt){const result=effectiveOutcome(item.response);setSelected(item.id);setReviewVersion(item.response?.review?.updated_at || null);setReviewResult(result.call_result);setNeeds(result.needs_agent===null?'unknown':String(result.needs_agent));setEvidence(item.response?.review?.evidence || '');setError('');}
-  async function saveReview(){if(!target || saving || syncing)return;setSaving(true);setError('');try{const updated=await botnoiFetch<Attempt>(`/workspace/calls/${target.id}/result`,{method:'POST',body:{call_result:reviewResult,needs_agent:needs==='unknown'?null:needs==='true',evidence,expected_review_at:reviewVersion}});replace(updated);setReviewVersion(updated.response?.review?.updated_at || null);setNotice('บันทึกผลที่คุณตรวจสอบแล้ว');}catch(e){setError((e as Error).message);}finally{setSaving(false);}}
+  function open(item:Attempt){const result=effectiveOutcome(item.response);setSelected(item.id);setReviewVersion(item.response?.review?.updated_at || null);setReviewResult(result.call_result);setNeeds(result.needs_agent===null?'unknown':String(result.needs_agent));setError('');}
+  async function saveReview(){if(!target || saving || syncing)return;setSaving(true);setError('');try{const updated=await botnoiFetch<Attempt>(`/workspace/calls/${target.id}/result`,{method:'POST',body:{call_result:reviewResult,needs_agent:needs==='unknown'?null:needs==='true',expected_review_at:reviewVersion}});replace(updated);setReviewVersion(updated.response?.review?.updated_at || null);setNotice('บันทึกผลที่คุณตรวจสอบแล้ว');}catch(e){setError((e as Error).message);}finally{setSaving(false);}}
   function exportResults(){
     const extra=['vc_csv_row','vc_call_id','vc_call_status','vc_call_result','vc_needs_agent','vc_result_source','vc_evidence','vc_checked_at'];
     const rows=campaign.csv.rows.flatMap((cells,index)=>{const matches=current.filter(a=>a.metadata.contact_row===index);return matches.length?matches.map(a=>{const result=effectiveOutcome(a.response);return [...cells,index+1,a.call_id,a.status,result.call_result,result.needs_agent===null?'':String(result.needs_agent),sourceLabel(result.source),result.evidence || '',a.response?.callback?.received_at || a.response?.followup?.checked_at || ''];}):[[...cells,index+1,'','not_sent','','','','','']];});
@@ -79,9 +79,8 @@ export function CampaignResults({campaign,queueRunning,revision,onStatus}:{campa
       {target.response?.followup?.outcome.source==='provider' && <p>ผลจากบริการ: {outcomeLabels[target.response.followup.outcome.call_result]} · ต้องการเจ้าหน้าที่: {String(target.response.followup.outcome.needs_agent ?? 'ยังไม่ทราบ')}</p>}
       <h4>บันทึกผลที่ตรวจสอบด้วยตนเอง</h4><p className="workspace-note">ใช้เมื่อคุณได้ยินคำตอบหรือมีหลักฐานยืนยัน ผลนี้จะแสดงว่า “ผู้ใช้ตรวจและบันทึก” และเก็บแยกจากผลของบริการ</p>
       <div className="review-fields"><label>ผลตอบรับ<select className="workspace-select" value={reviewResult} onChange={e=>setReviewResult(e.target.value)}>{Object.entries(outcomeLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label><label>ต้องการเจ้าหน้าที่<select className="workspace-select" value={needs} onChange={e=>setNeeds(e.target.value)}><option value="unknown">ยังไม่ทราบ</option><option value="true">ต้องการ</option><option value="false">ไม่ต้องการ</option></select></label></div>
-      <label>ข้อความที่ได้ยิน / เหตุผลประกอบ<textarea className="workspace-select" rows={3} maxLength={2000} value={evidence} onChange={e=>setEvidence(e.target.value)} placeholder="บันทึกตามคำตอบจริง ไม่ต้องกรอกหากยังไม่ทราบ" /></label>
       {target.response?.review && <p className="workspace-note">บันทึกเมื่อ {date(target.response.review.updated_at)}</p>}
-      <Button size="compact" disabled={!evidence.trim() || saving || syncing || queueRunning} onClick={saveReview}>{saving?'กำลังบันทึก…':'บันทึกผลที่ตรวจแล้ว'}</Button>
+      <Button size="compact" disabled={saving || syncing || queueRunning} onClick={saveReview}>{saving?'กำลังบันทึก…':'บันทึกผลที่ตรวจแล้ว'}</Button>
     </section>}
   </section>;
 }
