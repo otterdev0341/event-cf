@@ -31,7 +31,7 @@ async function upstream(path,body,method='GET'){
 }
 async function invoke(method='POST',extra={}){
  let output;const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
- try{await handleAgentSetup({id,method,body:{confirm:true,expected_revision:setupRevision(agent),...extra.body},user:extra.user||user,env:{...env,...extra.env},upstream,fail,send:(status,data)=>{output={status,data};},deadline:AbortSignal.timeout(10000)});return output;}catch(e){return {status:e.status||502,data:{error:e.message}};}
+ try{await handleAgentSetup({id,method,body:{confirm:true,expected_revision:setupRevision(agent),...extra.body},user:extra.user||user,env:{...env,...extra.env},upstream,fail,send:(status,data)=>{events.push({response:true});output={status,data};},deadline:AbortSignal.timeout(10000)});return output;}catch(e){return {status:e.status||502,data:{error:e.message}};}
 }
 const writes=()=>events.filter(x=>x.path&&x.method!=='GET');
 async function test(name,fn){reset();await fn();passed++;console.log('PASS '+name);}
@@ -51,4 +51,5 @@ await test('Failed agent update is recoverable using stored Tool and backup',asy
 await test('Tool creation timeout is never blindly retried and lock is released',async()=>{options.createTimeout=true;assert.equal((await invoke()).status,502);assert.equal(events.filter(x=>x.path==='/platform-config/tools'&&x.method==='POST').length,1);assert.ok(events.some(x=>x.db?.endsWith('voice_agent_setup_locks')&&x.method==='DELETE'));});
 await test('Malformed managed block fails before any external mutation',async()=>{agent.agent_data.system_instruction+='[VOICE_CONFIRM_RESULT_SETUP_V1]';assert.equal((await invoke()).status,409);assert.equal(writes().length,0);});
 await test('Write-only webhook credentials are never silently cleared',async()=>{agent.webhook={enabled:true,auth:{type:'bearer',has_api_key:true}};assert.equal((await invoke()).status,409);assert.equal(writes().length,0);});
+await test('Serverless response ends only after the setup lock is released',async()=>{assert.equal((await invoke()).status,200);const released=events.findIndex(x=>x.db?.endsWith('voice_agent_setup_locks')&&x.method==='DELETE');const sent=events.findIndex(x=>x.response);assert.ok(released>=0&&sent>released);});
 console.log(`${passed} agent setup checks passed; all credentials, data and network responses are isolated fixtures.`);

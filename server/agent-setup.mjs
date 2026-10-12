@@ -85,7 +85,7 @@ export async function handleAgentSetup({id,method,body,user,env,upstream,fail,se
   const {data:locked,error:lockError} = await db.rpc('acquire_voice_agent_setup',{p_agent_id:id,p_lock_id:operation});
   if (lockError) fail(503,'ยังไม่ได้ติดตั้งระบบเก็บการตั้งค่า Agent หรือฐานข้อมูลไม่พร้อม');
   if (locked !== true) fail(409,'มีผู้ดูแลกำลังเชื่อม Agent นี้ กรุณารอสักครู่แล้วตรวจสถานะใหม่');
-  let audited = false, tool;
+  let audited = false, tool, response;
   try {
     agent = await upstream('/agents/'+id);
     if (setupRevision(agent) !== body.expected_revision) fail(409,'Agent ถูกแก้ไขแล้ว กรุณาตรวจสถานะใหม่');
@@ -113,11 +113,13 @@ export async function handleAgentSetup({id,method,body,user,env,upstream,fail,se
     const verified = await upstream('/agents/'+id);
     if (setupRevision(verified) !== setupRevision(payload) || !connectedTool(verified,tools,endpoint)) fail(502,'บริการยังไม่ยืนยันการเชื่อม Agent กรุณาตรวจสถานะใหม่');
     const {error:auditError} = await db.from('voice_agent_setup_audits').update({status:'connected',tool_id:tool.tool_id,completed_at:new Date().toISOString()}).eq('id',operation);
-    return send(200,{...status(verified,tools),...(auditError?{warning:'เชื่อมสำเร็จ แต่บันทึกประวัติการแก้ไขไม่ครบ'}:{})});
+    response = {...status(verified,tools),...(auditError?{warning:'เชื่อมสำเร็จ แต่บันทึกประวัติการแก้ไขไม่ครบ'}:{})};
   } catch (error) {
     if (audited) await db.from('voice_agent_setup_audits').update({status:'failed',tool_id:tool?.tool_id || null,completed_at:new Date().toISOString()}).eq('id',operation);
     throw error;
   } finally {
     await db.from('voice_agent_setup_locks').delete().eq('agent_id',id).eq('lock_id',operation);
   }
+  // Finish cleanup before ending the response; serverless runtimes may stop work after res.end.
+  return send(200,response);
 }
