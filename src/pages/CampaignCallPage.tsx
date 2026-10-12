@@ -88,7 +88,7 @@ export function CampaignCallPage() {
           wait:ms=>new Promise(resolve=>window.setTimeout(resolve,ms)),
           submit:async row=>botnoiApi.placeCall(account._id,row.destination,campaign.agentId,{requestId:await campaignRequestId(campaign.id,campaign.updatedAt!,row.index,row.redialOf),redialOf:row.redialOf,variables:{},campaignId:campaign.id,contactRow:row.index,campaignBatch:true,campaignVersion:campaign.updatedAt}),
           readStatus:id=>botnoiApi.getCallStatus(account._id,id),
-          onUpdate:(index,status,message,callId)=>{if(mounted.current){setStates(prev=>({...prev,[index]:{status,message,callId:callId || prev[index]?.callId}}));setMessage(`แถว ${index+1}/${checked.rows.length} · ${labels[status] || status}`);}}
+          onUpdate:(index,status,message,callId)=>{if(mounted.current){setStates(prev=>({...prev,[index]:{status,message,callId:callId || (['waiting','submitting'].includes(status)?undefined:prev[index]?.callId)}}));setMessage(`แถว ${index+1}/${checked.rows.length} · ${labels[status] || status}`);}}
         });
         if(mounted.current)setMessage(result==='complete'?`ดำเนินการครบ ${chosen.length} รายชื่อที่เลือกแล้ว ดูผลจริงของแต่ละสายได้ในตาราง`:'หยุดส่งรายชื่อถัดไปแล้ว สายที่ส่งไปก่อนหน้ายังอาจทำงานอยู่');
       });

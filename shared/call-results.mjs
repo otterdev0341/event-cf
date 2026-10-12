@@ -27,6 +27,12 @@ export function matchingLogPath(files, call) {
 export function effectiveOutcome(response) {
   return response?.review ? {...response.review,source:'manual'} : response?.callback?.outcome || response?.followup?.outcome || {call_result:'UNDETERMINED',needs_agent:null,source:'unavailable'};
 }
+export function latestContactCalls(attempts,version,rowCount=Infinity) {
+  const sorted=attempts.filter(a=>a.metadata?.campaign_version===version&&Number.isInteger(a.metadata.contact_row)&&a.metadata.contact_row>=0&&a.metadata.contact_row<rowCount)
+    .slice().sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)||String(b.id).localeCompare(String(a.id)));
+  const seen=new Set();
+  return sorted.filter(a=>{const row=a.metadata.contact_row;if(seen.has(row))return false;seen.add(row);return true;});
+}
 export function resultsCsv(headers, rows) {
   const cell = value => {
     let text=String(value ?? '');
