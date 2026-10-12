@@ -222,3 +222,9 @@ div:has(> .app-header) > main h2 { font-weight: 650; }
 .campaign-card__header { margin-bottom: 0; }
 .campaign-card__metrics { margin-block: 0; }
 @media(max-width:600px) { .campaign-card__metrics { margin-block: 0; } }
+/* Saved campaigns have a separate, evidence-based calling status. */
+.campaign-saved-label { font-size: 11px; color: #626c80; }
+.campaign-lifecycle { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:14px 16px; background:#f8f9fc; border-radius:10px; }
+.campaign-lifecycle p { flex:1; min-width:180px; color:#626c80; font-size:12px; line-height:1.8; }
+.campaign-lifecycle .status-badge { flex-shrink:0; }
+@media(max-width:600px){ .campaign-lifecycle { align-items:flex-start; flex-direction:column; } .campaign-lifecycle p { min-width:0; } }
