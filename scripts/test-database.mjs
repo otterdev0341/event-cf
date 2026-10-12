@@ -28,5 +28,13 @@ await as(other);
 await test('Other user cannot see or update owner call requests',async()=>{assert.equal((await db.query('select * from public.voice_call_requests')).rows.length,0);assert.equal((await db.query("update public.voice_call_requests set status='fake' returning id")).rows.length,0);});
 await as('', 'anon');
 await test('Anonymous user cannot read tables or execute save RPC',async()=>{await assert.rejects(db.query('select * from public.voice_campaigns'),/permission denied/);await assert.rejects(save(),/permission denied/);});
+await db.exec('reset role; create role service_role bypassrls;');
+await test('Agent setup migration executes and may be reapplied',async()=>{const sql=readFileSync(new URL('../supabase/migrations/202610120001_agent_result_setup.sql',import.meta.url),'utf8');await db.exec(sql);await db.exec(sql);});
+for(const role of ['anon','authenticated']) {
+  await as(owner,role);
+  await test(`${role} cannot read Agent backups, acquire locks or alter setup records`,async()=>{for(const table of ['voice_agent_setup_locks','voice_agent_setup_audits'])await assert.rejects(db.query('select * from public.'+table),/permission denied/);await assert.rejects(db.query("select public.acquire_voice_agent_setup('agt_fixture',$1)",[id]),/permission denied/);});
+}
+await as('', 'service_role');
+await test('Persistent lock allows only one setup until release or expiration',async()=>{const acquire=async lock=>(await db.query("select public.acquire_voice_agent_setup('agt_fixture',$1) as acquired",[lock])).rows[0].acquired;assert.equal(await acquire(owner),true);assert.equal(await acquire(other),false);await db.query("delete from public.voice_agent_setup_locks where agent_id='agt_fixture' and lock_id=$1",[other]);assert.equal(await acquire(other),false);await db.query("update public.voice_agent_setup_locks set expires_at=now()-interval '1 second' where agent_id='agt_fixture'");assert.equal(await acquire(other),true);await db.query("delete from public.voice_agent_setup_locks where lock_id=$1",[owner]);assert.equal(await acquire(owner),false);await db.query("delete from public.voice_agent_setup_locks where lock_id=$1",[other]);assert.equal(await acquire(owner),true);});
 console.log(`\n${passed} database checks passed in disposable PostgreSQL; no Supabase data changed.`);
 } finally {await db.close();}

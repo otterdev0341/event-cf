@@ -1,6 +1,7 @@
 import { prepareCampaignRows, promptVariables } from '../shared/campaign-inputs.mjs';
 import { handleCallResult } from './results.mjs';
 import { callbackConfigured } from './callback.mjs';
+import { handleAgentSetup } from './agent-setup.mjs';
 import { createClient } from '@supabase/supabase-js';
 
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
@@ -59,19 +60,25 @@ export async function handleVoice(req, res, env = process.env) {
       || Boolean(tenantRoute && tenantRoute[2] !== '/calls');
     const resultRoute = path.match(/^\/workspace\/calls\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/result$/i);
     const isResult = Boolean(resultRoute && ['GET','POST'].includes(method));
+    const setupRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/result-setup$/);
+    const isSetup = Boolean(setupRoute && ['GET','POST'].includes(method));
     const isCall = method === 'POST' && tenantRoute?.[2] === '/calls';
-    if (!(method === 'GET' && readAllowed) && !isCall && !isResult) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
+    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
     const queryKeys = new Set(['agent_id', 'limit', 'start_at', 'end_at', 'timezone', 'granularity', 'include', 'month']);
     for (const [key, value] of target.searchParams) if (!queryKeys.has(key) || value.length > 200) fail(400, 'พารามิเตอร์ไม่ถูกต้อง');
     if (target.searchParams.has('limit')) target.searchParams.set('limit', String(Math.min(100, Math.max(1, Number(target.searchParams.get('limit')) || 50))));
     const base = new URL(env.VOICE_BOT_BASE_URL || 'https://api-voicebot-stg.botnoigroup.com');
     if (base.protocol !== 'https:' || base.username || base.password) fail(503, 'การตั้งค่าบริการไม่ถูกต้อง');
-    const upstream = async (route, body) => {
-      const response = await fetch(new URL(route, base), { method: body ? 'POST' : 'GET', redirect: 'error', signal: AbortSignal.any([deadline, AbortSignal.timeout(20000)]),
+    const upstream = async (route, body, requestMethod) => {
+      const response = await fetch(new URL(route, base), { method: requestMethod || (body ? 'POST' : 'GET'), redirect: 'error', signal: AbortSignal.any([deadline, AbortSignal.timeout(20000)]),
         headers: { Authorization: `Bearer ${env.VOICE_BOT_ACCESS_TOKEN}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
       if (!response.ok) fail(response.status === 429 ? 429 : 502, `บริการ Voice Bot ตอบกลับ HTTP ${response.status}`);
       return response.json();
     };
+    if (isSetup) {
+      await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env,upstream,fail,send,deadline});
+      return;
+    }
     if (isResult) {
       await handleCallResult({id:resultRoute[1],method,body:method==='POST'?await bodyOf(req):undefined,db,upstream,user,fail,send});
       return;

@@ -17,6 +17,7 @@ globalThis.fetch=async(input,init={})=>{
   assert.equal(new Headers(init.headers).get('Authorization'),'Bearer server-secret-fixture');
   if(url.pathname==='/me') return Response.json({_id:'tenant_fixture',username:'fixture',access_token:'hidden',password:'hidden'});
   if(url.pathname==='/agents') return Response.json([{agent_id:'agt_fixture',name:'Fixture'}]);
+  if(url.pathname==='/platform-config/tools') return Response.json([]);
   if(url.pathname==='/agents/agt_fixture') return Response.json({agent_id:'agt_fixture',agent_data:{greeting_text:options.prompt || 'Hello {{guest_name}}',api_key:'hidden'}});
   if(url.pathname.endsWith('/calls')&&init.method==='POST') {if(options.timeout) throw new Error('timeout');return Response.json({call_id:'oc_fixture',status:'queued'});}
   if(url.pathname.startsWith('/logs')) return Response.json({items:[]});
@@ -50,6 +51,9 @@ await test('Tenant mismatch is forbidden',async()=>assert.equal((await invoke('/
 await test('Agent mismatch is forbidden',async()=>assert.equal((await invoke('/agents/agt_other')).status,403));
 await test('Query tokens are rejected; log limit capped',async()=>{assert.equal((await invoke('/me?token=foo')).status,400);assert.equal((await invoke('/logs/call_logs_platform?limit=10000')).status,200);assert.equal(requests.at(-1).url.searchParams.get('limit'),'100');});
 await test('Secret fields nested inside Agent config are removed',async()=>{const r=await invoke('/agents/agt_fixture');assert.equal(r.status,200);assert.equal(r.data.agent_data.api_key,undefined);});
+await test('Agent setup status is safe for members and direct writes remain denied',async()=>{const r=await invoke('/workspace/agents/agt_fixture/result-setup');assert.equal(r.status,200);assert.equal(r.data.can_manage,false);assert.equal(r.data.connected,false);assert.ok(!JSON.stringify(r.data).includes('hidden'));for(const route of ['/platform-config/tools','/agent/create_update_agent'])assert.equal((await invoke(route,{})).status,405);});
+await test('Member setup POST and cross-site admin POST are rejected before Voice Bot changes',async()=>{const path='/workspace/agents/agt_fixture/result-setup';assert.equal((await invoke(path,{confirm:true,expected_revision:'0'.repeat(64)})).status,403);assert.equal((await invoke(path,{}, {env:{VOICE_ADMIN_USER_IDS:userId},headers:{'sec-fetch-site':'cross-site'}})).status,403);assert.equal(requests.filter(r=>r.url.hostname==='voice.invalid').length,0);});
+await test('Foreign Agent setup status is denied without reading its configuration',async()=>{assert.equal((await invoke('/workspace/agents/agt_other/result-setup')).status,403);assert.equal(requests.filter(r=>r.url.pathname==='/agents/agt_other').length,0);});
 await test('Missing consent prevents dial',async()=>{assert.equal((await invoke(callPath,{...payload(),consent:false})).status,400);assert.equal(calls().length,0);});
 await test('Invalid phone, missing variable and foreign agent prevent dial',async()=>{for(const p of [{...payload(),destination:'invalid'},{...payload(),metadata:{variables:{}}},{...payload(),agent_id:'other'}])assert.equal((await invoke(callPath,p)).status,400);assert.equal(calls().length,0);});
 await test('Foreign campaign is forbidden',async()=>{options.noCampaign=true;const p=payload();p.metadata.campaign_id=userId;assert.equal((await invoke(callPath,p)).status,403);assert.equal(calls().length,0);});

@@ -470,3 +470,19 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
 .review-fields {display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0;}
 .result-detail label {display:block;font-size:13px;}.result-detail textarea {display:block;width:100%;margin:8px 0 16px;resize:vertical;}
 @media(max-width:700px){.results-counts{grid-template-columns:repeat(2,minmax(0,1fr));}.review-fields{grid-template-columns:1fr;}.result-detail{padding:16px;}.results-header .draft-actions{width:100%;}}
+/* Agent result setup follows the workspace palette and uses status to guide the next action. */
+.agent-result-setup { margin: 24px 0; padding: 24px; border: 1px solid #ded8f6; border-radius: 16px; background: #faf9ff; color: #292b42; }
+.agent-result-setup__heading { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
+.agent-result-setup h3 { margin: 0 0 8px; font-size: 18px; }
+.agent-result-setup p { line-height: 1.7; margin: 8px 0 16px; }
+.agent-result-setup__heading p { color: #70748b; }
+.agent-result-setup__badge { white-space: nowrap; padding: 6px 12px; border-radius: 100px; color: #7150d9; background: #eee9fb; font-size: 13px; }
+.agent-result-setup--connected { border-color: #bce9d9; background: #f4fcf8; }
+.agent-result-setup--connected .agent-result-setup__badge { color: #087c58; background: #dff5eb; }
+.agent-result-setup__success { color: #087c58; }
+.agent-result-setup__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.agent-result-setup__review { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ded8f6; }
+.agent-result-setup__review h4 { margin: 0; font-size: 17px; }
+.agent-result-setup__review label { display: flex; gap: 10px; align-items: flex-start; line-height: 1.6; }
+.agent-result-setup input[type=checkbox] { margin-top: 5px; accent-color: #7150d9; }
+@media (max-width: 600px) { .agent-result-setup { padding: 18px; } .agent-result-setup__heading { flex-direction: column; gap: 4px; } }
