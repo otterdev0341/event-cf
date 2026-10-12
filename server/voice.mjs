@@ -4,6 +4,8 @@ import { callbackConfigured } from './callback.mjs';
 import { handleAgentSetup, connectedTool } from './agent-setup.mjs';
 import { connectionStore, loadConnection, handleConnection, accountCallbackSecret } from './connection.mjs';
 import { createClient } from '@supabase/supabase-js';
+import { handleRecording } from './recording.mjs';
+import { campaignRequestId, terminalCall } from '../shared/campaign-queue.mjs';
 
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 const fail = (status, message) => { throw new HttpError(status, message); };
@@ -61,11 +63,13 @@ export async function handleVoice(req, res, env = process.env) {
       || Boolean(tenantRoute && tenantRoute[2] !== '/calls');
     const resultRoute = path.match(/^\/workspace\/calls\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/result$/i);
     const isResult = Boolean(resultRoute && ['GET','POST'].includes(method));
+    const recordingRoute=path.match(/^\/workspace\/calls\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/recording$/i);
+    const isRecording=Boolean(recordingRoute&&method==='GET');
     const setupRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/result-setup$/);
     const isSetup = Boolean(setupRoute && ['GET','POST'].includes(method));
     const isConnection = path === '/workspace/connection' && ['GET','POST'].includes(method);
     const isCall = method === 'POST' && tenantRoute?.[2] === '/calls';
-    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
+    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection && !isRecording) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
     const queryKeys = new Set(['agent_id', 'limit', 'start_at', 'end_at', 'timezone', 'granularity', 'include', 'month']);
     for (const [key, value] of target.searchParams) if (!queryKeys.has(key) || value.length > 200) fail(400, 'พารามิเตอร์ไม่ถูกต้อง');
     if (target.searchParams.has('limit')) target.searchParams.set('limit', String(Math.min(100, Math.max(1, Number(target.searchParams.get('limit')) || 50))));
@@ -93,6 +97,7 @@ export async function handleVoice(req, res, env = process.env) {
       await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env:{...env,...(env.VOICE_RESULT_CALLBACK_SECRET?.length>=32?{VOICE_RESULT_CALLBACK_SECRET:accountCallbackSecret(connection.account_id,env)}:{})},connection,upstream,fail,send,deadline});
       return;
     }
+    if(isRecording)return await handleRecording({id:recordingRoute[1],db,user,accountId:connection.account_id,upstream,fail,send});
     if (isResult) {
       await handleCallResult({id:resultRoute[1],method,db,upstream,user,fail,send,accountId:connection.account_id});
       return;
@@ -137,7 +142,14 @@ export async function handleVoice(req, res, env = process.env) {
             if (!Number.isInteger(body.metadata.contact_row)) fail(400, 'ต้องระบุแถว CSV');
             const prepared = prepareCampaignRows(campaign.data, required);
             const row = prepared.rows[body.metadata.contact_row];
-            if (prepared.errors.length || prepared.rows.some(r => r.errors.length) || !row) fail(400, 'ข้อมูล CSV หรือการจับคู่ไม่ครบ กรุณาแก้ไขก่อนเริ่มคิว');
+            if (prepared.errors.length || !row || row.errors.length) fail(400, 'ข้อมูล CSV ของแถวที่เลือกหรือการจับคู่ไม่ครบ กรุณาแก้ไขก่อนเริ่มคิว');
+            const {data:last,error:lastError}=await db.from('voice_call_requests').select('id,status,call_id,metadata').eq('metadata->>campaign_id',campaign.id).eq('metadata->>campaign_version',campaign.updated_at).eq('metadata->>contact_row',String(row.index)).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(1).maybeSingle();
+            if(lastError)fail(503,'ตรวจประวัติแถวที่เลือกไม่ได้');
+            const retry=body.metadata.campaign_redial_of;
+            if(retry!==undefined&&(!last||retry!==last.id||!last.call_id||!terminalCall(last.status)))fail(409,'สายเดิมยังไม่จบหรือประวัติเปลี่ยนแล้ว กรุณาตรวจและยืนยันใหม่');
+            if(last&&!retry)fail(409,'แถวนี้มีคำขอแล้ว กรุณาตรวจประวัติ หรือเลือกโทรซ้ำพร้อมยืนยัน');
+            if(body.request_id!==await campaignRequestId(campaign.id,campaign.updated_at,row.index,retry))fail(400,'รหัสคำขอของแถวนี้ไม่ตรง กรุณาโหลดหน้าใหม่');
+            if(retry)metadata.campaign_redial_of=retry;
             // Authoritative destination and inputs come from the owner's saved CSV, not browser overrides.
             body.destination = row.destination;
             variables = row.variables;

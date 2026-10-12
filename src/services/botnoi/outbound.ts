@@ -6,7 +6,7 @@ export async function placeCall(
   tenantId: string,
   destination: string,
   agentId: string,
-  context: { requestId: string; variables: Record<string, string>; campaignId?: string; contactRow?: number; campaignBatch?: boolean; campaignVersion?: string },
+  context: { requestId: string; variables: Record<string, string>; campaignId?: string; contactRow?: number; campaignBatch?: boolean; campaignVersion?: string; redialOf?:string },
 ): Promise<OutboundCallResponse> {
   return botnoiFetch<OutboundCallResponse>(
     `/v1/provisioning/tenants/${encodeURIComponent(tenantId)}/calls`,
@@ -17,7 +17,7 @@ export async function placeCall(
         agent_id: agentId,
         consent: true,
         request_id: context.requestId,
-        metadata: { variables: context.variables, ...(context.campaignBatch ? {campaign_batch:true, campaign_version:context.campaignVersion} : {}), ...(context.campaignId ? { campaign_id: context.campaignId } : {}), ...(context.contactRow !== undefined ? { contact_row: context.contactRow } : {}) },
+        metadata: { variables: context.variables, ...(context.campaignBatch ? {campaign_batch:true, campaign_version:context.campaignVersion} : {}), ...(context.redialOf ? {campaign_redial_of:context.redialOf} : {}), ...(context.campaignId ? { campaign_id: context.campaignId } : {}), ...(context.contactRow !== undefined ? { contact_row: context.contactRow } : {}) },
       },
     },
   );

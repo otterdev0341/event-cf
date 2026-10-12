@@ -1,12 +1,33 @@
 export const terminalCall = status => ['completed','failed','busy','no-answer','cancelled','canceled'].includes(status);
 
+export function latestAttempt(attempts, index) {
+  return attempts.filter(a=>a.metadata?.contact_row===index).sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)||String(b.id).localeCompare(String(a.id)))[0];
+}
+export function planCampaignCalls(rows, attempts, indexes, redial=false) {
+  return rows.filter(row=>indexes===null || indexes.includes(row.index)).flatMap(row=>{
+    const previous=latestAttempt(attempts,row.index);
+    if(previous&&terminalCall(previous.status))return redial?[{...row,redialOf:previous.id}]:[];
+    return [{...row,redialOf:undefined}];
+  });
+}
+export async function campaignRequestId(campaignId,version,row,redialOf) {
+  const source=redialOf?`voice-campaign-redial-v1:${campaignId}:${version}:${row}:${redialOf}`:`voice-campaign-v1:${campaignId}:${version}:${row}`;
+  const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(source))).slice(0,16);
+  bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+  const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+
 // Submit sequentially; every accepted/uncertain attempt is recovered from durable history.
 export async function runCampaignQueue({ rows, attempts, submit, readStatus, shouldStop, onUpdate, wait, now = Date.now, maxPolls = 120 }) {
   let lastSubmitted = Math.max(0, ...attempts.map(a => Date.parse(a.created_at) || 0));
   for (const row of rows) {
     if (shouldStop()) return 'paused';
-    const previous = attempts.filter(a => a.metadata?.contact_row === row.index);
-    if (previous.length > 1) throw new Error(`แถว ${row.index + 1} มีหลายคำขอ กรุณาตรวจประวัติก่อนดำเนินการต่อ`);
+    const matches=attempts.filter(a=>a.metadata?.contact_row===row.index);
+    const latest=latestAttempt(attempts,row.index);
+    if(matches.length>1&&!matches.every(a=>a===latest||terminalCall(a.status)))throw new Error(`แถว ${row.index+1} มีคำขอที่ยังไม่จบ กรุณาตรวจประวัติก่อนดำเนินการต่อ`);
+    const previous=row.redialOf?[]:latest?[latest]:[];
+    if(row.redialOf&&(!latest||latest.id!==row.redialOf||!terminalCall(latest.status)))throw new Error(`ประวัติแถว ${row.index+1} เปลี่ยนแล้ว กรุณาเลือกและยืนยันใหม่`);
     let callId = previous[0]?.call_id;
     if (previous.length && !callId) throw new Error(`แถว ${row.index + 1} ยังยืนยันผลคำขอเดิมไม่ได้ หยุดคิวเพื่อป้องกันโทรซ้ำ`);
     if (!callId) {

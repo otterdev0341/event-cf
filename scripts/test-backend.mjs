@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { handleVoice } from '../server/voice.mjs';
 import { Readable } from 'node:stream';
 import { sealToken } from '../server/connection.mjs';
+import { campaignRequestId } from '../shared/campaign-queue.mjs';
 let passed=0, requests=[], options={};
 const userId='11111111-1111-4111-8111-111111111111';
 const env={VITE_SUPABASE_URL:'https://supabase.invalid',VITE_SUPABASE_PUBLISHABLE_KEY:'test-key',SUPABASE_SERVICE_ROLE_KEY:'fixture-role',VOICE_CONNECTION_ENCRYPTION_KEY:Buffer.alloc(32,7).toString('base64'),VOICE_BOT_ACCESS_TOKEN:'unused-global-token',VOICE_BOT_BASE_URL:'https://voice.invalid',VOICE_ALLOWED_USER_IDS:userId,VOICE_ACCESS_MODE:'allowlist'};
@@ -16,7 +17,7 @@ globalThis.fetch=async(input,init={})=>{
   if(url.pathname.endsWith('/rpc/reserve_voice_call')) return options.reserveError?Response.json({message:options.reserveError,code:'P0001'},{status:400}):Response.json(null);
   if(url.pathname.endsWith('/voice_campaigns')) return Response.json(options.noCampaign?null:{id:userId,data:options.campaign || {csv:{rows:[['Fixture']]}},updated_at:'version-1'});
   if(url.pathname.endsWith('/voice_call_requests')) {
-    if(init.method==='GET')return Response.json(options.foreignHistory?{id:userId}:null);
+    if(init.method==='GET')return Response.json(url.searchParams.has('metadata->>contact_row')?options.lastAttempt||null:options.foreignHistory?{id:userId}:null);
     return options.persistError?Response.json({message:'failed'},{status:500}):new Response(null,{status:204});
   }
  }
@@ -74,10 +75,14 @@ await test('Malformed JSON and null body return client errors',async()=>{assert.
 await test('Non-string phone and invalid UUID rejected before dial',async()=>{assert.equal((await invoke(callPath,{...payload(),destination:812345678})).status,400);assert.equal((await invoke(callPath,{...payload(),request_id:'-'.repeat(36)})).status,400);assert.equal(calls().length,0);});
 
 const csvCampaign=()=>({agentId:'agt_fixture',csv:{headers:['name','phone'],rows:[['CSV One','0812345678'],['CSV Two','0898765432']]},mapping:{phone:'phone'},variableBindings:{guest_name:{source:'csv',column:'name'},call_result:{source:'output'}}});
-const batchPayload=()=>({...payload(),metadata:{campaign_id:userId,contact_row:1,campaign_batch:true,campaign_version:'version-1',variables:{guest_name:'browser override'}}});
+const batchId=await campaignRequestId(userId,'version-1',1);
+const batchPayload=()=>({...payload(),request_id:batchId,metadata:{campaign_id:userId,contact_row:1,campaign_batch:true,campaign_version:'version-1',variables:{guest_name:'browser override'}}});
 await test('Batch derives destination and variables from owner CSV and omits classified outputs',async()=>{options.campaign=csvCampaign();options.prompt='{{guest_name}} {{call_result}}';const r=await invoke(callPath,batchPayload());assert.equal(r.status,200);const body=JSON.parse(calls()[0].init.body);assert.equal(body.destination,'0898765432');assert.equal(body.metadata.variables.guest_name,'CSV Two');assert.equal(body.metadata.variables.call_result,undefined);assert.equal(body.metadata.campaign_version,'version-1');});
 await test('Batch rejects stale campaign version before reserving or dialing',async()=>{options.campaign=csvCampaign();const p=batchPayload();p.metadata.campaign_version='old';assert.equal((await invoke(callPath,p)).status,409);assert.equal(calls().length,0);});
-await test('Batch rejects incomplete CSV even when browser provides replacement values',async()=>{options.campaign=csvCampaign();options.prompt='{{guest_name}} {{call_result}}';options.campaign.csv.rows[0][0]='';assert.equal((await invoke(callPath,batchPayload())).status,400);assert.equal(calls().length,0);});
+await test('Selected valid row can dial when an unselected row is incomplete',async()=>{options.campaign=csvCampaign();options.prompt='{{guest_name}} {{call_result}}';options.campaign.csv.rows[0][0]='';assert.equal((await invoke(callPath,batchPayload())).status,200);assert.equal(calls().length,1);});
+await test('Selected incomplete row cannot use browser replacement values',async()=>{options.campaign=csvCampaign();options.prompt='{{guest_name}} {{call_result}}';options.campaign.csv.rows[1][0]='';assert.equal((await invoke(callPath,batchPayload())).status,400);assert.equal(calls().length,0);});
+await test('Existing campaign row requires explicit terminal redial with stable request ID',async()=>{options.campaign=csvCampaign();options.prompt='{{guest_name}} {{call_result}}';options.lastAttempt={id:userId,status:'completed',call_id:'old'};let p=batchPayload();assert.equal((await invoke(callPath,p)).status,409);p.metadata.campaign_redial_of=userId;p.request_id=await campaignRequestId(userId,'version-1',1,userId);assert.equal((await invoke(callPath,p)).status,200);assert.equal(JSON.parse(calls()[0].init.body).metadata.campaign_redial_of,userId);});
+await test('Redial rejects active, unknown, changed and forged requests before dialing',async()=>{options.campaign=csvCampaign();options.prompt='{{guest_name}} {{call_result}}';let p=batchPayload();p.metadata.campaign_redial_of=userId;p.request_id=await campaignRequestId(userId,'version-1',1,userId);for(const last of [null,{id:'other',status:'completed',call_id:'old'},{id:userId,status:'ringing',call_id:'old'},{id:userId,status:'unknown',call_id:null}]){options.lastAttempt=last;assert.equal((await invoke(callPath,p)).status,409);}options.lastAttempt={id:userId,status:'completed',call_id:'old'};p.request_id=payload().request_id;assert.equal((await invoke(callPath,p)).status,400);assert.equal(calls().length,0);});
 await test('Batch requires campaign, row, matching Agent and owner access',async()=>{options.campaign=csvCampaign();for(const change of [{campaign_id:undefined},{contact_row:undefined},{contact_row:-1},{contact_row:20}]){const p=batchPayload();Object.assign(p.metadata,change);assert.equal((await invoke(callPath,p)).status,400);}options.campaign.agentId='other';assert.equal((await invoke(callPath,batchPayload())).status,400);options.noCampaign=true;assert.equal((await invoke(callPath,batchPayload())).status,403);assert.equal(calls().length,0);});
 await test('Batch refuses new prompt variables until CSV mapping is updated',async()=>{options.campaign=csvCampaign();options.prompt='{{guest_name}} {{new_input}} {{call_result}}';assert.equal((await invoke(callPath,batchPayload())).status,400);assert.equal(calls().length,0);});
 
