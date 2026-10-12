@@ -31,7 +31,7 @@ async function upstream(path,body,method='GET'){
 }
 async function invoke(method='POST',extra={}){
  let output;const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
- try{await handleAgentSetup({id,method,body:{confirm:true,expected_revision:setupRevision(agent),...extra.body},user:extra.user||user,env:{...env,...extra.env},upstream,fail,send:(status,data)=>{events.push({response:true});output={status,data};},deadline:AbortSignal.timeout(10000)});return output;}catch(e){return {status:e.status||502,data:{error:e.message}};}
+ try{await handleAgentSetup({id,method,body:{confirm:true,expected_revision:setupRevision(agent),...extra.body},user:extra.user||user,env:{...env,...extra.env},connection:extra.connection,upstream,fail,send:(status,data)=>{events.push({response:true});output={status,data};},deadline:AbortSignal.timeout(10000)});return output;}catch(e){return {status:e.status||502,data:{error:e.message}};}
 }
 const writes=()=>events.filter(x=>x.path&&x.method!=='GET');
 async function test(name,fn){reset();await fn();passed++;console.log('PASS '+name);}
@@ -52,4 +52,6 @@ await test('Tool creation timeout is never blindly retried and lock is released'
 await test('Malformed managed block fails before any external mutation',async()=>{agent.agent_data.system_instruction+='[VOICE_CONFIRM_RESULT_SETUP_V1]';assert.equal((await invoke()).status,409);assert.equal(writes().length,0);});
 await test('Write-only webhook credentials are never silently cleared',async()=>{agent.webhook={enabled:true,auth:{type:'bearer',has_api_key:true}};assert.equal((await invoke()).status,409);assert.equal(writes().length,0);});
 await test('Serverless response ends only after the setup lock is released',async()=>{assert.equal((await invoke()).status,200);const released=events.findIndex(x=>x.db?.endsWith('voice_agent_setup_locks')&&x.method==='DELETE');const sent=events.findIndex(x=>x.response);assert.ok(released>=0&&sent>released);});
+await test('A linked member configures only their own account with scoped audits and locks',async()=>{const member={...user,email:'member@example.invalid'};const connection={owner_id:member.id,account_id:'account_fixture'};const r=await invoke('POST',{user:member,connection});assert.equal(r.status,200);assert.equal(r.data.can_manage,true);assert.equal(r.data.connected,true);assert.equal(tools[0].name,'vc_result_v2_fixture');assert.ok(tools[0].description.includes('Voice Confirm account:account_fixture v2'));assert.equal(events.find(x=>x.db?.endsWith('/rpc/acquire_voice_agent_setup')).body.p_account_id,'account_fixture');assert.equal(events.find(x=>x.db?.endsWith('/voice_agent_setup_audits')&&x.method==='POST').body.account_id,'account_fixture');});
+await test('A connection owned by someone else never grants setup authority',async()=>{const r=await invoke('POST',{connection:{owner_id:'other_owner',account_id:'other_account'}});assert.equal(r.status,403);assert.equal(events.length,0);});
 console.log(`${passed} agent setup checks passed; all credentials, data and network responses are isolated fixtures.`);

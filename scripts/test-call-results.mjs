@@ -1,15 +1,17 @@
 import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {handleVoice} from '../server/voice.mjs';
+import {sealToken} from '../server/connection.mjs';
 import {providerOutcome,matchingLogPath,effectiveOutcome,resultsCsv} from '../shared/call-results.mjs';
 const id='22222222-2222-4222-8222-222222222222',owner='11111111-1111-4111-8111-111111111111';
-const env={VITE_SUPABASE_URL:'https://supabase.invalid',VITE_SUPABASE_PUBLISHABLE_KEY:'test',VOICE_BOT_ACCESS_TOKEN:'test-secret',VOICE_BOT_BASE_URL:'https://voice.invalid'};
+const env={VITE_SUPABASE_URL:'https://supabase.invalid',VITE_SUPABASE_PUBLISHABLE_KEY:'test',VOICE_CONNECTION_ENCRYPTION_KEY:Buffer.alloc(32,7).toString('base64'),SUPABASE_SERVICE_ROLE_KEY:'fixture-role',VOICE_BOT_BASE_URL:'https://voice.invalid'};
 let options,record,requests,patch,passed=0;
-const reset=()=>{options={};patch=null;requests=[];record={id,owner_id:owner,call_id:'oc_fixture',agent_id:'agt_fixture',status:'queued',response:{status:'queued'},destination:'0812345678',metadata:{campaign_id:'fixture',contact_row:0},created_at:'2026-10-11T00:00:00Z'};};
+const reset=()=>{options={};patch=null;requests=[];record={id,owner_id:owner,call_id:'oc_fixture',agent_id:'agt_fixture',status:'queued',response:{status:'queued'},destination:'0812345678',metadata:{campaign_id:'fixture',contact_row:0,voice_account_id:'tenant_fixture'},created_at:'2026-10-11T00:00:00Z'};};
 globalThis.fetch=async(input,init={})=>{
  const url=new URL(typeof input==='string'||input instanceof URL?input:input.url);requests.push({url,init});
  if(url.hostname==='supabase.invalid'){
   if(url.pathname==='/auth/v1/user')return Response.json({id:owner,email:'fixture@example.invalid',email_confirmed_at:'2026-01-01'});
+  if(url.pathname.endsWith('/voice_bot_connections'))return Response.json(options.noConnection?null:{owner_id:owner,account_id:'tenant_fixture',token_ciphertext:sealToken('test-secret',owner,env)});
   if(url.pathname.endsWith('/voice_call_requests')){
    assert.equal(url.searchParams.get('owner_id'),'eq.'+owner);
    if(init.method==='PATCH') {patch=JSON.parse(init.body);assert.equal(url.searchParams.get('response->callback->>received_at'),record.response?.callback?.received_at?'eq.'+record.response.callback.received_at:'is.null');assert.equal(url.searchParams.get('response->review->>updated_at'),record.response?.review?.updated_at?'eq.'+record.response.review.updated_at:'is.null');assert.equal(url.searchParams.get('response->followup->>checked_at'),record.response?.followup?.checked_at?'eq.'+record.response.followup.checked_at:'is.null');return Response.json(options.conflict?[]:[{id}]);}
@@ -37,7 +39,8 @@ await test('Refresh persists actual completed state and missing evidence explici
 await test('Exact linked transcript and structured outputs are retrieved',async()=>{options.files=['logs/oc_fixture.txt'];options.log={text:'user: yes',outputs:{call_result:'CONFIRMED',needs_agent:false}};const r=await invoke();assert.equal(r.data.response.followup.transcript,'user: yes');assert.equal(r.data.response.followup.outcome.call_result,'CONFIRMED');});
 await test('Log error does not lose completed status',async()=>{options.failLogs=true;const r=await invoke();assert.equal(r.status,200);assert.equal(patch.status,'completed');assert.equal(r.data.response.followup.log_state,'error');});
 await test('Wrong call ID and failed provider read never overwrite data',async()=>{options.wrongId=true;assert.equal((await invoke()).status,502);assert.equal(patch,null);options.wrongId=false;options.failStatus=true;assert.equal((await invoke()).status,502);assert.equal(patch,null);});
-await test('Unknown attempt without Call ID never redials',async()=>{record.call_id=null;const r=await invoke();assert.ok(r.data.warning);assert.equal(patch,null);assert.equal(requests.length,2);});
+await test('Unknown attempt without Call ID never redials',async()=>{record.call_id=null;const r=await invoke();assert.ok(r.data.warning);assert.equal(patch,null);assert.equal(requests.filter(r=>r.url.hostname==='voice.invalid').length,0);});
+await test('Changing or disconnecting Voice Bot retains recorded results without fetching other account calls',async()=>{record.metadata.voice_account_id='another_tenant';let r=await invoke();assert.equal(r.status,200);assert.ok(r.data.warning);assert.equal(patch,null);assert.equal(requests.filter(r=>r.url.hostname==='voice.invalid').length,0);options.noConnection=true;r=await invoke();assert.equal(r.status,200);assert.ok(r.data.warning);assert.equal((await invoke(review())).status,200);});
 await test('Manual review requires evidence and valid typed fields',async()=>{for(const body of [{...review(),evidence:''},{...review(),call_result:'success'},{...review(),needs_agent:'false'}])assert.equal((await invoke(body)).status,400);assert.equal(patch,null);});
 await test('Manual review preserves provider evidence and records owner and time',async()=>{record.response.followup={outcome:{call_result:'UNDETERMINED',needs_agent:null,source:'unavailable'},transcript:'real text'};const r=await invoke(review());assert.equal(r.status,200);assert.equal(patch.response.review.reviewed_by,owner);assert.equal(patch.response.followup.transcript,'real text');assert.equal(effectiveOutcome(patch.response).source,'manual');});
 await test('Stale or concurrent updates are visible conflicts',async()=>{record.response.review={updated_at:'new'};assert.equal((await invoke(review())).status,409);record.response={};options.conflict=true;assert.equal((await invoke()).status,409);});

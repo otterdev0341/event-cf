@@ -1,7 +1,7 @@
 import { outcomeLabels, providerOutcome, transcriptText, matchingLogPath } from '../shared/call-results.mjs';
 import { terminalCall } from '../shared/campaign-queue.mjs';
 
-export async function handleCallResult({id,method,body,db,upstream,user,fail,send}) {
+export async function handleCallResult({id,method,body,db,upstream,user,fail,send,accountId}) {
   const {data:record,error}=await db.from('voice_call_requests').select('id,owner_id,call_id,agent_id,status,response,destination,metadata,created_at').eq('id',id).eq('owner_id',user.id).maybeSingle();
   if(error || !record) fail(404,'ไม่พบคำขอโทรในบัญชีนี้');
   const original=record.response;
@@ -12,6 +12,9 @@ export async function handleCallResult({id,method,body,db,upstream,user,fail,sen
     if((body.expected_review_at ?? null)!==(response.review?.updated_at ?? null)) fail(409,'ผลถูกแก้ไขแล้ว กรุณารีเฟรชก่อนบันทึก');
     response.review={call_result:body.call_result,needs_agent:body.needs_agent,evidence:body.evidence.trim(),updated_at:new Date().toISOString(),reviewed_by:user.id,source:'manual'};
   } else {
+    if(accountId!==undefined && (!accountId || record.metadata?.voice_account_id!==accountId)) {
+      return send(200,{...record,warning:'แสดงผลที่บันทึกไว้ · ต้องเชื่อมบัญชี Voice Bot เดิมเพื่อตรวจข้อมูลใหม่'});
+    }
     if(!record.call_id) { send(200,{...record,warning:'ยังไม่มี Call ID จึงตรวจผลจากบริการไม่ได้'}); return; }
     const account=await upstream('/me');
     const call=await upstream(`/v1/provisioning/tenants/${encodeURIComponent(account._id)}/calls/${encodeURIComponent(record.call_id)}`);

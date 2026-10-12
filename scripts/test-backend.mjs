@@ -1,24 +1,32 @@
 import assert from 'node:assert/strict';
 import { handleVoice } from '../server/voice.mjs';
 import { Readable } from 'node:stream';
+import { sealToken } from '../server/connection.mjs';
 let passed=0, requests=[], options={};
 const userId='11111111-1111-4111-8111-111111111111';
-const env={VITE_SUPABASE_URL:'https://supabase.invalid',VITE_SUPABASE_PUBLISHABLE_KEY:'test-key',VOICE_BOT_ACCESS_TOKEN:'server-secret-fixture',VOICE_BOT_BASE_URL:'https://voice.invalid',VOICE_ALLOWED_USER_IDS:userId,VOICE_ACCESS_MODE:'allowlist'};
+const env={VITE_SUPABASE_URL:'https://supabase.invalid',VITE_SUPABASE_PUBLISHABLE_KEY:'test-key',SUPABASE_SERVICE_ROLE_KEY:'fixture-role',VOICE_CONNECTION_ENCRYPTION_KEY:Buffer.alloc(32,7).toString('base64'),VOICE_BOT_ACCESS_TOKEN:'unused-global-token',VOICE_BOT_BASE_URL:'https://voice.invalid',VOICE_ALLOWED_USER_IDS:userId,VOICE_ACCESS_MODE:'allowlist'};
+const connection=()=>({owner_id:userId,account_id:'tenant_fixture',token_ciphertext:sealToken('server-secret-fixture',userId,env),expires_at:options.expired?'2000-01-01T00:00:00Z':null,updated_at:'2026-01-01T00:00:00Z'});
+const receiverTool=()=>({name:'vc_result_v2_fixture',tool_id:'tool_fixture',description:'Voice Confirm account:tenant_fixture v2',status:'active',tool_type:'http',execution:{method:'POST',endpoint:'https://receiver.invalid/api/voice-result',auth:{type:'bearer',has_api_key:true},param_map:Object.fromEntries(['request_id','agent_id','call_result','needs_agent','evidence'].map(k=>[k,{in:'body',key:k}]))},parameters:{type:'object',required:['request_id','agent_id','call_result','needs_agent','evidence'],properties:{request_id:{type:'string'},agent_id:{type:'string',enum:['agt_fixture']},call_result:{type:'string',enum:['CONFIRMED','DECLINED','CALLBACK_REQUESTED','REQUEST_AGENT','WRONG_PERSON','UNDETERMINED']},needs_agent:{type:'boolean'},evidence:{type:'string'}}}});
 const payload=()=>({destination:'0812345678',agent_id:'agt_fixture',request_id:'22222222-2222-4222-8222-222222222222',consent:true,metadata:{variables:{guest_name:'Fixture'}}});
 globalThis.fetch=async(input,init={})=>{
  const url=new URL(typeof input==='string'||input instanceof URL?input:input.url); requests.push({url,init});
  if(url.hostname==='supabase.invalid') {
   if(url.pathname==='/auth/v1/user') return options.invalidSession?Response.json({message:'invalid'},{status:401}):Response.json({id:userId,email:'fixture@example.invalid',email_confirmed_at:options.unconfirmed?null:'2026-01-01'});
+  if(url.pathname.endsWith('/voice_bot_connections')){assert.equal(url.searchParams.get('owner_id'),'eq.'+userId);return Response.json(options.noConnection?null:connection());}
   if(url.pathname.endsWith('/rpc/reserve_voice_call')) return options.reserveError?Response.json({message:options.reserveError,code:'P0001'},{status:400}):Response.json(null);
   if(url.pathname.endsWith('/voice_campaigns')) return Response.json(options.noCampaign?null:{id:userId,data:options.campaign || {csv:{rows:[['Fixture']]}},updated_at:'version-1'});
-  if(url.pathname.endsWith('/voice_call_requests')) return options.persistError?Response.json({message:'failed'},{status:500}):new Response(null,{status:204});
+  if(url.pathname.endsWith('/voice_call_requests')) {
+    if(init.method==='GET')return Response.json(options.foreignHistory?{id:userId}:null);
+    return options.persistError?Response.json({message:'failed'},{status:500}):new Response(null,{status:204});
+  }
  }
  if(url.hostname==='voice.invalid') {
   assert.equal(new Headers(init.headers).get('Authorization'),'Bearer server-secret-fixture');
+  if(options.invalidVoiceToken)return Response.json({message:'invalid'},{status:401});
   if(url.pathname==='/me') return Response.json({_id:'tenant_fixture',username:'fixture',access_token:'hidden',password:'hidden'});
   if(url.pathname==='/agents') return Response.json([{agent_id:'agt_fixture',name:'Fixture'}]);
-  if(url.pathname==='/platform-config/tools') return Response.json([]);
-  if(url.pathname==='/agents/agt_fixture') return Response.json({agent_id:'agt_fixture',agent_data:{greeting_text:options.prompt || 'Hello {{guest_name}}',api_key:'hidden'}});
+  if(url.pathname==='/platform-config/tools') return Response.json(options.connectedReceiver?[receiverTool()]:[]);
+  if(url.pathname==='/agents/agt_fixture') return Response.json({agent_id:'agt_fixture',agent_data:{greeting_text:options.prompt || 'Hello {{guest_name}}',system_instruction:options.connectedReceiver?'Use {{vc_call_reference}} with vc_result_v2_fixture and agt_fixture':'',tools:options.connectedReceiver?[{tool_id:'tool_fixture',tools_name:'vc_result_v2_fixture'}]:[],api_key:'hidden'}});
   if(url.pathname.endsWith('/calls')&&init.method==='POST') {if(options.timeout) throw new Error('timeout');return Response.json({call_id:'oc_fixture',status:'queued'});}
   if(url.pathname.startsWith('/logs')) return Response.json({items:[]});
  }
@@ -34,7 +42,7 @@ async function invoke(path='/me',body,extra={}) {
 async function test(name,run){requests=[];options={};await run();passed++;console.log('PASS',name);}
 const callPath='/v1/provisioning/tenants/tenant_fixture/calls';
 const calls=()=>requests.filter(r=>r.url.hostname==='voice.invalid'&&r.init.method==='POST');
-await test('Missing configuration fails closed',async()=>assert.equal((await invoke('/me',undefined,{env:{VOICE_BOT_ACCESS_TOKEN:''}})).status,503));
+await test('Missing configuration fails closed',async()=>assert.equal((await invoke('/me',undefined,{env:{VOICE_CONNECTION_ENCRYPTION_KEY:''}})).status,503));
 await test('Unauthenticated request is rejected before upstream calls',async()=>{assert.equal((await invoke('/me',undefined,{headers:{authorization:''}})).status,401);assert.equal(requests.length,0);});
 await test('Invalid session is rejected',async()=>{options.invalidSession=true;assert.equal((await invoke()).status,401);});
 await test('Empty allowlists deny authenticated users',async()=>assert.equal((await invoke('/me',undefined,{env:{VOICE_ALLOWED_USER_IDS:''}})).status,403));
@@ -51,8 +59,8 @@ await test('Tenant mismatch is forbidden',async()=>assert.equal((await invoke('/
 await test('Agent mismatch is forbidden',async()=>assert.equal((await invoke('/agents/agt_other')).status,403));
 await test('Query tokens are rejected; log limit capped',async()=>{assert.equal((await invoke('/me?token=foo')).status,400);assert.equal((await invoke('/logs/call_logs_platform?limit=10000')).status,200);assert.equal(requests.at(-1).url.searchParams.get('limit'),'100');});
 await test('Secret fields nested inside Agent config are removed',async()=>{const r=await invoke('/agents/agt_fixture');assert.equal(r.status,200);assert.equal(r.data.agent_data.api_key,undefined);});
-await test('Agent setup status is safe for members and direct writes remain denied',async()=>{const r=await invoke('/workspace/agents/agt_fixture/result-setup');assert.equal(r.status,200);assert.equal(r.data.can_manage,false);assert.equal(r.data.connected,false);assert.ok(!JSON.stringify(r.data).includes('hidden'));for(const route of ['/platform-config/tools','/agent/create_update_agent'])assert.equal((await invoke(route,{})).status,405);});
-await test('Member setup POST and cross-site admin POST are rejected before Voice Bot changes',async()=>{const path='/workspace/agents/agt_fixture/result-setup';assert.equal((await invoke(path,{confirm:true,expected_revision:'0'.repeat(64)})).status,403);assert.equal((await invoke(path,{}, {env:{VOICE_ADMIN_USER_IDS:userId},headers:{'sec-fetch-site':'cross-site'}})).status,403);assert.equal(requests.filter(r=>r.url.hostname==='voice.invalid').length,0);});
+await test('Setup is available only for linked account; direct arbitrary writes remain denied',async()=>{const r=await invoke('/workspace/agents/agt_fixture/result-setup',undefined,{env:{VOICE_RESULT_CALLBACK_SECRET:'fixture-callback-secret-longer-than-32'}});assert.equal(r.status,200);assert.equal(r.data.can_manage,true);assert.equal(r.data.connected,false);assert.ok(!JSON.stringify(r.data).includes('hidden'));for(const route of ['/platform-config/tools','/agent/create_update_agent'])assert.equal((await invoke(route,{})).status,405);});
+await test('Unlinked setup and cross-site setup cannot change Voice Bot',async()=>{const path='/workspace/agents/agt_fixture/result-setup';options.noConnection=true;assert.equal((await invoke(path,{confirm:true,expected_revision:'0'.repeat(64)})).status,428);assert.equal((await invoke(path,{}, {headers:{'sec-fetch-site':'cross-site'}})).status,403);assert.equal(requests.filter(r=>r.url.hostname==='voice.invalid').length,0);});
 await test('Foreign Agent setup status is denied without reading its configuration',async()=>{assert.equal((await invoke('/workspace/agents/agt_other/result-setup')).status,403);assert.equal(requests.filter(r=>r.url.pathname==='/agents/agt_other').length,0);});
 await test('Missing consent prevents dial',async()=>{assert.equal((await invoke(callPath,{...payload(),consent:false})).status,400);assert.equal(calls().length,0);});
 await test('Invalid phone, missing variable and foreign agent prevent dial',async()=>{for(const p of [{...payload(),destination:'invalid'},{...payload(),metadata:{variables:{}}},{...payload(),agent_id:'other'}])assert.equal((await invoke(callPath,p)).status,400);assert.equal(calls().length,0);});
@@ -73,6 +81,9 @@ await test('Batch rejects incomplete CSV even when browser provides replacement 
 await test('Batch requires campaign, row, matching Agent and owner access',async()=>{options.campaign=csvCampaign();for(const change of [{campaign_id:undefined},{contact_row:undefined},{contact_row:-1},{contact_row:20}]){const p=batchPayload();Object.assign(p.metadata,change);assert.equal((await invoke(callPath,p)).status,400);}options.campaign.agentId='other';assert.equal((await invoke(callPath,batchPayload())).status,400);options.noCampaign=true;assert.equal((await invoke(callPath,batchPayload())).status,403);assert.equal(calls().length,0);});
 await test('Batch refuses new prompt variables until CSV mapping is updated',async()=>{options.campaign=csvCampaign();options.prompt='{{guest_name}} {{new_input}} {{call_result}}';assert.equal((await invoke(callPath,batchPayload())).status,400);assert.equal(calls().length,0);});
 
-await test('Callback correlation comes from server request ID, never client input',async()=>{options.prompt='{{guest_name}} {{vc_call_reference}}';const body=payload();body.metadata.variables.vc_call_reference='client-forged-reference';const r=await invoke(callPath,body,{env:{SUPABASE_SERVICE_ROLE_KEY:'fixture-role',VOICE_RESULT_CALLBACK_SECRET:'fixture-callback-secret-longer-than-32'}});assert.equal(r.status,200);const sent=JSON.parse(calls()[0].init.body);assert.equal(sent.metadata.variables.vc_call_reference,body.request_id);assert.equal(sent.metadata.result_callback,1);const reserved=JSON.parse(requests.find(r=>r.url.pathname.endsWith('/rpc/reserve_voice_call')).init.body);assert.equal(reserved.p_metadata.variables.vc_call_reference,body.request_id);});
+await test('Callback correlation and account come from server, never client input',async()=>{options.prompt='{{guest_name}} {{vc_call_reference}}';options.connectedReceiver=true;const body=payload();body.metadata.variables.vc_call_reference='client-forged-reference';body.metadata.voice_account_id='forged';const r=await invoke(callPath,body,{env:{VOICE_RESULT_CALLBACK_URL:'https://receiver.invalid/api/voice-result',VOICE_RESULT_CALLBACK_SECRET:'fixture-callback-secret-longer-than-32'}});assert.equal(r.status,200);const sent=JSON.parse(calls()[0].init.body);assert.equal(sent.metadata.variables.vc_call_reference,body.request_id);assert.equal(sent.metadata.result_callback,1);assert.equal(sent.metadata.voice_account_id,'tenant_fixture');assert.equal(sent.metadata.callback_auth,'account_v2');const reserved=JSON.parse(requests.find(r=>r.url.pathname.endsWith('/rpc/reserve_voice_call')).init.body);assert.equal(reserved.p_metadata.variables.vc_call_reference,body.request_id);});
+await test('Missing and expired personal connections never fall back to the global token',async()=>{options.noConnection=true;assert.equal((await invoke()).status,428);assert.equal(requests.filter(r=>r.url.hostname==='voice.invalid').length,0);options.noConnection=false;options.expired=true;assert.equal((await invoke()).status,428);});
+await test('Revoked Voice Bot token prompts reconnect without exposing upstream errors',async()=>{options.invalidVoiceToken=true;const r=await invoke('/agents');assert.equal(r.status,428);assert.ok(r.data.error.includes('Session JWT'));});
+await test('Foreign account campaign history prevents additional dial',async()=>{options.campaign=csvCampaign();options.foreignHistory=true;assert.equal((await invoke(callPath,batchPayload())).status,409);assert.equal(calls().length,0);options.foreignHistory=false;options.campaign.voiceAccountId='other';assert.equal((await invoke(callPath,batchPayload())).status,409);});
 await test('Agent requiring callback cannot dial with an unconfigured receiver',async()=>{options.prompt='{{guest_name}} {{vc_call_reference}}';assert.equal((await invoke(callPath,payload())).status,503);assert.equal(calls().length,0);assert.equal(requests.filter(r=>r.url.pathname.endsWith('/rpc/reserve_voice_call')).length,0);});
 console.log(`\n${passed} backend checks passed; every network response was isolated inside this process.`);

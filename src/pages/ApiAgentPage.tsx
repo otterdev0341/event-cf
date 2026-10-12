@@ -6,6 +6,7 @@ import { AgentResultSetup } from '../components/AgentResultSetup';
 import { useAgents, useAgentDetail } from '../hooks/useBotnoiData';
 import { getDraft, saveDraft, mappingForAgent } from '../lib/campaigns';
 import { routes } from '../routes';
+import { botnoiApi } from '../services/botnoi';
 export function ApiAgentPage() {
   const [draft] = useState(getDraft);
   const [agentId, setAgentId] = useState(draft?.agentId ?? '');
@@ -21,7 +22,9 @@ export function ApiAgentPage() {
     setSaving(true); setMessage('');
     try {
       const variables = Object.fromEntries(Object.entries(draft.variables || {}).filter(([key]) => detail.variables.includes(key)));
-      await saveDraft({ ...draft, agentId, variables, variableBindings: draft.agentId !== agentId ? {} : Object.fromEntries(Object.entries(draft.variableBindings || {}).filter(([key]) => detail.variables.includes(key))), mapping: mappingForAgent(draft.csv, draft.mapping, detail.variables, draft.agentId !== agentId) });
+      const account=await botnoiApi.getAccount();
+      const changed=draft.agentId!==agentId || Boolean(draft.voiceAccountId && draft.voiceAccountId!==account._id);
+      await saveDraft({ ...draft, voiceAccountId:account._id, agentId, variables, variableBindings: changed ? {} : Object.fromEntries(Object.entries(draft.variableBindings || {}).filter(([key]) => detail.variables.includes(key))), mapping: mappingForAgent(draft.csv, draft.mapping, detail.variables, changed) });
       window.location.assign(routes.dataMapping);
     } catch (err) { setMessage((err as Error).message); } finally { setSaving(false); }
   }

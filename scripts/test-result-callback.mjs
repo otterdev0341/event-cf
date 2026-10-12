@@ -3,6 +3,7 @@ import { Readable } from 'node:stream';
 import { handleResultCallback } from '../server/callback.mjs';
 import { effectiveOutcome } from '../shared/call-results.mjs';
 import { promptVariables } from '../shared/campaign-inputs.mjs';
+import {accountCallbackSecret} from '../server/connection.mjs';
 const id='22222222-2222-4222-8222-222222222222', owner='11111111-1111-4111-8111-111111111111';
 const env={SUPABASE_URL:'https://callback-db.invalid',SUPABASE_SERVICE_ROLE_KEY:'fixture-service-role',VOICE_RESULT_CALLBACK_SECRET:'fixture-secret-32-characters-long-enough'};
 let record, options, requests, patches, passed=0;
@@ -53,4 +54,5 @@ await test('Concurrent update returns conflict without success',async()=>{option
 await test('Database errors are retriable and do not expose details',async()=>{options.readError=true;let r=await invoke();assert.equal(r.status,503);assert.ok(!JSON.stringify(r).includes('private db'));options.readError=false;options.writeError=true;assert.equal((await invoke()).status,503);});
 await test('Agent callback takes priority over stale polled outputs but manual review wins',()=>{const callback={outcome:{call_result:'CONFIRMED',needs_agent:false,source:'agent_tool'}};assert.equal(effectiveOutcome({callback,followup:{outcome:{call_result:'UNDETERMINED',source:'unavailable'}}}).call_result,'CONFIRMED');assert.equal(effectiveOutcome({callback,review:{call_result:'DECLINED'}}).call_result,'DECLINED');});
 await test('Reserved callback reference is never requested from a CSV column',()=>assert.deepEqual(promptVariables({agent_data:{system_instruction:'{{applicant_name}} {{vc_call_reference}} {{call_result}}'}}),['applicant_name','call_result']));
+await test('Account callback keys differ and only the matching account may report results',async()=>{record.metadata.voice_account_id='tenant_A';record.metadata.callback_auth='account_v2';const auth=token=>({req:{headers:{authorization:'Bearer '+token,'content-type':'application/json'}}});assert.notEqual(accountCallbackSecret('tenant_A',env),accountCallbackSecret('tenant_B',env));assert.equal((await invoke(payload(),auth(env.VOICE_RESULT_CALLBACK_SECRET))).status,401);assert.equal((await invoke(payload(),auth(accountCallbackSecret('tenant_B',env)))).status,401);assert.equal(patches.length,0);assert.equal((await invoke(payload(),auth(accountCallbackSecret('tenant_A',env)))).status,200);});
 console.log(`${passed} callback checks passed; all data and network calls are isolated fixtures.`);

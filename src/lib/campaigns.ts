@@ -7,6 +7,7 @@ export interface CampaignDraft {
   callingWindow: string; callingDays: string[]; allowedStartTime: string; allowedEndTime: string;
   fileName: string; csv: CsvData; mapping: Record<string, string>; agentId: string;
   variables?: Record<string, string>;
+  voiceAccountId?: string;
   variableBindings?: Record<string, VariableBinding>;
   updatedAt: string;
 }

@@ -486,3 +486,13 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
 .agent-result-setup__review label { display: flex; gap: 10px; align-items: flex-start; line-height: 1.6; }
 .agent-result-setup input[type=checkbox] { margin-top: 5px; accent-color: #7150d9; }
 @media (max-width: 600px) { .agent-result-setup { padding: 18px; } .agent-result-setup__heading { flex-direction: column; gap: 4px; } }
+.voice-connection__heading { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
+.voice-connection__heading h2 { margin:6px 0 8px; }.voice-connection__heading p { margin:0; color:var(--color-body); }
+.voice-connection__status { flex-shrink:0; padding:6px 12px; border-radius:100px; background:#f2edff; color:#7150d9; font-size:13px; }.voice-connection__status.is-connected { background:#e4f8f1; color:#087f5b; }
+.voice-connection__identity { margin:24px 0; padding:18px 22px; background:#faf9fe; border-left:3px solid var(--color-primary); border-radius:8px; }
+.voice-connection__form { margin-top:24px; }.voice-connection__steps { padding-left:22px; line-height:1.9; color:var(--color-body); }
+.voice-connection__form > label { display:block; margin:22px 0 8px; font-size:14px; }
+.voice-connection__token { width:100%; min-height:48px; border:1px solid var(--color-border-light); border-radius:9px; padding:12px 14px; font:inherit; background:#fafaff; }.voice-connection__token:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
+.voice-connection__review { margin-top:24px; padding:22px; border:1px solid #d9cefa; border-radius:12px; background:#faf8ff; }.voice-connection__review > label { display:flex; gap:10px; align-items:flex-start; margin:20px 0; line-height:1.7; }.voice-connection__review input[type=checkbox] { margin-top:5px; accent-color:var(--color-primary); }
+.voice-connection code { overflow-wrap:anywhere; }
+@media(max-width:640px) { .voice-connection__heading { flex-direction:column; gap:12px; }.voice-connection__review,.voice-connection__identity { padding:16px; } }

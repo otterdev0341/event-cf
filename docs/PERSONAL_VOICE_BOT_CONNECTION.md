@@ -1,0 +1,13 @@
+# Personal Voice Bot accounts
+
+Users connect their own Voice Bot Session JWT at `/settings`. The verify action calls the configured Voice Bot `/me`; saving rechecks the identity and requires the reviewed account ID plus the current connection revision. JWT claims alone never authorize an account. Expiry claims are used only to reject expired tokens and display renewal guidance; revoked tokens are rejected by the provider.
+
+Credentials are stored in `voice_bot_connections` using AES-256-GCM, randomized nonces and authenticated owner-specific additional data. Set `VOICE_CONNECTION_ENCRYPTION_KEY` to a Base64-encoded 32-byte random key on the server. Back up this key securely; changing it requires reconnecting stored accounts unless credentials are re-encrypted first. Never prefix it with `VITE_`. Browser/anonymous database roles cannot read or write this table. The authenticated API checks the website owner on every request and returns only connection metadata.
+
+Install migration `202610120002_voice_connections.sql` after the existing workspace and Agent setup migrations. The Voice Bot token in server environment variables is no longer used for application requests. There is no shared-token fallback for unlinked users. Each linked user can configure Tools only inside the account authorized by their own token; the global admin allowlists no longer grant cross-account access.
+
+New calls record their provider account ID. Existing recorded results remain visible after disconnecting or switching account, while refreshing provider data and continuing an existing campaign require the original account. Agent IDs alone do not prove ownership. New campaign drafts also record the selected account ID. Backfill legacy call account metadata only from a verified, known original shared account; do not infer account ownership from names or timestamps.
+
+New Agent result Tools use account-specific HMAC-derived callback credentials, with account-scoped setup locks and audit records. The root callback key is never shared with new Tools. Legacy callbacks remain valid only for legacy call records. A reserved callback prompt with an old Tool must be reconnected once before new calls, to avoid routing results with legacy credentials. Setup preserves the existing Agent configuration and original Tools. Shared users of the same provider account share its Agent changes, as expected.
+
+Tokens are never returned after save, placed in URLs, logged, stored in browser storage, or included in Git. Disconnect deletes only the selected user's stored credential. Campaigns, call records and existing callback results remain intact. Connection verification does not place phone calls.

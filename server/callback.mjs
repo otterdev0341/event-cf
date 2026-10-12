@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { outcomeLabels } from '../shared/call-results.mjs';
+import { accountCallbackSecret } from './connection.mjs';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const digest = value => createHash('sha256').update(value).digest();
@@ -19,10 +20,12 @@ export async function handleResultCallback(req, res, env = process.env) {
     if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return send(405, { error: 'POST required' }); }
     if (!callbackConfigured(env)) return send(503, { error: 'Result receiver is not configured' });
     const authorization = req.headers.authorization;
-    if (typeof authorization !== 'string' || authorization.length > 4096 || !authorization.startsWith('Bearer ') ||
-      !timingSafeEqual(digest(authorization.slice(7)), digest(env.VOICE_RESULT_CALLBACK_SECRET))) {
+    if (typeof authorization !== 'string' || authorization.length > 4096 || !authorization.startsWith('Bearer ')) {
       return send(401, { error: 'Invalid callback credentials' });
     }
+    const supplied=authorization.slice(7);
+    const legacyAuth=timingSafeEqual(digest(supplied),digest(env.VOICE_RESULT_CALLBACK_SECRET));
+    if(!legacyAuth && !/^[a-zA-Z0-9_-]{43}$/.test(supplied))return send(401,{error:'Invalid callback credentials'});
     if (!/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) return send(415, { error: 'JSON required' });
     let raw = '';
     if (req.body !== undefined) raw = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
@@ -53,6 +56,10 @@ export async function handleResultCallback(req, res, env = process.env) {
     const { data: record, error } = await db.from('voice_call_requests')
       .select('id,owner_id,agent_id,call_id,metadata,response,status').eq('id', body.request_id).maybeSingle();
     if (error) return send(503, { error: 'Storage unavailable; retry later' });
+    const scoped=record?.metadata?.callback_auth==='account_v2';
+    let authorized=legacyAuth&&!scoped;
+    if(scoped&&record.metadata.voice_account_id)authorized=timingSafeEqual(digest(supplied),digest(accountCallbackSecret(record.metadata.voice_account_id,env)));
+    if(!authorized)return send(401,{error:'Invalid callback credentials'});
     if (!record || record.agent_id !== body.agent_id || record.metadata?.result_callback !== 1 ||
       record.metadata?.variables?.vc_call_reference !== record.id) return send(404, { error: 'Unknown callback reference' });
     // Initial call persistence owns response until call_id is saved. Retry rather than race it.

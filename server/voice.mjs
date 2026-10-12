@@ -1,7 +1,8 @@
 import { prepareCampaignRows, promptVariables } from '../shared/campaign-inputs.mjs';
 import { handleCallResult } from './results.mjs';
 import { callbackConfigured } from './callback.mjs';
-import { handleAgentSetup } from './agent-setup.mjs';
+import { handleAgentSetup, connectedTool } from './agent-setup.mjs';
+import { connectionStore, loadConnection, handleConnection, accountCallbackSecret } from './connection.mjs';
 import { createClient } from '@supabase/supabase-js';
 
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
@@ -30,7 +31,7 @@ export async function handleVoice(req, res, env = process.env) {
     const deadline = AbortSignal.timeout(45000);
     const sbUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
     const sbKey = env.SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    if (!sbUrl || !sbKey || !env.VOICE_BOT_ACCESS_TOKEN) fail(503, 'ผู้ดูแลยังตั้งค่าการเชื่อมต่อเซิร์ฟเวอร์ไม่ครบ');
+    if (!sbUrl || !sbKey) fail(503, 'ผู้ดูแลยังตั้งค่าการเชื่อมต่อเซิร์ฟเวอร์ไม่ครบ');
     const bearer = req.headers.authorization;
     if (typeof bearer !== 'string' || !/^Bearer [^\s]+$/.test(bearer)) fail(401, 'กรุณาเข้าสู่ระบบ');
     const db = createClient(sbUrl, sbKey, { global: { headers: { Authorization: bearer }, fetch: (url, init) => fetch(url, { ...init, signal: AbortSignal.any([deadline, AbortSignal.timeout(10000)]) }) }, auth: { persistSession: false, autoRefreshToken: false } });
@@ -62,30 +63,43 @@ export async function handleVoice(req, res, env = process.env) {
     const isResult = Boolean(resultRoute && ['GET','POST'].includes(method));
     const setupRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/result-setup$/);
     const isSetup = Boolean(setupRoute && ['GET','POST'].includes(method));
+    const isConnection = path === '/workspace/connection' && ['GET','POST'].includes(method);
     const isCall = method === 'POST' && tenantRoute?.[2] === '/calls';
-    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
+    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
     const queryKeys = new Set(['agent_id', 'limit', 'start_at', 'end_at', 'timezone', 'granularity', 'include', 'month']);
     for (const [key, value] of target.searchParams) if (!queryKeys.has(key) || value.length > 200) fail(400, 'พารามิเตอร์ไม่ถูกต้อง');
     if (target.searchParams.has('limit')) target.searchParams.set('limit', String(Math.min(100, Math.max(1, Number(target.searchParams.get('limit')) || 50))));
     const base = new URL(env.VOICE_BOT_BASE_URL || 'https://api-voicebot-stg.botnoigroup.com');
     if (base.protocol !== 'https:' || base.username || base.password) fail(503, 'การตั้งค่าบริการไม่ถูกต้อง');
+    let store;
+    try { store = connectionStore(env,deadline); } catch { fail(503,'ผู้ดูแลยังตั้งค่าระบบเชื่อมบัญชีไม่ครบ'); }
+    const connection = await loadConnection(store,user,env,fail);
+    if(isConnection) return await handleConnection({method,body:method==='POST'?await bodyOf(req):undefined,user,env,db:store,connection,deadline,fail,send});
+    // Saved evidence and manual review remain available even when a token expires or an account changes.
+    if(isResult && method==='POST')return await handleCallResult({id:resultRoute[1],method,body:await bodyOf(req),db,user,fail,send});
+    if(isResult && (!connection || connection.expires_at && Date.parse(connection.expires_at)<=Date.now())) {
+      return await handleCallResult({id:resultRoute[1],method,db,user,fail,send,accountId:null});
+    }
+    if(!connection)fail(428,'ยังไม่ได้เชื่อมบัญชี Voice Bot ไปที่ตั้งค่าแล้วใส่ Session JWT ของคุณ');
+    if(connection.expires_at && Date.parse(connection.expires_at)<=Date.now())fail(428,'Session JWT ของ Voice Bot หมดอายุ ไปที่ตั้งค่าเพื่อเชื่อมใหม่');
     const upstream = async (route, body, requestMethod) => {
       const response = await fetch(new URL(route, base), { method: requestMethod || (body ? 'POST' : 'GET'), redirect: 'error', signal: AbortSignal.any([deadline, AbortSignal.timeout(20000)]),
-        headers: { Authorization: `Bearer ${env.VOICE_BOT_ACCESS_TOKEN}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+        headers: { Authorization: `Bearer ${connection.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+      if([401,403].includes(response.status))fail(428,'Voice Bot ไม่รับสิทธิ์ของ Token นี้ ไปที่ตั้งค่าเพื่อเชื่อม Session JWT ใหม่');
       if (!response.ok) fail(response.status === 429 ? 429 : 502, `บริการ Voice Bot ตอบกลับ HTTP ${response.status}`);
       return response.json();
     };
     if (isSetup) {
-      await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env,upstream,fail,send,deadline});
+      await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env:{...env,...(env.VOICE_RESULT_CALLBACK_SECRET?.length>=32?{VOICE_RESULT_CALLBACK_SECRET:accountCallbackSecret(connection.account_id,env)}:{})},connection,upstream,fail,send,deadline});
       return;
     }
     if (isResult) {
-      await handleCallResult({id:resultRoute[1],method,body:method==='POST'?await bodyOf(req):undefined,db,upstream,user,fail,send});
+      await handleCallResult({id:resultRoute[1],method,db,upstream,user,fail,send,accountId:connection.account_id});
       return;
     }
     if (tenantRoute) {
       const account = await upstream('/me');
-      if (tenantRoute[1] !== account._id) fail(403, 'ไม่มีสิทธิ์เข้าถึงบัญชีนี้');
+      if (account._id !== connection.account_id || tenantRoute[1] !== account._id) fail(403, 'ไม่มีสิทธิ์เข้าถึงบัญชีนี้');
     }
     if (agentRoute || isCall || target.searchParams.has('agent_id')) {
       // Membership in the upstream account is checked again on the server.
@@ -104,11 +118,19 @@ export async function handleVoice(req, res, env = process.env) {
         const required = promptVariables(detail);
         const usesCallback = /\{\{vc_call_reference\}\}/.test(String(detail?.agent_data?.system_instruction || '') + String(detail?.agent_data?.greeting_text || ''));
         if (usesCallback && !callbackConfigured(env)) fail(503, 'Agent นี้ต้องใช้ระบบรับผล ผู้ดูแลต้องตั้งค่าเซิร์ฟเวอร์รับผลก่อนโทร');
-        const metadata = { variables };
+        if(usesCallback) {
+          const tools=await upstream('/platform-config/tools');
+          if(!connectedTool(detail,tools,env.VOICE_RESULT_CALLBACK_URL,connection.account_id))fail(409,'บอทยังไม่ได้เชื่อมระบบรับผลของบัญชีนี้ ไปหน้า Agent แล้วกดเชื่อมระบบรับผลก่อนโทร');
+        }
+        const metadata = { variables, voice_account_id:connection.account_id };
         if (body.metadata?.campaign_id) {
           const { data: campaign, error } = await db.from('voice_campaigns').select('id,data,updated_at').eq('id', body.metadata.campaign_id).maybeSingle();
           if (error || !campaign) fail(403, 'ไม่พบแคมเปญของคุณ');
           metadata.campaign_id = campaign.id;
+          if(campaign.data?.voiceAccountId && campaign.data.voiceAccountId!==connection.account_id)fail(409,'แคมเปญนี้ใช้บัญชี Voice Bot อีกบัญชี กรุณาเชื่อมบัญชีเดิมหรือสร้างแคมเปญใหม่');
+          const {data:foreignAttempt,error:historyError}=await db.from('voice_call_requests').select('id').eq('metadata->>campaign_id',campaign.id).or(`metadata->>voice_account_id.is.null,metadata->>voice_account_id.neq.${connection.account_id}`).limit(1).maybeSingle();
+          if(historyError)fail(503,'ยังตรวจบัญชีของคำขอเดิมไม่ได้');
+          if(foreignAttempt)fail(409,'แคมเปญนี้มีคำขอของบัญชี Voice Bot อื่นหรือประวัติที่ยังไม่ผูกบัญชี กรุณาเชื่อมบัญชีเดิมหรือติดต่อผู้ดูแล');
           if (body.metadata.campaign_batch === true) {
             if (body.metadata.campaign_version !== campaign.updated_at) fail(409, 'แคมเปญถูกแก้ไขแล้ว กรุณาโหลดใหม่ก่อนเริ่มคิว');
             if (body.agent_id !== campaign.data?.agentId) fail(400, 'Agent ไม่ตรงกับแคมเปญ');
@@ -135,6 +157,7 @@ export async function handleVoice(req, res, env = process.env) {
         if (usesCallback) {
           metadata.variables = { ...variables, vc_call_reference: body.request_id.toLowerCase() };
           metadata.result_callback = 1;
+          metadata.callback_auth = 'account_v2';
         }
         // A durable reservation prevents a retry with the same ID from dialing twice.
         const { error: reserveError } = await db.rpc('reserve_voice_call', { p_id: body.request_id, p_destination: body.destination, p_agent_id: body.agent_id, p_metadata: metadata });
@@ -152,11 +175,13 @@ export async function handleVoice(req, res, env = process.env) {
     }
     let ownedCall;
     if (method === 'GET' && tenantRoute?.[3]) {
-      const {data,error}=await db.from('voice_call_requests').select('id').eq('call_id',tenantRoute[3]).eq('owner_id',user.id).maybeSingle();
+      const {data,error}=await db.from('voice_call_requests').select('id,metadata').eq('call_id',tenantRoute[3]).eq('owner_id',user.id).maybeSingle();
       if(error || !data) fail(404,'ไม่พบคำขอโทรในบัญชีนี้');
+      if(data.metadata?.voice_account_id!==connection.account_id)fail(403,'สายนี้ใช้บัญชี Voice Bot อีกบัญชี กรุณาเชื่อมบัญชีเดิม');
       ownedCall=data;
     }
     const result = await upstream(target.pathname + target.search);
+    if(path==='/me' && result._id!==connection.account_id)fail(403,'บัญชี Voice Bot เปลี่ยนแล้ว กรุณาเชื่อมใหม่');
     if(ownedCall && typeof result.status==='string') {
       if(result.call_id!==tenantRoute[3]) fail(502,'Call ID จากบริการไม่ตรงกับคำขอ');
       const {error}=await db.from('voice_call_requests').update({status:result.status}).eq('id',ownedCall.id).eq('owner_id',user.id);
