@@ -30,10 +30,9 @@
       ]
     },
     "needs_agent": {
-      "type": [
-        "boolean",
-        "null"
-      ]
+      "type": "boolean",
+      "nullable": true,
+      "description": "JSON true or false; null only if unknown. Do not send quoted strings."
     },
     "evidence": {
       "type": "string",

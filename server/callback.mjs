@@ -31,11 +31,20 @@ export async function handleResultCallback(req, res, env = process.env) {
     let body;
     try { body = JSON.parse(raw); } catch { return send(400, { error: 'Invalid JSON' }); }
     const allowed = ['request_id', 'agent_id', 'call_result', 'needs_agent', 'evidence'];
-    if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => !allowed.includes(k)) ||
-      typeof body.request_id !== 'string' || !uuid.test(body.request_id) || typeof body.agent_id !== 'string' || !/^agt_[a-zA-Z0-9_-]+$/.test(body.agent_id) ||
-      typeof body.call_result !== 'string' || !Object.hasOwn(outcomeLabels, body.call_result) || ![true, false, null].includes(body.needs_agent) ||
-      typeof body.evidence !== 'string' || !body.evidence.trim() || body.evidence.length > 2000) {
-      return send(400, { error: 'Invalid result fields; explicit outcome, boolean/null needs_agent and evidence required' });
+    const objectBody = body && typeof body === 'object' && !Array.isArray(body);
+    const invalid = !objectBody ? ['body'] : [
+      Object.keys(body).some(k => !allowed.includes(k)) && 'unexpected_fields',
+      (typeof body.request_id !== 'string' || !uuid.test(body.request_id)) && 'request_id',
+      (typeof body.agent_id !== 'string' || !/^agt_[a-zA-Z0-9_-]+$/.test(body.agent_id)) && 'agent_id',
+      (typeof body.call_result !== 'string' || !Object.hasOwn(outcomeLabels, body.call_result)) && 'call_result',
+      ![true, false, null].includes(body.needs_agent) && 'needs_agent',
+      (typeof body.evidence !== 'string' || !body.evidence.trim() || body.evidence.length > 2000) && 'evidence'
+    ].filter(Boolean);
+    if (invalid.length) {
+      // Only fixed field names and primitive types: never log secrets, IDs or conversation content.
+      const fieldTypes = Object.fromEntries(allowed.map(key => [key, !objectBody || !Object.hasOwn(body, key) ? 'missing' : body[key] === null ? 'null' : Array.isArray(body[key]) ? 'array' : typeof body[key]]));
+      console.warn('voice_result_invalid_fields', JSON.stringify({ fields: invalid, fieldTypes }));
+      return send(400, { error: 'Invalid result fields; send a flat JSON object with typed values', fields: invalid, expected: { request_id: 'UUID vc_call_reference', agent_id: 'configured agt_ ID', call_result: Object.keys(outcomeLabels), needs_agent: 'JSON true, false or null (not quoted strings)', evidence: 'nonempty string, at most 2000 characters' } });
     }
     const db = createClient(env.SUPABASE_URL || env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
