@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { botnoiApi } from "../services/botnoi";
 import { promptVariables } from "../../shared/campaign-inputs.mjs";
+import { getCallUsage } from '../services/botnoi/usage';
 
 function useRemote<T>(key: string, request: () => Promise<T>, enabled = true) {
   const requestRef = useRef(request);
@@ -79,4 +80,15 @@ export function usePlatformTools() {
     return tools;
   });
   return { ...result, tools: result.data ?? [] };
+}
+
+export function useCallUsage(period: '7-days' | 'month', source: 'all' | 'outbound' | 'inbound') {
+  const result = useRemote(`call-usage:${period}:${source}`, () => {
+    const end = new Date();
+    const parts = new Intl.DateTimeFormat('en', { timeZone: 'Asia/Bangkok', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(end);
+    const part = (type: string) => Number(parts.find(item => item.type === type)?.value);
+    const start = new Date(Date.UTC(part('year'), part('month') - 1, period === 'month' ? 1 : part('day') - 6) - 7 * 3600000);
+    return getCallUsage(start.toISOString(), end.toISOString(), source);
+  });
+  return { ...result, report: result.data };
 }
