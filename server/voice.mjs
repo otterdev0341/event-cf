@@ -133,6 +133,12 @@ export async function handleVoice(req, res, env = process.env) {
         if (!variables || Array.isArray(variables) || typeof variables !== 'object' || Object.keys(variables).length > 50 || Object.entries(variables).some(([k,v]) => !/^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(k) || ['__proto__','constructor','prototype'].includes(k) || typeof v !== 'string' || v.length > 2000)) fail(400, 'ข้อมูลตัวแปรไม่ถูกต้อง');
         const detail = await upstream(`/agents/${body.agent_id}`);
         const required = promptVariables(detail);
+        const previewTest = body.metadata?.preview_test === true;
+        const outputs = previewTest ? body.metadata.output_variables : [];
+        if (previewTest && (body.metadata.campaign_id || body.metadata.campaign_batch || !Array.isArray(outputs) || outputs.length > 50
+          || outputs.some(key => typeof key !== 'string' || !required.includes(key)) || new Set(outputs).size !== outputs.length)) {
+          fail(400, 'กรุณาดึงตัวแปรล่าสุดและตรวจข้อมูลสำหรับโทรทดสอบอีกครั้ง');
+        }
         const usesCallback = /\{\{vc_call_reference\}\}/.test(String(detail?.agent_data?.system_instruction || '') + String(detail?.agent_data?.greeting_text || ''));
         if (usesCallback && !callbackConfigured(env)) fail(503, 'Agent นี้ต้องใช้ระบบรับผล ผู้ดูแลต้องตั้งค่าเซิร์ฟเวอร์รับผลก่อนโทร');
         let recordingConnected=false;
@@ -142,6 +148,7 @@ export async function handleVoice(req, res, env = process.env) {
           if(!connectedTool(detail,tools,env.VOICE_RESULT_CALLBACK_URL,connection.account_id)&&!recordingConnected)fail(409,'บอทยังไม่ได้เชื่อมระบบรับผลของบัญชีนี้ กรุณาเชื่อมในขั้นตอนเลือก Agent ก่อนโทร');
         }
         const metadata = { variables, voice_account_id:connection.account_id };
+        if (previewTest) { metadata.preview_test = true; metadata.output_variables = outputs; }
         if (body.metadata?.campaign_id) {
           const { data: campaign, error } = await db.from('voice_campaigns').select('id,data,updated_at').eq('id', body.metadata.campaign_id).maybeSingle();
           if (error || !campaign) fail(403, 'ไม่พบแคมเปญของคุณ');
@@ -182,7 +189,8 @@ export async function handleVoice(req, res, env = process.env) {
           }
         }
         if (body.metadata?.campaign_batch === true && !metadata.campaign_id) fail(400, 'ต้องระบุแคมเปญ');
-        if (body.metadata?.campaign_batch !== true && required.some(key => typeof variables[key] !== 'string' || !variables[key].trim())) fail(400, 'กรุณาเติมตัวแปรใน Prompt ให้ครบก่อนโทร');
+        if (body.metadata?.campaign_batch !== true && required.some(key => !outputs.includes(key) && (typeof variables[key] !== 'string' || !variables[key].trim()))) fail(400, 'กรุณาเติมตัวแปรใน Prompt ให้ครบก่อนโทร');
+        if (previewTest) for (const key of outputs) delete variables[key];
         // Reserved correlation comes from this request, never CSV/browser data.
         delete variables.vc_call_reference;
         delete variables.vc_record_conversation;

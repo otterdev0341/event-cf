@@ -32,7 +32,7 @@ export function AgentResultSetup({ agentId, onConnected, onBusy }: { agentId: st
     finally { setBusy(false); onBusy?.(false); }
   }
   return <section className={`agent-result-setup${status?.connected ? ' agent-result-setup--connected' : ''}`} aria-label="ระบบรับผลตอบรับ">
-    <div className="agent-result-setup__heading"><div><h3>รับผลตอบรับจากบอท</h3><p>บันทึกคำตอบของผู้รับกลับแคมเปญ เช่น ตกลง ปฏิเสธ หรือขอเจ้าหน้าที่</p></div><span className="agent-result-setup__badge" role="status">{loading ? 'กำลังตรวจ…' : busy ? 'กำลังเชื่อม…' : status?.connected ? 'เชื่อมแล้ว' : status ? 'ยังไม่เชื่อม' : 'ตรวจไม่ได้'}</span></div>
+    <div className="agent-result-setup__heading"><div><h3>รับผลตอบรับจากบอท</h3><p>บันทึกคำตอบของผู้รับกลับเว็บ เช่น ตกลง ปฏิเสธ หรือขอเจ้าหน้าที่</p></div><span className="agent-result-setup__badge" role="status">{loading ? 'กำลังตรวจ…' : busy ? 'กำลังเชื่อม…' : status?.connected ? 'เชื่อมแล้ว' : status ? 'ยังไม่เชื่อม' : 'ตรวจไม่ได้'}</span></div>
     {status?.connected && <p className="agent-result-setup__success">พร้อมส่งผลจากสายใหม่ · โทรทดสอบเพื่อยืนยันคำตอบจริงของบอทนี้</p>}
     {status && !status.connected && <p>{status.can_manage ? status.configured ? 'เชื่อมครั้งเดียว แล้วใช้รับผลกับแคมเปญที่เลือกบอทนี้ได้' : 'ผู้ดูแลต้องตั้งค่าระบบรับผลบนเซิร์ฟเวอร์ก่อนเชื่อม' : 'เชื่อมบัญชี Voice Bot ของคุณที่หน้าตั้งค่าก่อน แล้วเลือกบอทที่บัญชีของคุณมีสิทธิ์ใช้'}</p>}
     {error && <p className="workspace-alert" role="alert">{error}</p>}

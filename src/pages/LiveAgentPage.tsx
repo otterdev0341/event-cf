@@ -3,6 +3,7 @@ import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { ConversationLog } from '../components/ConversationLog';
 import { BotTestRoom } from '../components/BotTestRoom';
+import { AgentResultSetup } from '../components/AgentResultSetup';
 import { useAgents, useAgentDetail, useCallLogs } from '../hooks/useBotnoiData';
 import type { PreviewData } from '../hooks/useVoicePreview';
 import { parseCsv, type CsvData } from '../lib/campaigns';
@@ -15,7 +16,7 @@ export function LiveAgentPage() {
   const agentId = agents.find(agent => agent.agent_id === selected)?.agent_id || '';
   function openPreview(data: PreviewData) { setPreview(data); window.scrollTo({ top: 0, behavior: 'instant' }); }
   return <div className="live-agent-page"><AppHeader /><main className="page-shell real-data-page preview-page">
-    {preview ? <BotTestRoom data={preview} onBack={() => setPreview(null)} /> : <header className="preview-heading"><div><span className="ui-kicker">AGENT PLAYGROUND</span><h1>ลองคุยกับบอทของคุณ</h1><p>เลือก Agent เตรียมข้อมูล แล้วทดสอบบทสนทนาผ่านไมโครโฟน</p></div><span className="preview-chip">ทดสอบผ่านเว็บ</span></header>}
+    {preview ? <BotTestRoom data={preview} onBack={() => setPreview(null)} /> : <header className="preview-heading"><div><span className="ui-kicker">AGENT PLAYGROUND</span><h1>ลองคุยกับบอทของคุณ</h1><p>เลือก Agent เตรียมข้อมูล แล้วโทรทดสอบเข้าเบอร์ของคุณ</p></div><span className="preview-chip">ทดสอบผ่านโทรศัพท์</span></header>}
     <div hidden={Boolean(preview)}>
       <ol className="preview-steps" aria-label="ขั้นตอนทดสอบ"><li className={!agentId ? 'current' : 'done'}><b>1</b> เลือกบอท</li><li className={agentId ? 'current' : ''}><b>2</b> เตรียมข้อมูล</li><li><b>3</b> ทดสอบบทสนทนา</li></ol>
       <section className="preview-card"><div className="preview-section-head"><div><span className="ui-kicker">YOUR AGENT</span><h2>เลือกบอทที่จะทดสอบ</h2></div><Button size="compact" variant="secondary" onClick={refetch} disabled={loading}>รีเฟรช Agent</Button></div>
@@ -37,6 +38,7 @@ function AgentPreparation({ agentId, onTest }: { agentId: string; onTest: (data:
   const [manual, setManual] = useState<Record<string, string>>({});
   const [fileError, setFileError] = useState('');
   const [reading, setReading] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [showRecords, setShowRecords] = useState(false);
   const upload = useRef(0);
   const sourceOf = (key: string) => sources[key] ?? (['call_result', 'needs_agent'].includes(key) ? 'output' : 'manual');
@@ -67,7 +69,8 @@ function AgentPreparation({ agentId, onTest }: { agentId: string; onTest: (data:
         {csv && <label className="preview-field">แถวข้อมูลที่ใช้ทดสอบ<select value={row} onChange={event => setRow(Number(event.target.value))}>{csv.rows.map((cells, index) => <option key={index} value={index}>แถว {index + 1} · {cells.slice(0, 3).join(' · ').slice(0, 110)}</option>)}</select></label>}
         {variables.length ? <div className="preview-bindings"><div className="preview-binding-labels"><span>ตัวแปรของบอท</span><span>แหล่งข้อมูล</span><span>ค่าที่ใช้ทดสอบ</span></div>{variables.map(key => <div key={key} className="preview-binding"><code>{`{{${key}}}`}</code><select aria-label={`แหล่งข้อมูล ${key}`} value={sourceOf(key)} onChange={event => setSources(previous => ({ ...previous, [key]: event.target.value }))}><option value="manual">กรอกค่าทดสอบ</option>{csv?.headers.map((header, index) => <option key={index} value={`csv:${index}`}>{header}</option>)}<option value="output">ผลลัพธ์หลังสนทนา</option></select>{sourceOf(key) === 'output' ? <span className="preview-output">รอคำตอบจากบทสนทนา</span> : sourceOf(key) === 'manual' ? <input aria-label={`ค่าทดสอบ ${key}`} maxLength={2000} placeholder={`ใส่ค่า ${key}`} value={manual[key] || ''} onChange={event => setManual(previous => ({ ...previous, [key]: event.target.value }))} /> : <span className={valueOf(key).trim() ? 'preview-csv-value' : 'preview-missing'}>{valueOf(key) || 'แถวนี้ไม่มีข้อมูล'}</span>}</div>)}</div> : <p className="preview-info">Agent นี้ไม่มีตัวแปรใน Prompt สามารถเปิดห้องทดสอบได้เลย</p>}
         <p className="workspace-note">ตัวแปรที่บอทใช้เก็บคำตอบ เช่น call_result ให้เลือก “ผลลัพธ์หลังสนทนา”</p>
-        <div className="preview-start-bar"><div><strong>ข้อมูลพร้อม {complete} / {inputs.length} ตัวแปร</strong><p>ใช้ไมโครโฟนของคุณเพื่อคุยกับ {agent.bot_name || 'บอท'}</p></div><Button disabled={complete !== inputs.length || reading} onClick={() => onTest({ agentId, name: agent.bot_name || 'Voice Agent', variables: Object.fromEntries(inputs.map(key => [key, valueOf(key).trim()])), outputs: variables.filter(key => sourceOf(key) === 'output') })}>ทดสอบบอท <span aria-hidden="true">→</span></Button></div>
+        <AgentResultSetup agentId={agentId} onConnected={refetch} onBusy={setConnecting} />
+        <div className="preview-start-bar"><div><strong>ข้อมูลพร้อม {complete} / {inputs.length} ตัวแปร</strong><p>ขั้นต่อไปตรวจเบอร์และยืนยันให้ {agent.bot_name || 'บอท'} โทรหาคุณ</p></div><Button disabled={complete !== inputs.length || reading || connecting} onClick={() => onTest({ agentId, name: agent.bot_name || 'Voice Agent', variables: Object.fromEntries(inputs.map(key => [key, valueOf(key).trim()])), outputs: variables.filter(key => sourceOf(key) === 'output') })}>ทดสอบบอท <span aria-hidden="true">→</span></Button></div>
       </>}
     </section>
     <details className="preview-records" onToggle={event => setShowRecords(event.currentTarget.open)}><summary>บันทึกสนทนาจากบริการ</summary>{showRecords && <AgentRecords agentId={agentId} />}</details>

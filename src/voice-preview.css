@@ -92,6 +92,30 @@
 .bot-test-footnote { color: #9a90ab; font-size: 11px; line-height: 1.8; padding: 0 14px; }
 .bot-test-error { padding: 14px; background: #fff0f4; color: #ad4563; border: 1px solid #f9d7e3; border-radius: 12px; font-size: 13px; line-height: 1.8; }
 @keyframes preview-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.phone-test-form { padding: 26px 14px; }
+.phone-test-form h3, .phone-test-result h3 { margin: 6px 0 10px; color: var(--preview-ink); font-size: 18px; }
+.phone-test-destination { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px; background: #f3efff; border: 1px solid #e6ddff; border-radius: 12px; color: #66557f; font-size: 13px; }
+.phone-test-destination strong { font-size: 21px; color: #5833c4; overflow-wrap: anywhere; }
+.phone-test-consent { display: flex; align-items: flex-start; gap: 12px; margin: 22px 0; color: #514563; font-size: 13px; line-height: 1.8; }
+.preview-page .phone-test-consent input[type=checkbox] { width: 17px; height: 17px; padding: 0; flex-shrink: 0; margin-top: 4px; accent-color: #6845e6; }
+.phone-test-call { width: 100%; min-height: 58px; gap: 12px; font-size: 16px; border-radius: 14px; }
+.phone-test-call svg { width: 23px; height: 23px; }
+.phone-test-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.phone-test-notice { background: #eafbf5; border: 1px solid #c2ecdc; border-radius: 10px; padding: 14px; color: #087d5b; font-size: 13px; }
+.phone-test-result { padding: 24px; border-top: 1px solid #e8e1f7; background: #faf8ff; border-radius: 0 0 18px 18px; }
+.phone-test-result-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 15px; margin: 22px 0; }
+.phone-test-result-grid span { display: block; font-size: 12px; color: #827193; margin-bottom: 8px; }
+.phone-test-result-grid strong { color: #514070; font-size: 16px; }
+.phone-test-result small, .phone-test-footnote { font-size: 11px; color: #8a7d9b; overflow-wrap: anywhere; line-height: 1.8; }
+.phone-test-evidence { color: #4c695a; background: #effaf4; padding: 14px; border-radius: 10px; }
+.phone-test-conversation { margin-top: 20px; font-size: 13px; line-height: 1.8; color: #685b7c; }
+.phone-test-conversation summary { cursor: pointer; font-weight: 600; }
+.phone-test-conversation p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.phone-test-history { margin-top: 26px; }
+.phone-test-selected { background: #faf7ff; }
+.phone-test-avatar.calling { animation: phone-test-pulse 1.5s ease-in-out infinite; }
+@keyframes phone-test-pulse { 50% { box-shadow: 0 0 0 15px #efe8ff; } }
+@media (max-width: 700px) { .phone-test-form { padding: 20px 8px; } .phone-test-result { padding: 20px 12px; } .phone-test-result-grid { grid-template-columns: 1fr; } .phone-test-destination { align-items: flex-start; flex-direction: column; gap: 8px; } }
 @keyframes preview-wave { from { transform: scaleY(.4); } to { transform: scaleY(1); } }
 @media (max-width: 1150px) { .bot-test-layout { grid-template-columns: minmax(0, 1fr); } .bot-test-sidebar { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; } .bot-test-sidebar .preview-card { margin: 0; } .bot-test-sidebar .bot-restart, .bot-test-footnote { grid-column: 1 / -1; } }
 @media (max-width: 700px) { .preview-heading, .preview-section-head, .preview-import, .preview-start-bar { align-items: flex-start; flex-direction: column; gap: 16px; } .preview-steps { gap: 12px; font-size: 11px; flex-wrap: wrap; } .preview-card { padding: 20px; } .preview-binding-labels { display: none; } .preview-binding { grid-template-columns: 1fr; gap: 12px; } .preview-start-bar .button { width: 100%; } .bot-chat-panel { padding: 12px; } .bot-chat-header { padding: 16px 10px; gap: 14px; } .bot-chat-header h2 { font-size: 17px; } .bot-chat-header > .preview-chip { display: none; } .bot-avatar { width: 44px; height: 44px; } .bot-transcript { height: 350px; } .bot-test-sidebar { grid-template-columns: 1fr; } .bot-mic-stage { gap: 24px; } .bot-wave { gap: 3px; } }
