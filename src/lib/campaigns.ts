@@ -8,6 +8,7 @@ export interface CampaignDraft {
   fileName: string; csv: CsvData; mapping: Record<string, string>; agentId: string;
   variables?: Record<string, string>;
   voiceAccountId?: string;
+  recordConversation?: boolean;
   variableBindings?: Record<string, VariableBinding>;
   updatedAt: string;
 }

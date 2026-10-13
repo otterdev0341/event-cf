@@ -228,3 +228,14 @@ div:has(> .app-header) > main h2 { font-weight: 650; }
 .campaign-lifecycle p { flex:1; min-width:180px; color:#626c80; font-size:12px; line-height:1.8; }
 .campaign-lifecycle .status-badge { flex-shrink:0; }
 @media(max-width:600px){ .campaign-lifecycle { align-items:flex-start; flex-direction:column; } .campaign-lifecycle p { min-width:0; } }
+.campaign-conversation-option { padding: 22px; margin-top: 24px; border: 1px solid #e3dcf8; border-radius: 16px; background: #fcfaff; }
+.campaign-conversation-option.enabled { border-color: #b9a2f4; background: #f7f3ff; }
+.campaign-conversation-option > label { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+.campaign-conversation-option input { accent-color: #6845e6; width: 18px; height: 18px; flex-shrink: 0; margin-top: 3px; }
+.campaign-conversation-option strong, .campaign-conversation-option small { display: block; }
+.campaign-conversation-option small { margin-top: 6px; color: #82738f; line-height: 1.7; }
+.campaign-conversation-option p { font-size: 13px; line-height: 1.8; margin: 14px 0 0; }
+.saved-call-conversation { margin: 24px 0; padding: 22px; border: 1px solid #e7ddfa; border-radius: 14px; background: #fcfaff; }
+.saved-call-conversation h4 { margin-top: 0; }
+.saved-call-conversation small { color: #8b7b9c; }
+.saved-call-conversation__text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.9; font-size: 14px; }

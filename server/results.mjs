@@ -39,7 +39,7 @@ export async function handleCallResult({id,method,body,db,upstream,user,fail,sen
     if(response.followup.transcript && !text) response.followup.log_state='cached';
   }
   let update=db.from('voice_call_requests').update({status,response}).eq('id',id).eq('owner_id',user.id).eq('status',record.status);
-  for (const [path,value] of [['response->callback->>received_at',original?.callback?.received_at],['response->review->>updated_at',original?.review?.updated_at],['response->followup->>checked_at',original?.followup?.checked_at]]) {
+  for (const [path,value] of [['response->callback->>received_at',original?.callback?.received_at],['response->review->>updated_at',original?.review?.updated_at],['response->followup->>checked_at',original?.followup?.checked_at],['response->transcript->>received_at',original?.transcript?.received_at]]) {
     update=value ? update.eq(path,value) : update.is(path,null);
   }
   const {data:saved,error:writeError}=await update.select('id');

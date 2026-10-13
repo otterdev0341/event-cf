@@ -36,6 +36,7 @@ export function CampaignSummaryPage() {
           {draft.callStartMode !== 'immediate' && <><div><dt>วันที่อนุญาตให้โทร</dt><dd>{draft.callingDays.map(d => days[d] || d).join(' · ') || 'ยังไม่ระบุ'}</dd></div><div><dt>ช่วงเวลาโทร</dt><dd>{draft.allowedStartTime} – {draft.allowedEndTime} น.</dd></div></>}
         </dl></section>
         <section className="wizard-summary-card"><header><h2>02 · Voice Agent</h2><a href={routes.apiAgent}>เปลี่ยน Agent</a></header>
+          <p className={draft.recordConversation ? 'workspace-notice' : 'workspace-note'}>บันทึกบทสนทนา: {draft.recordConversation ? 'เปิด · ส่งข้อความผ่าน Tool แยกตามสาย' : 'ปิด'}</p>
           {detail.loading ? <p role="status">กำลังตรวจ Agent ล่าสุด…</p> : detail.error ? <div role="alert"><p>{detail.error}</p><Button size="compact" variant="secondary" onClick={detail.refetch}>ลองใหม่</Button></div> : <><h3>{detail.agent?.bot_name || 'ยังไม่ได้เลือก Agent'}</h3><p className="workspace-note">{draft.agentId}</p><div className="wizard-variable-list">{detail.variables.map(v => <code key={v}>{v}</code>)}</div>{!detail.variables.length && <p>ไม่พบตัวแปรใน Prompt</p>}</>}
         </section>
         <section className="wizard-summary-card wizard-summary-card--wide"><header><div><h2>03 · รายชื่อและการจับคู่</h2><p>{draft.fileName} · {draft.csv.rows.length.toLocaleString()} รายชื่อ</p></div><a href={routes.dataMapping}>แก้ไขการจับคู่</a></header>

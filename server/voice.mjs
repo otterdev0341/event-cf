@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { handleRecording } from './recording.mjs';
 import { campaignRequestId, terminalCall } from '../shared/campaign-queue.mjs';
 import { handlePreview } from './preview.mjs';
+import { connectedTranscriptTool } from './transcript.mjs';
 
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 const fail = (status, message) => { throw new HttpError(status, message); };
@@ -66,7 +67,7 @@ export async function handleVoice(req, res, env = process.env) {
     const isResult = Boolean(resultRoute && ['GET','POST'].includes(method));
     const recordingRoute=path.match(/^\/workspace\/calls\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/recording$/i);
     const isRecording=Boolean(recordingRoute&&method==='GET');
-    const setupRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/result-setup$/);
+    const setupRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/(result-setup|transcript-setup)$/);
     const isSetup = Boolean(setupRoute && ['GET','POST'].includes(method));
     const previewRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/preview-token$/);
     const isPreview = Boolean(previewRoute && method === 'POST');
@@ -98,7 +99,7 @@ export async function handleVoice(req, res, env = process.env) {
     };
     if (isPreview) return await handlePreview({ id: previewRoute[1], body: await bodyOf(req), connection, upstream, fail, send });
     if (isSetup) {
-      await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env:{...env,...(env.VOICE_RESULT_CALLBACK_SECRET?.length>=32?{VOICE_RESULT_CALLBACK_SECRET:accountCallbackSecret(connection.account_id,env)}:{})},connection,upstream,fail,send,deadline});
+      await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env:{...env,...(env.VOICE_RESULT_CALLBACK_SECRET?.length>=32?{VOICE_RESULT_CALLBACK_SECRET:accountCallbackSecret(connection.account_id,env)}:{})},connection,upstream,fail,send,deadline,transcript:setupRoute[2]==='transcript-setup'});
       return;
     }
     if(isRecording)return await handleRecording({id:recordingRoute[1],db,user,accountId:connection.account_id,upstream,fail,send});
@@ -127,14 +128,21 @@ export async function handleVoice(req, res, env = process.env) {
         const required = promptVariables(detail);
         const usesCallback = /\{\{vc_call_reference\}\}/.test(String(detail?.agent_data?.system_instruction || '') + String(detail?.agent_data?.greeting_text || ''));
         if (usesCallback && !callbackConfigured(env)) fail(503, 'Agent นี้ต้องใช้ระบบรับผล ผู้ดูแลต้องตั้งค่าเซิร์ฟเวอร์รับผลก่อนโทร');
+        let recordingConnected=false;
         if(usesCallback) {
           const tools=await upstream('/platform-config/tools');
-          if(!connectedTool(detail,tools,env.VOICE_RESULT_CALLBACK_URL,connection.account_id))fail(409,'บอทยังไม่ได้เชื่อมระบบรับผลของบัญชีนี้ ไปหน้า Agent แล้วกดเชื่อมระบบรับผลก่อนโทร');
+          recordingConnected=Boolean(connectedTranscriptTool(detail,tools,env.VOICE_RESULT_CALLBACK_URL,connection.account_id));
+          if(!connectedTool(detail,tools,env.VOICE_RESULT_CALLBACK_URL,connection.account_id)&&!recordingConnected)fail(409,'บอทยังไม่ได้เชื่อมระบบรับผลของบัญชีนี้ กรุณาเชื่อมในขั้นตอนเลือก Agent ก่อนโทร');
         }
         const metadata = { variables, voice_account_id:connection.account_id };
         if (body.metadata?.campaign_id) {
           const { data: campaign, error } = await db.from('voice_campaigns').select('id,data,updated_at').eq('id', body.metadata.campaign_id).maybeSingle();
           if (error || !campaign) fail(403, 'ไม่พบแคมเปญของคุณ');
+          if(campaign.data?.recordConversation===true) {
+            if(body.agent_id!==campaign.data?.agentId)fail(400,'Agent ไม่ตรงกับแคมเปญ');
+            if(!recordingConnected)fail(409,'บอทยังไม่ได้เชื่อมบันทึกบทสนทนา กรุณาแก้แคมเปญและเชื่อมในขั้นตอนเลือก Agent');
+            metadata.record_conversation=true;
+          }
           metadata.campaign_id = campaign.id;
           if(campaign.data?.voiceAccountId && campaign.data.voiceAccountId!==connection.account_id)fail(409,'แคมเปญนี้ใช้บัญชี Voice Bot อีกบัญชี กรุณาเชื่อมบัญชีเดิมหรือสร้างแคมเปญใหม่');
           const {data:foreignAttempt,error:historyError}=await db.from('voice_call_requests').select('id').eq('metadata->>campaign_id',campaign.id).or(`metadata->>voice_account_id.is.null,metadata->>voice_account_id.neq.${connection.account_id}`).limit(1).maybeSingle();
@@ -170,8 +178,9 @@ export async function handleVoice(req, res, env = process.env) {
         if (body.metadata?.campaign_batch !== true && required.some(key => typeof variables[key] !== 'string' || !variables[key].trim())) fail(400, 'กรุณาเติมตัวแปรใน Prompt ให้ครบก่อนโทร');
         // Reserved correlation comes from this request, never CSV/browser data.
         delete variables.vc_call_reference;
+        delete variables.vc_record_conversation;
         if (usesCallback) {
-          metadata.variables = { ...variables, vc_call_reference: body.request_id.toLowerCase() };
+          metadata.variables = { ...variables, vc_call_reference: body.request_id.toLowerCase(), vc_record_conversation: metadata.record_conversation===true?'true':'false' };
           metadata.result_callback = 1;
           metadata.callback_auth = 'account_v2';
         }

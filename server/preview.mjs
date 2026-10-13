@@ -19,6 +19,7 @@ export async function handlePreview({ id, body, upstream, connection, fail, send
   const variables = Object.fromEntries(required.map(key => [key, outputs.includes(key) ? '' : values[key].trim()]));
   // A preview has its own reference and cannot overwrite a campaign call result.
   variables.vc_call_reference = randomUUID();
+  variables.vc_record_conversation = 'false';
   const replace = text => String(text || '').replace(/\{\{\s*([a-zA-Z0-9_-]+)\s*\}\}/g, (match, key) => Object.hasOwn(variables, key) ? variables[key] : match);
   const data = detail.agent_data || {};
   const voice = detail.voice_data || {};

@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { outcomeLabels } from '../shared/call-results.mjs';
 import { accountCallbackSecret } from './connection.mjs';
+import { validTranscriptPayload, saveTranscriptCallback } from './transcript.mjs';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const digest = value => createHash('sha256').update(value).digest();
@@ -29,10 +30,13 @@ export async function handleResultCallback(req, res, env = process.env) {
     if (!/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) return send(415, { error: 'JSON required' });
     let raw = '';
     if (req.body !== undefined) raw = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-    else for await (const chunk of req) { raw += chunk; if (Buffer.byteLength(raw) > 16000) return send(413, { error: 'Payload too large' }); }
-    if (Buffer.byteLength(raw) > 16000) return send(413, { error: 'Payload too large' });
+    else for await (const chunk of req) { raw += chunk; if (Buffer.byteLength(raw) > 48000) return send(413, { error: 'Payload too large' }); }
+    if (Buffer.byteLength(raw) > 48000) return send(413, { error: 'Payload too large' });
     let body;
-    try { body = JSON.parse(raw); } catch { return send(400, { error: 'Invalid JSON' }); }
+    try { body = JSON.parse(raw); } catch { return send(Buffer.byteLength(raw)>16000?413:400, { error: 'Invalid JSON or payload too large' }); }
+    const isTranscript=body && typeof body==='object' && !Array.isArray(body) && Object.hasOwn(body,'transcript');
+    if(!isTranscript && Buffer.byteLength(raw)>16000)return send(413,{error:'Payload too large'});
+    if(isTranscript && !validTranscriptPayload(body))return send(400,{error:'Invalid conversation fields',fields:['request_id','agent_id','transcript']});
     const allowed = ['request_id', 'agent_id', 'call_result', 'needs_agent', 'evidence'];
     const objectBody = body && typeof body === 'object' && !Array.isArray(body);
     const invalid = !objectBody ? ['body'] : [
@@ -43,7 +47,7 @@ export async function handleResultCallback(req, res, env = process.env) {
       ![true, false, null].includes(body.needs_agent) && 'needs_agent',
       (typeof body.evidence !== 'string' || !body.evidence.trim() || body.evidence.length > 2000) && 'evidence'
     ].filter(Boolean);
-    if (invalid.length) {
+    if (!isTranscript && invalid.length) {
       // Only fixed field names and primitive types: never log secrets, IDs or conversation content.
       const fieldTypes = Object.fromEntries(allowed.map(key => [key, !objectBody || !Object.hasOwn(body, key) ? 'missing' : body[key] === null ? 'null' : Array.isArray(body[key]) ? 'array' : typeof body[key]]));
       console.warn('voice_result_invalid_fields', JSON.stringify({ fields: invalid, fieldTypes }));
@@ -62,6 +66,7 @@ export async function handleResultCallback(req, res, env = process.env) {
     if(!authorized)return send(401,{error:'Invalid callback credentials'});
     if (!record || record.agent_id !== body.agent_id || record.metadata?.result_callback !== 1 ||
       record.metadata?.variables?.vc_call_reference !== record.id) return send(404, { error: 'Unknown callback reference' });
+    if(isTranscript)return await saveTranscriptCallback({record,body,db,send});
     // Initial call persistence owns response until call_id is saved. Retry rather than race it.
     if (!record.call_id) return send(409, { error: 'Call not yet persisted; retry later' });
     const outcome = { call_result: body.call_result, needs_agent: body.needs_agent, evidence: body.evidence.trim(), source: 'agent_tool' };
@@ -76,7 +81,7 @@ export async function handleResultCallback(req, res, env = process.env) {
     let update = db.from('voice_call_requests').update({ response: { ...(original || {}), callback } })
       .eq('id', record.id).eq('owner_id', record.owner_id).eq('agent_id', record.agent_id)
       .eq('call_id', record.call_id).is('response->callback->>received_at', null);
-    for (const [path, value] of [['response->review->>updated_at', original?.review?.updated_at], ['response->followup->>checked_at', original?.followup?.checked_at]]) {
+    for (const [path, value] of [['response->review->>updated_at', original?.review?.updated_at], ['response->followup->>checked_at', original?.followup?.checked_at], ['response->transcript->>received_at',original?.transcript?.received_at]]) {
       update = value ? update.eq(path, value) : update.is(path, null);
     }
     const saved = await update.select('id');

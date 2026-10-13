@@ -1,6 +1,6 @@
 export function promptVariables(agent) {
   const text = `${agent?.agent_data?.greeting_text || ''} ${agent?.agent_data?.system_instruction || ''}`;
-  return [...new Set([...text.matchAll(/\{\{([a-zA-Z0-9_-]+)\}\}/g)].map(m => m[1]).filter(name => name !== 'vc_call_reference'))];
+  return [...new Set([...text.matchAll(/\{\{([a-zA-Z0-9_-]+)\}\}/g)].map(m => m[1]).filter(name => !['vc_call_reference', 'vc_record_conversation'].includes(name)))];
 }
 
 export function campaignBindings(campaign, variables) {

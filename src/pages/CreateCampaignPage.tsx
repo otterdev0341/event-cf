@@ -103,7 +103,7 @@ export function CreateCampaignPage() {
     setSaving(true);
     try {
       await saveDraft({ id: campaignId, name: value('campaignName').trim(),
-        variables: draft?.variables, variableBindings: draft?.variableBindings, eventDate: value('eventDate'), eventTime: value('eventTime'), callStartMode,
+        variables: draft?.variables, variableBindings: draft?.variableBindings, recordConversation: draft?.recordConversation === true, voiceAccountId: draft?.voiceAccountId, eventDate: value('eventDate'), eventTime: value('eventTime'), callStartMode,
         callStartDate: value('callStartDate'), callStartTime: value('callStartTime'),
         callingWindow: callStartMode === 'immediate' ? '' : callingWindow,
         callingDays: callStartMode === 'immediate' ? [] : selectedCallingDays,

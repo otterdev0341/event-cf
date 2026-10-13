@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { callbackConfigured } from './callback.mjs';
+import { connectedTranscriptTool, compatibleTranscriptTool, withTranscriptPrompt, transcriptToolPayload } from './transcript.mjs';
 
 const start = '[VOICE_CONFIRM_RESULT_SETUP_V1]';
 const end = '[/VOICE_CONFIRM_RESULT_SETUP_V1]';
@@ -61,7 +62,11 @@ function toolPayload(id, env, endpoint, accountId) {
   },required:fields},execution:{method:'POST',endpoint,auth:{type:'bearer',header_name:'Authorization',scheme:'Bearer',api_key:env.VOICE_RESULT_CALLBACK_SECRET},param_map:Object.fromEntries(fields.map(k => [k,{in:'body',key:k}])),headers:{'Content-Type':'application/json'},timeout:20}};
 }
 
-export async function handleAgentSetup({id,method,body,user,env,connection,upstream,fail,send,deadline}) {
+export async function handleAgentSetup({id,method,body,user,env,connection,upstream,fail,send,deadline,transcript=false}) {
+  const isConnected = transcript ? connectedTranscriptTool : connectedTool;
+  const compatible = transcript ? compatibleTranscriptTool : compatibleTool;
+  const extendPrompt = transcript ? withTranscriptPrompt : withPrompt;
+  const makeTool = transcript ? transcriptToolPayload : toolPayload;
   const accountId=connection?.account_id;
   const canManage = connection?connection.owner_id===user.id&&Boolean(user.email_confirmed_at):isSetupAdmin(user,env);
   if (method === 'POST' && !canManage) fail(403,'เฉพาะผู้ดูแลที่กำหนดไว้เท่านั้นที่เชื่อม Agent ได้');
@@ -74,13 +79,13 @@ export async function handleAgentSetup({id,method,body,user,env,connection,upstr
   if (agent.agent_id !== id) fail(502,'Agent ที่บริการส่งกลับไม่ตรงกับคำขอ');
   let tools = await upstream('/platform-config/tools');
   if (!Array.isArray(tools)) fail(502,'อ่านรายการ Tool ไม่สำเร็จ');
-  const status = (value, list) => ({agent_id:id,agent_name:value.bot_name,revision:setupRevision(value),can_manage:canManage,configured,connected:Boolean(endpoint && connectedTool(value,list,endpoint,accountId))});
+  const status = (value, list) => ({agent_id:id,agent_name:value.bot_name,revision:setupRevision(value),can_manage:canManage,configured,connected:Boolean(endpoint && isConnected(value,list,endpoint,accountId))});
   if (method === 'GET') return send(200,status(agent,tools));
   if (!configured) fail(503,'ผู้ดูแลยังตั้งค่า URL หรือระบบรับผลไม่ครบ');
   if (setupRevision(agent) !== body.expected_revision) fail(409,'Agent ถูกแก้ไขแล้ว กรุณาตรวจสถานะใหม่ก่อนเชื่อม');
-  if (connectedTool(agent,tools,endpoint,accountId)) return send(200,{...status(agent,tools),already_connected:true});
+  if (isConnected(agent,tools,endpoint,accountId)) return send(200,{...status(agent,tools),already_connected:true});
   // Abort before creating a tool if the prompt cannot safely be extended.
-  withPrompt(agent,'vc_result_'+id.slice(4),fail);
+  extendPrompt(agent,'vc_result_'+id.slice(4),fail);
   const db = createClient(env.SUPABASE_URL || env.VITE_SUPABASE_URL,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:(url,init) => fetch(url,{...init,signal:AbortSignal.any([deadline,AbortSignal.timeout(10000)])})}});
   const operation = randomUUID();
   const {data:locked,error:lockError} = await db.rpc('acquire_voice_agent_setup',{p_agent_id:id,p_lock_id:operation,...(accountId?{p_account_id:accountId}:{})});
@@ -94,25 +99,25 @@ export async function handleAgentSetup({id,method,body,user,env,connection,upstr
     if (error) fail(503,'เก็บการตั้งค่าก่อนแก้ไม่สำเร็จ กรุณาลองใหม่');
     audited = true;
     tools = await upstream('/platform-config/tools');
-    const desired = toolPayload(id,env,endpoint,accountId);
+    const desired = makeTool(id,env,endpoint,accountId);
     const named = tools.filter(t => t.name === desired.name);
-    if (named.length > 1 || named.length === 1 && !compatibleTool(named[0],id,endpoint,accountId)) fail(409,'ชื่อ Tool สำหรับ Agent นี้มีการตั้งค่าอื่นอยู่ กรุณาตรวจใน Voice Bot');
-    tool = named[0] || tools.find(t => compatibleTool(t,id,endpoint,accountId));
+    if (named.length > 1 || named.length === 1 && !compatible(named[0],id,endpoint,accountId)) fail(409,'ชื่อ Tool สำหรับ Agent นี้มีการตั้งค่าอื่นอยู่ กรุณาตรวจใน Voice Bot');
+    tool = named[0] || tools.find(t => compatible(t,id,endpoint,accountId));
     if (!tool) {
       // No blind retry on an uncertain creation; the next request rechecks the stored tools.
       await upstream('/platform-config/tools',desired,'POST');
       tools = await upstream('/platform-config/tools');
-      const created = tools.filter(t => t.name === desired.name && compatibleTool(t,id,endpoint,accountId));
+      const created = tools.filter(t => t.name === desired.name && compatible(t,id,endpoint,accountId));
       if (created.length !== 1) fail(502,'ยังยืนยัน Tool ที่สร้างไม่ได้ กรุณาตรวจสถานะใหม่ก่อนลองอีกครั้ง');
       tool = created[0];
     }
     const latest = await upstream('/agents/'+id);
     if (setupRevision(latest) !== body.expected_revision) fail(409,'Agent ถูกแก้ไขระหว่างเชื่อม Tool กรุณาตรวจสถานะใหม่');
     const payload = configOf(latest);
-    payload.agent_data = {...latest.agent_data,system_instruction:withPrompt(latest,tool.name,fail),tools:[...(latest.agent_data.tools || []).filter(t => t.tool_id !== tool.tool_id),{tools_name:tool.name,tool_id:tool.tool_id}]};
+    payload.agent_data = {...latest.agent_data,system_instruction:extendPrompt(latest,tool.name,fail),tools:[...(latest.agent_data.tools || []).filter(t => t.tool_id !== tool.tool_id),{tools_name:tool.name,tool_id:tool.tool_id}]};
     await upstream('/agent/create_update_agent',payload,'PUT');
     const verified = await upstream('/agents/'+id);
-    if (setupRevision(verified) !== setupRevision(payload) || !connectedTool(verified,tools,endpoint,accountId)) fail(502,'บริการยังไม่ยืนยันการเชื่อม Agent กรุณาตรวจสถานะใหม่');
+    if (setupRevision(verified) !== setupRevision(payload) || !isConnected(verified,tools,endpoint,accountId)) fail(502,'บริการยังไม่ยืนยันการเชื่อม Agent กรุณาตรวจสถานะใหม่');
     const {error:auditError} = await db.from('voice_agent_setup_audits').update({status:'connected',tool_id:tool.tool_id,completed_at:new Date().toISOString()}).eq('id',operation);
     response = {...status(verified,tools),...(auditError?{warning:'เชื่อมสำเร็จ แต่บันทึกประวัติการแก้ไขไม่ครบ'}:{})};
   } catch (error) {
