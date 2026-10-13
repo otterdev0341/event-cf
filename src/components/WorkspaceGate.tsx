@@ -10,7 +10,7 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState('');
   const [readyOwner, setReadyOwner] = useState('');
   const [revision, setRevision] = useState(0);
-  const needsDatabase = window.location.pathname.startsWith('/campaigns') || window.location.pathname.startsWith('/contacts');
+  const needsDatabase = window.location.pathname.replace(/\/+$/, '') === routes.dashboard || window.location.pathname.startsWith('/campaigns') || window.location.pathname.startsWith('/contacts');
   useEffect(() => {
     if (!supabase) { setError('ยังไม่ได้ตั้งค่า Supabase'); setLoading(false); return; }
     let active = true;
