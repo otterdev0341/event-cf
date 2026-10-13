@@ -2,17 +2,15 @@ import { useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { ConversationLog } from '../components/ConversationLog';
-import { AgentResultSetup } from '../components/AgentResultSetup';
 import { useAgents, useAgentDetail, useCallLogs } from '../hooks/useBotnoiData';
 import { routes } from '../routes';
 export function LiveAgentPage() {
   const { agents, loading, error, refetch } = useAgents();
   const [selected, setSelected] = useState('');
   const agentId = agents.find(agent => agent.agent_id === selected)?.agent_id || agents[0]?.agent_id;
-  return <div className="live-agent-page"><AppHeader /><main className="page-shell real-data-page"><header><span className="ui-kicker">VOICE AGENTS</span><h1>Agent และบทสนทนา</h1><p>เลือก Agent จัดการการรับผล และดูบันทึกการสนทนาในที่เดียว</p></header><div className="workspace-toolbar"><label>เลือก Agent<select className="workspace-select" value={agentId || ''} disabled={loading || !agents.length} onChange={e => setSelected(e.target.value)}>{!agents.length && <option value="">ยังไม่มีข้อมูล Agent</option>}{agents.map(agent => <option key={agent.agent_id} value={agent.agent_id}>{agent.name}</option>)}</select></label><Button size="compact" variant="secondary" onClick={refetch} disabled={loading}>รีเฟรช Agent</Button></div>
+  return <div className="live-agent-page"><AppHeader /><main className="page-shell real-data-page"><header><span className="ui-kicker">VOICE AGENTS</span><h1>Agent และบทสนทนา</h1><p>ดูการตั้งค่า Agent และบันทึกการสนทนา</p></header><div className="workspace-toolbar"><label>เลือก Agent<select className="workspace-select" value={agentId || ''} disabled={loading || !agents.length} onChange={e => setSelected(e.target.value)}>{!agents.length && <option value="">ยังไม่มีข้อมูล Agent</option>}{agents.map(agent => <option key={agent.agent_id} value={agent.agent_id}>{agent.name}</option>)}</select></label><Button size="compact" variant="secondary" onClick={refetch} disabled={loading}>รีเฟรช Agent</Button></div>
     {loading && <p role="status">กำลังโหลด Agent…</p>}{error && <p role="alert" className="workspace-alert">{error}</p>}
     <div className="workspace-local-note"><p>ทดสอบบทสนทนาผ่านสายโทรศัพท์ <span>เลือก Agent แล้วไปหน้าโทรทดสอบเพื่อตรวจการพูดและการรับผล</span></p><a href={routes.apiTest}>ไปหน้าโทรทดสอบ ↗</a></div>
-    {agentId && <AgentResultSetup key={`setup:${agentId}`} agentId={agentId} />}
     {agentId && <AgentRecords key={agentId} agentId={agentId} />}
     {!loading && !error && !agents.length && <section className="workspace-empty">ไม่พบ Agent ในบัญชีนี้</section>}
     <Button size="compact" href={routes.apiTest}>ไปหน้าโทรทดสอบ</Button>

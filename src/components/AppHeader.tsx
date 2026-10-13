@@ -5,7 +5,6 @@ import { routes } from "../routes";
 const navigation = [
   { key: "home", label: "ภาพรวม", href: routes.dashboard, path: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" },
   { key: "campaigns", label: "แคมเปญ", href: routes.campaigns, path: "M4 5h16v14H4zM8 9h8M8 13h5" },
-  { key: "contacts", label: "ผู้ติดต่อ", href: routes.contacts, path: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.87M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" },
   { key: "live", label: "Agent / บทสนทนา", href: routes.liveAgent, path: "M4 10v4M8 5v14M12 8v8M16 3v18M20 9v6" },
   { key: "reports", label: "รายงาน", href: routes.analytics, path: "M4 3v18h17M9 16v-4M14 16V8M19 16V5" },
 ];
