@@ -6,6 +6,7 @@ import { connectionStore, loadConnection, handleConnection, accountCallbackSecre
 import { createClient } from '@supabase/supabase-js';
 import { handleRecording } from './recording.mjs';
 import { campaignRequestId, terminalCall } from '../shared/campaign-queue.mjs';
+import { handlePreview } from './preview.mjs';
 
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 const fail = (status, message) => { throw new HttpError(status, message); };
@@ -67,9 +68,11 @@ export async function handleVoice(req, res, env = process.env) {
     const isRecording=Boolean(recordingRoute&&method==='GET');
     const setupRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/result-setup$/);
     const isSetup = Boolean(setupRoute && ['GET','POST'].includes(method));
+    const previewRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/preview-token$/);
+    const isPreview = Boolean(previewRoute && method === 'POST');
     const isConnection = path === '/workspace/connection' && ['GET','POST'].includes(method);
     const isCall = method === 'POST' && tenantRoute?.[2] === '/calls';
-    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection && !isRecording) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
+    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection && !isRecording && !isPreview) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
     const queryKeys = new Set(['agent_id', 'limit', 'start_at', 'end_at', 'timezone', 'granularity', 'include', 'month']);
     for (const [key, value] of target.searchParams) if (!queryKeys.has(key) || value.length > 200) fail(400, 'พารามิเตอร์ไม่ถูกต้อง');
     if (target.searchParams.has('limit')) target.searchParams.set('limit', String(Math.min(100, Math.max(1, Number(target.searchParams.get('limit')) || 50))));
@@ -93,6 +96,7 @@ export async function handleVoice(req, res, env = process.env) {
       if (!response.ok) fail(response.status === 429 ? 429 : 502, `บริการ Voice Bot ตอบกลับ HTTP ${response.status}`);
       return response.json();
     };
+    if (isPreview) return await handlePreview({ id: previewRoute[1], body: await bodyOf(req), connection, upstream, fail, send });
     if (isSetup) {
       await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env:{...env,...(env.VOICE_RESULT_CALLBACK_SECRET?.length>=32?{VOICE_RESULT_CALLBACK_SECRET:accountCallbackSecret(connection.account_id,env)}:{})},connection,upstream,fail,send,deadline});
       return;
