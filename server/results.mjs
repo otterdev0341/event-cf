@@ -34,6 +34,7 @@ export async function handleCallResult({id,method,body,db,upstream,user,fail,sen
     // Preserve already retrieved evidence if the provider temporarily stops returning it.
     const previous=response.followup;
     response.followup={checked_at:new Date().toISOString(),answered_at:call.answered_at || null,completed_at:call.completed_at || null,ended_by:typeof call.ended_by==='string'?call.ended_by:null,
+      failure_reason:typeof call.reason==='string' && /^[a-zA-Z0-9 _.-]{1,120}$/.test(call.reason)?call.reason:null,
       outcome:outcome.source==='unavailable' && previous?.outcome?.source==='provider'?previous.outcome:outcome,
       transcript:text || previous?.transcript || '',log_path:logPath || previous?.log_path || null,log_state:logState};
     if(response.followup.transcript && !text) response.followup.log_state='cached';

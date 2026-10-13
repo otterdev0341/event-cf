@@ -8,7 +8,7 @@ import type { PreviewData } from './useVoicePreview';
 export interface PhoneAttempt {
   id: string; call_id: string | null; destination: string; status: string; created_at: string;
   metadata: { voice_account_id?: string; variables?: Record<string, string> };
-  response: { review?: PhoneOutcome; callback?: { outcome: PhoneOutcome }; followup?: { outcome: PhoneOutcome; transcript?: string; checked_at?: string }; transcript?: { text: string } } | null;
+  response: { review?: PhoneOutcome; callback?: { outcome: PhoneOutcome }; followup?: { outcome: PhoneOutcome; transcript?: string; checked_at?: string; failure_reason?: string | null }; transcript?: { text: string } } | null;
   warning?: string;
 }
 export interface PhoneOutcome { call_result: string; needs_agent: boolean | null; source: string; evidence?: string }

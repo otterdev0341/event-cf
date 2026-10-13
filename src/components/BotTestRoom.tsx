@@ -6,12 +6,14 @@ import { effectiveOutcome, outcomeLabels } from '../../shared/call-results.mjs';
 function PhoneMark() { return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m10 4 4 7-3 3a20 20 0 0 0 7 7l3-3 7 4c-1 5-4 7-8 5C12 24 8 20 5 12 3 8 5 5 10 4Z" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" /></svg>; }
 const date = (value: string) => new Date(value).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
 const answer = (result: string) => outcomeLabels[result as keyof typeof outcomeLabels] || 'รอตรวจสอบ';
+const failureLabels: Record<string, string> = { unreachable: 'บริการโทรศัพท์ติดต่อปลายทางไม่ได้', busy: 'สายปลายทางไม่ว่าง', 'no-answer': 'ปลายทางยังไม่รับสาย', rejected: 'การโทรถูกปฏิเสธ' };
 
 export function BotTestRoom({ data, onBack }: { data: PreviewData; onBack: () => void }) {
   const phone = usePhonePreview(data);
   const attempt = phone.selected;
   const outcome = effectiveOutcome(attempt?.response);
   const conversation = attempt?.response?.transcript?.text || attempt?.response?.followup?.transcript;
+  const failure = attempt?.response?.followup?.failure_reason;
   const state = phone.pending ? 'active' : phone.connectionError ? 'error' : 'ready';
   return <>
     <header className="preview-heading"><div><span className="ui-kicker">PHONE PLAYGROUND</span><h1>โทรทดสอบบทสนทนา</h1><p>รับสายจากบอทที่โทรศัพท์ของคุณ แล้วดูสถานะและผลตอบรับที่นี่</p></div><Button variant="secondary" size="compact" disabled={phone.calling} onClick={onBack}>← กลับไปแก้ข้อมูล</Button></header>
@@ -27,7 +29,8 @@ export function BotTestRoom({ data, onBack }: { data: PreviewData; onBack: () =>
           <p className="workspace-note">การโทรใช้โควตาหรือเครดิตของบัญชี Voice Bot ที่เชื่อมไว้</p>
           {phone.connectionError && <p role="alert" className="workspace-alert">{phone.connectionError}</p>}
           {phone.error && <p role="alert" className="workspace-alert">{phone.error}</p>}
-          {phone.notice && <p role="status" className="phone-test-notice">{phone.notice}</p>}
+          {phone.notice && (!attempt || phone.pending) && <p role="status" className="phone-test-notice">{phone.notice}</p>}
+          {attempt?.status === 'failed' && <div className="workspace-alert" role="status"><strong>{failure ? failureLabels[failure] || `บริการแจ้งสาเหตุ: ${failure}` : 'บริการแจ้งว่าโทรไม่สำเร็จ'}</strong><p>{failure === 'unreachable' ? 'ตรวจว่าเบอร์ปลายทางเปิดเครื่องและรับสายได้ หากยังโทรไม่ได้ ให้ตรวจคู่สายโทรออกกับ Voice Bot' : 'ตรวจเบอร์ปลายทางและคู่สายโทรออกก่อนทดสอบใหม่'}</p>{attempt.destination.startsWith('+66') && <p>สายนี้ส่งเบอร์รูปแบบ +66 ลองใช้เบอร์ขึ้นต้น 0 แล้วเลือก “ตามที่กรอก” สำหรับสายใหม่ ระบบจะไม่โทรซ้ำให้อัตโนมัติ</p>}</div>}
           {phone.uncertain && <p role="alert" className="workspace-alert">ยังยืนยันคำขอล่าสุดไม่ได้ ตรวจประวัติและสถานะก่อนโทรใหม่เพื่อป้องกันการโทรซ้ำ</p>}
           <div className="phone-test-actions"><Button size="compact" variant="secondary" disabled={phone.loading || phone.calling || phone.checking} onClick={phone.reload}>ตรวจคู่สาย / โหลดประวัติใหม่</Button>{attempt && <Button size="compact" variant="secondary" disabled={phone.checking || phone.calling} onClick={() => void phone.refresh()}>{phone.checking ? 'กำลังตรวจ…' : 'ตรวจสถานะ / ผลล่าสุด'}</Button>}</div>
         </div>
