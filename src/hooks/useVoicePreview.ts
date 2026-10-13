@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { botnoiFetch } from '../services/botnoi/client';
+import { BotnoiApiError, botnoiFetch } from '../services/botnoi/client';
 
 export interface PreviewData { agentId: string; name: string; variables: Record<string, string>; outputs: string[] }
 export interface PreviewMessage { id: string; role: 'assistant' | 'user'; text: string; at: number }
@@ -10,6 +10,7 @@ export function useVoicePreview(data: PreviewData) {
   const [phase, setPhase] = useState<Phase>('ready');
   const [messages, setMessages] = useState<PreviewMessage[]>([]);
   const [error, setError] = useState('');
+  const [errorKind, setErrorKind] = useState<'account' | 'service' | 'other'>('other');
   const [muted, setMuted] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const generation = useRef(0);
@@ -18,7 +19,7 @@ export function useVoicePreview(data: PreviewData) {
   const running = useRef(false);
   useEffect(() => () => { generation.current++; cleanup.current(); }, []);
   function stop() { generation.current++; cleanup.current(); running.current = false; setSpeaking(false); setPhase('ended'); }
-  function reset() { stop(); setMessages([]); setError(''); setPhase('ready'); }
+  function reset() { stop(); setMessages([]); setError(''); setErrorKind('other'); setPhase('ready'); }
   function toggleMute() { isMuted.current = !isMuted.current; setMuted(isMuted.current); }
 
   async function start() {
@@ -27,7 +28,7 @@ export function useVoicePreview(data: PreviewData) {
     const run = ++generation.current;
     const current = () => generation.current === run;
     running.current = true;
-    setPhase('connecting'); setError(''); setMessages([]); setMuted(false); setSpeaking(false); isMuted.current = false;
+    setPhase('connecting'); setError(''); setErrorKind('other'); setMessages([]); setMuted(false); setSpeaking(false); isMuted.current = false;
     const abort = new AbortController();
     let socket: WebSocket | undefined, stream: MediaStream | undefined, context: AudioContext | undefined;
     let processor: ScriptProcessorNode | undefined, source: MediaStreamAudioSourceNode | undefined, silent: GainNode | undefined;
@@ -54,7 +55,7 @@ export function useVoicePreview(data: PreviewData) {
       }
     };
     cleanup.current = dispose;
-    const fail = (message: string) => { if (!current() || closed) return; dispose(); running.current = false; setPhase('error'); setError(message); };
+    const fail = (message: string, kind: typeof errorKind = 'other') => { if (!current() || closed) return; dispose(); running.current = false; setPhase('error'); setError(message); setErrorKind(kind); };
     const append = (role: PreviewMessage['role'], text: string, merge = false, replace = false) => {
       if (!text || !current()) return;
       setMessages(previous => {
@@ -67,10 +68,10 @@ export function useVoicePreview(data: PreviewData) {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('กรุณาเปิดเว็บผ่าน HTTPS และใช้เบราว์เซอร์ที่รองรับไมโครโฟน');
       context = new AudioContext({ sampleRate: 16000 });
       await context.resume();
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }, video: false });
-      if (!current() || closed) { stream.getTracks().forEach(track => track.stop()); return; }
       const token = await botnoiFetch<PreviewToken>(`/workspace/agents/${data.agentId}/preview-token`, { method: 'POST', body: { variables: data.variables, outputs: data.outputs }, signal: abort.signal });
       if (!current() || closed) return;
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }, video: false });
+      if (!current() || closed) { stream.getTracks().forEach(track => track.stop()); return; }
       socket = new WebSocket(`${token.websocket_url}?token=${encodeURIComponent(token.ephemeral_token)}`);
       socket.binaryType = 'arraybuffer';
       timeout = setTimeout(() => fail('เชื่อมต่อบอทนานเกินไป กรุณาเริ่มใหม่'), 25000);
@@ -142,8 +143,10 @@ export function useVoicePreview(data: PreviewData) {
       };
     } catch (caught) {
       const message = caught instanceof DOMException && caught.name === 'NotAllowedError' ? 'กรุณาอนุญาตไมโครโฟนในเบราว์เซอร์ แล้วกดเริ่มใหม่' : caught instanceof Error ? caught.message : 'เริ่มทดสอบไม่สำเร็จ';
-      fail(message);
+      const kind = caught instanceof BotnoiApiError && [401, 428].includes(caught.status) ? 'account'
+        : caught instanceof BotnoiApiError && (caught.data as { code?: string } | undefined)?.code === 'preview_not_configured' ? 'service' : 'other';
+      fail(message, kind);
     }
   }
-  return { phase, messages, error, muted, speaking, start, stop, reset, toggleMute };
+  return { phase, messages, error, errorKind, muted, speaking, start, stop, reset, toggleMute };
 }

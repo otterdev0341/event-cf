@@ -9,8 +9,8 @@ import { campaignRequestId, terminalCall } from '../shared/campaign-queue.mjs';
 import { handlePreview } from './preview.mjs';
 import { connectedTranscriptTool } from './transcript.mjs';
 
-class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
-const fail = (status, message) => { throw new HttpError(status, message); };
+class HttpError extends Error { constructor(status, message, code) { super(message); this.status = status; this.code = code; } }
+const fail = (status, message, code) => { throw new HttpError(status, message, code); };
 const pick = (object, keys) => Object.fromEntries(keys.filter(key => object?.[key] !== undefined).map(key => [key, object[key]]));
 const clean = value => Array.isArray(value) ? value.map(clean) : value && typeof value === 'object'
   ? Object.fromEntries(Object.entries(value).filter(([key]) => !/token|secret|password|credential|api.?key|authorization/i.test(key)).map(([key, item]) => [key, clean(item)])) : value;
@@ -94,6 +94,13 @@ export async function handleVoice(req, res, env = process.env) {
       const response = await fetch(new URL(route, base), { method: requestMethod || (body ? 'POST' : 'GET'), redirect: 'error', signal: AbortSignal.any([deadline, AbortSignal.timeout(20000)]),
         headers: { Authorization: `Bearer ${connection.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
       if([401,403].includes(response.status))fail(428,'Voice Bot ไม่รับสิทธิ์ของ Token นี้ ไปที่ตั้งค่าเพื่อเชื่อม Session JWT ใหม่');
+      if (route === '/call/tokens' && response.status === 503) {
+        const details = await response.json().catch(() => ({}));
+        if (details.detail === 'token_mint_not_configured' || details.code === 'token_mint_not_configured') {
+          fail(503, 'บริการทดสอบเสียงของ Voice Bot ยังไม่ได้เปิดใช้งาน ต้องให้ผู้ดูแล Voice Bot ตั้งค่าบริการก่อนเริ่มคุย', 'preview_not_configured');
+        }
+        fail(503, 'บริการทดสอบเสียงของ Voice Bot ไม่พร้อมชั่วคราว กรุณาลองใหม่ภายหลัง', 'preview_service_unavailable');
+      }
       if (!response.ok) fail(response.status === 429 ? 429 : 502, `บริการ Voice Bot ตอบกลับ HTTP ${response.status}`);
       return response.json();
     };
@@ -213,5 +220,5 @@ export async function handleVoice(req, res, env = process.env) {
       if(error) result.persistence_warning='อ่านสถานะล่าสุดแล้ว แต่บันทึกไม่ได้';
     }
     send(200, path === '/me' ? pick(result, ['_id','username','role','permissions','email','verified']) : clean(result));
-  } catch (error) { send(error instanceof HttpError ? error.status : 503, { error: error instanceof HttpError ? error.message : 'เชื่อมต่อบริการไม่ได้ กรุณาลองใหม่' }); }
+  } catch (error) { send(error instanceof HttpError ? error.status : 503, { error: error instanceof HttpError ? error.message : 'เชื่อมต่อบริการไม่ได้ กรุณาลองใหม่', ...(error instanceof HttpError && error.code ? { code: error.code } : {}) }); }
 }
