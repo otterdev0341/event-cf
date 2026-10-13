@@ -6,7 +6,7 @@ const navigation = [
   { key: "home", label: "ภาพรวม", href: routes.dashboard, path: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" },
   { key: "campaigns", label: "แคมเปญ", href: routes.campaigns, path: "M4 5h16v14H4zM8 9h8M8 13h5" },
   { key: "live", label: "Agent / บทสนทนา", href: routes.liveAgent, path: "M4 10v4M8 5v14M12 8v8M16 3v18M20 9v6" },
-  { key: "reports", label: "รายงาน", href: routes.analytics, path: "M4 3v18h17M9 16v-4M14 16V8M19 16V5" },
+  { key: "reports", label: "การใช้งาน Voice Bot", href: routes.analytics, path: "M4 3v18h17M9 16v-4M14 16V8M19 16V5" },
 ];
 function NavIcon({path}:{path:string}) { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={path}/></svg>; }
 interface AppHeaderProps { activeNav?: "home" | "campaigns" | "reports" | "settings" | "contacts" | "live"; }

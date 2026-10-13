@@ -54,7 +54,9 @@ export async function handleVoice(req, res, env = process.env) {
     const endpoint = url.searchParams.get('path') || '';
     if (!endpoint.startsWith('/') || /[\\#\r\n]/.test(endpoint) || endpoint.startsWith('//')) fail(400, 'เส้นทางไม่ถูกต้อง');
     const target = new URL(endpoint, 'https://voice.invalid');
-    if (target.origin !== 'https://voice.invalid' || /%2f|%5c|\.\./i.test(endpoint)) fail(400, 'เส้นทางไม่ถูกต้อง');
+    // Encoded separators are invalid in the path; query values can contain them (e.g. Asia/Bangkok).
+    const requestedPath = endpoint.split('?')[0];
+    if (target.origin !== 'https://voice.invalid' || /%2f|%5c|\.\./i.test(requestedPath)) fail(400, 'เส้นทางไม่ถูกต้อง');
     const path = target.pathname;
     const method = req.method || 'GET';
     if (method === 'POST' && req.headers['sec-fetch-site'] === 'cross-site') fail(403, 'ไม่อนุญาตคำขอจากเว็บไซต์อื่น');
