@@ -16,7 +16,6 @@ export const phoneStatusLabels: Record<string, string> = { reserved: 'กำล�
 
 export function usePhonePreview(data: PreviewData) {
   const [phone, setPhone] = useState(data.variables.phone_number || '');
-  const [format, setFormat] = useState<'entered' | 'international'>('entered');
   const [consent, setConsent] = useState(false);
   const [attempts, setAttempts] = useState<PhoneAttempt[]>([]);
   const [selectedId, setSelectedId] = useState('');
@@ -36,7 +35,7 @@ export function usePhonePreview(data: PreviewData) {
   const request = useRef('');
   const selected = attempts.find(a => a.id === selectedId) || attempts[0];
   const pending = attempts.find(a => !terminalCall(a.status));
-  const destination = formatDialDestination(phone, format);
+  const destination = formatDialDestination(phone, 'entered');
   const validPhone = /^\+[1-9]\d{7,14}$/.test(normalizePhone(phone));
   const blocked = Boolean(loading || calling || checking || pending || uncertain);
 
@@ -127,7 +126,7 @@ export function usePhonePreview(data: PreviewData) {
       } catch { if (alive.current) setUncertain(true); }
     } finally { dialBusy.current = false; if (alive.current) setCalling(false); }
   }
-  return { phone, format, consent, attempts, selected, pending, loading, calling, checking, ready, error, connectionError, notice, uncertain, destination, validPhone, blocked,
-    setPhone: (value: string) => { setPhone(value); setConsent(false); }, setFormat: (value: 'entered' | 'international') => { setFormat(value); setConsent(false); }, setConsent,
+  return { phone, consent, attempts, selected, pending, loading, calling, checking, ready, error, connectionError, notice, uncertain, destination, validPhone, blocked,
+    setPhone: (value: string) => { setPhone(value); setConsent(false); }, setConsent,
     select: (attempt: PhoneAttempt) => { setSelectedId(attempt.id); void refresh(attempt); }, refresh: () => refresh(pending || selected), reload: () => setRevision(value => value + 1), call };
 }
