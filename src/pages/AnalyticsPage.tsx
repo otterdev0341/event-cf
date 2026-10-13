@@ -6,15 +6,17 @@ import { useDashboardOverview } from '../hooks/useBotnoiData';
 import { routes } from '../routes';
 
 const numberValue = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value.toLocaleString('th-TH', { maximumFractionDigits: 1 }) : '—';
-const dayValue = (value: string) => Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric' }) : value;
+// Voice Bot returns UTC bucket timestamps without a timezone suffix.
+const reportDate = (value: string) => new Date(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value) ? `${value}Z` : value);
+const dayValue = (value: string) => Number.isFinite(reportDate(value).getTime()) ? reportDate(value).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric' }) : value;
 
 export function AnalyticsPage() {
   const [period, setPeriod] = useState<'7-days' | 'month'>('month');
   const [source, setSource] = useState<'all' | 'outbound' | 'preview'>('all');
   const recent = useDashboardOverview(period, source);
   const report = recent.overview;
-  const validSeries = Array.isArray(report?.series) && report.series.every(item => typeof item.bucket_start === 'string' && Number.isFinite(Date.parse(item.bucket_start)) && Number.isInteger(item.call_count) && item.call_count >= 0);
-  const series = validSeries ? [...report!.series].sort((a, b) => Date.parse(a.bucket_start) - Date.parse(b.bucket_start)) : [];
+  const validSeries = Array.isArray(report?.series) && report.series.every(item => typeof item.bucket_start === 'string' && Number.isFinite(reportDate(item.bucket_start).getTime()) && Number.isInteger(item.call_count) && item.call_count >= 0);
+  const series = validSeries ? [...report!.series].sort((a, b) => reportDate(a.bucket_start).getTime() - reportDate(b.bucket_start).getTime()) : [];
   const total = report && validSeries ? series.reduce((sum, item) => sum + item.call_count, 0) : undefined;
   const distributions = report?.distributions?.source;
   const sourceCount = (key: string) => Array.isArray(distributions) ? distributions.find(item => item.key === key)?.count : undefined;
