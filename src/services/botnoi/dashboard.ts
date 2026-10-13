@@ -7,6 +7,7 @@ export interface DashboardOverviewParams {
   agentId?: string;
   timezone?: string;
   granularity?: "day" | "hour";
+  source?: "outbound" | "preview";
 }
 
 export async function getDashboardOverview(
@@ -25,6 +26,7 @@ export async function getDashboardOverview(
   if (params.granularity) {
     query.set("granularity", params.granularity);
   }
+  if (params.source) query.set("source", params.source);
 
   return botnoiFetch<DashboardOverviewResponse>(
     `/dashboard/v1/overview?${query.toString()}`,

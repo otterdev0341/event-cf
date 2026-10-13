@@ -76,8 +76,9 @@ export async function handleVoice(req, res, env = process.env) {
     const isConnection = path === '/workspace/connection' && ['GET','POST'].includes(method);
     const isCall = method === 'POST' && tenantRoute?.[2] === '/calls';
     if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection && !isRecording && !isPreview) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
-    const queryKeys = new Set(['agent_id', 'limit', 'start_at', 'end_at', 'timezone', 'granularity', 'include', 'month']);
+    const queryKeys = new Set(['agent_id', 'limit', 'start_at', 'end_at', 'timezone', 'granularity', 'include', 'month', ...(path === '/dashboard/v1/overview' ? ['source'] : [])]);
     for (const [key, value] of target.searchParams) if (!queryKeys.has(key) || value.length > 200) fail(400, 'พารามิเตอร์ไม่ถูกต้อง');
+    if (target.searchParams.has('source') && !['outbound', 'preview'].includes(target.searchParams.get('source'))) fail(400, 'ประเภทการใช้งานไม่ถูกต้อง');
     if (target.searchParams.has('limit')) target.searchParams.set('limit', String(Math.min(100, Math.max(1, Number(target.searchParams.get('limit')) || 50))));
     const base = new URL(env.VOICE_BOT_BASE_URL || 'https://api-voicebot-stg.botnoigroup.com');
     if (base.protocol !== 'https:' || base.username || base.password) fail(503, 'การตั้งค่าบริการไม่ถูกต้อง');

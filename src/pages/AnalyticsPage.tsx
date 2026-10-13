@@ -1,25 +1,48 @@
+import { useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { MetricCard } from '../components/MetricCard';
-import { useAccount, useTelephonyOverview, useDashboardOverview } from '../hooks/useBotnoiData';
+import { useDashboardOverview } from '../hooks/useBotnoiData';
 import { routes } from '../routes';
+
 const numberValue = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value.toLocaleString('th-TH', { maximumFractionDigits: 1 }) : '—';
 const dayValue = (value: string) => Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric' }) : value;
+
 export function AnalyticsPage() {
-  const account = useAccount();
-  const monthly = useTelephonyOverview(account.tenantId);
-  const recent = useDashboardOverview();
-  const usage = monthly.overview?.sections.usage?.ok ? monthly.overview.sections.usage.data : null;
-  const total = usage?.outbound?.calls_total;
-  const answered = usage?.outbound?.calls_answered;
-  const rate = typeof total === 'number' && total > 0 && typeof answered === 'number' && answered >= 0 && answered <= total ? `${(answered / total * 100).toFixed(1)}%` : '—';
-  const series = recent.overview?.series;
-  return <div className="analytics-page"><AppHeader /><main className="analytics-main page-shell real-data-page"><header><span className="ui-kicker">ACCOUNT USAGE</span><h1>การใช้งาน Voice Bot</h1><p>ยอดใช้งานรวมทุก Agent ของบัญชี Voice Bot ที่เชื่อมอยู่ ทั้งการโทรผ่านเว็บนี้และการใช้งานส่วนอื่นของบัญชี</p><p className="workspace-note">ดูผลตกลง ปฏิเสธ และคำขอเจ้าหน้าที่ของแคมเปญได้ที่ <a href={routes.dashboard}>ภาพรวมการโทร →</a></p></header>
-    {account.error && <p role="alert" className="workspace-alert">{account.error}</p>}
-    <section className="activity-section"><h2>การใช้งานรายเดือน {usage?.month || ''}</h2><Button size="compact" variant="secondary" onClick={monthly.refetch} disabled={!account.tenantId || monthly.loading}>รีเฟรชการใช้งาน</Button>{account.loading || monthly.loading ? <p role="status">กำลังโหลดการใช้งาน…</p> : monthly.error ? <p role="alert" className="workspace-alert">{monthly.error}</p> : !usage && <p className="workspace-note">ไม่มีข้อมูลการใช้งานรายเดือนจาก API</p>}
-    <div className="metric-grid"><MetricCard label="การโทรออกทั้งหมด" value={numberValue(total)} description="ยอดรวมรายเดือนของบัญชี Voice Bot" /><MetricCard label="รับสาย" value={numberValue(answered)} description={`อัตรารับสาย ${rate} · การรับสายยังไม่ใช่ผลตอบตกลง`} tone="success" /><MetricCard label="สายล้มเหลว" value={numberValue(usage?.outbound?.calls_failed)} tone="danger" /><MetricCard label="นาทีใช้งานบอท" value={numberValue(usage?.bot_minutes)} /></div></section>
-    <section className="activity-section"><h2>เซสชันรายวันใน 7 วันที่ผ่านมา</h2><p className="workspace-note">รวม Outbound และ Preview จากรายงานส่วนกลางทุก Agent · เขตเวลา Asia/Bangkok</p><Button size="compact" variant="secondary" onClick={recent.refetch} disabled={recent.loading}>รีเฟรชรายวัน</Button>
-    {recent.loading ? <p role="status">กำลังโหลดรายวัน…</p> : recent.error ? <p className="workspace-alert" role="alert">{recent.error}</p> : !series?.length ? <p>ไม่มีข้อมูลเซสชันรายวันในช่วงนี้</p> : <div className="activity-table-wrap"><table className="activity-table"><thead><tr><th>วันที่</th><th>เซสชัน</th><th>เวลาเฉลี่ย (วินาที)</th></tr></thead><tbody>{series.map(item => <tr key={item.bucket_start}><td>{dayValue(item.bucket_start)}</td><td>{numberValue(item.call_count)}</td><td>{numberValue(item.avg_call_duration_seconds)}</td></tr>)}</tbody></table></div>}
-    </section><p className="workspace-note">รายเดือนนับการโทรออก ส่วนรายวันรวมการโทรออกและการทดสอบบอทตามข้อมูลจาก Voice Bot ยอดของสองส่วนจึงอาจต่างกัน</p>
+  const [period, setPeriod] = useState<'7-days' | 'month'>('month');
+  const [source, setSource] = useState<'all' | 'outbound' | 'preview'>('all');
+  const recent = useDashboardOverview(period, source);
+  const report = recent.overview;
+  const validSeries = Array.isArray(report?.series) && report.series.every(item => typeof item.bucket_start === 'string' && Number.isFinite(Date.parse(item.bucket_start)) && Number.isInteger(item.call_count) && item.call_count >= 0);
+  const series = validSeries ? [...report!.series].sort((a, b) => Date.parse(a.bucket_start) - Date.parse(b.bucket_start)) : [];
+  const total = report && validSeries ? series.reduce((sum, item) => sum + item.call_count, 0) : undefined;
+  const distributions = report?.distributions?.source;
+  const sourceCount = (key: string) => Array.isArray(distributions) ? distributions.find(item => item.key === key)?.count : undefined;
+  const outbound = sourceCount('outbound');
+  const preview = sourceCount('preview');
+  const sourcesMatch = Number.isInteger(outbound) && Number.isInteger(preview) && outbound! >= 0 && preview! >= 0 && outbound! + preview! === total;
+  const summaryMismatch = total !== undefined && report?.summary?.total_calls !== total;
+  const average = total && !summaryMismatch ? report?.summary?.avg_call_duration_seconds : undefined;
+  const error = recent.error || (report && !validSeries ? 'รูปแบบข้อมูลรายวันจาก Voice Bot ไม่ถูกต้อง กรุณารีเฟรชอีกครั้ง' : null);
+  const range = report?.window ? `${dayValue(report.window.start_at)} – ${dayValue(report.window.end_at)}` : period === 'month' ? 'เดือนนี้จนถึงปัจจุบัน' : '7 วันรวมวันนี้';
+  const typeLabel = source === 'all' ? 'การโทรออกและการทดสอบบอท' : source === 'outbound' ? 'เฉพาะการโทรออก' : 'เฉพาะการทดสอบบอท';
+
+  return <div className="analytics-page"><AppHeader /><main className="analytics-main page-shell real-data-page">
+    <header><span className="ui-kicker">ACCOUNT USAGE</span><h1>การใช้งาน Voice Bot</h1><p>เซสชันของทุก Agent ในรายงานบัญชี Voice Bot ที่เชื่อมอยู่</p><p className="workspace-note">ดูผลตกลง ปฏิเสธ และคำขอเจ้าหน้าที่ของแคมเปญได้ที่ <a href={routes.dashboard}>ภาพรวมการโทร →</a></p></header>
+    <section className="activity-section">
+      <div className="usage-toolbar"><div className="usage-controls">
+        <label>ช่วงเวลา<select value={period} onChange={event => setPeriod(event.target.value as typeof period)}><option value="month">เดือนนี้</option><option value="7-days">7 วันรวมวันนี้</option></select></label>
+        <label>ประเภทการใช้งาน<select value={source} onChange={event => setSource(event.target.value as typeof source)}><option value="all">โทรออกและทดสอบบอท</option><option value="outbound">เฉพาะการโทรออก</option><option value="preview">เฉพาะการทดสอบบอท</option></select></label>
+      </div><Button size="compact" variant="secondary" onClick={recent.refetch} disabled={recent.loading}>รีเฟรชรายงาน</Button></div>
+      <h2>สรุปการใช้งานในช่วงที่เลือก</h2><p className="workspace-note">{range} · {typeLabel} · เขตเวลาไทย</p>
+      {recent.loading ? <p role="status">กำลังโหลดรายงาน…</p> : error ? <p role="alert" className="workspace-alert">{error}</p> : <>
+        <div className="metric-grid"><MetricCard label="เซสชันทั้งหมด" value={numberValue(total)} description="รวมจากรายการรายวันในตารางด้านล่าง" /><MetricCard label="เซสชันโทรออก" value={numberValue(sourcesMatch ? outbound : undefined)} description="ตามประเภทในรายงาน Voice Bot" /><MetricCard label="เซสชันทดสอบบอท" value={numberValue(sourcesMatch ? preview : undefined)} description="ตามประเภทในรายงาน Voice Bot" tone="success" /><MetricCard label="เวลาเฉลี่ยต่อเซสชัน" value={numberValue(average)} description="วินาที · ค่าเฉลี่ยจากรายงานเดียวกัน" /></div>
+        {summaryMismatch && <p className="workspace-alert" role="status">ยอดสรุปที่ Voice Bot ส่งกลับยังไม่ตรงกับรายการรายวัน หน้านี้ใช้ผลรวมจากตารางด้านล่าง และรอข้อมูลค่าเฉลี่ยที่ตรงกัน</p>}
+        {total !== undefined && !sourcesMatch && <p className="workspace-note">บริการยังไม่ส่งยอดแยกประเภทที่ตรงกับรายการรายวัน จึงยังไม่แสดงตัวเลขแยกประเภท</p>}
+      </>}
+    </section>
+    <section className="activity-section"><h2>รายการใช้งานรายวัน</h2><p className="workspace-note">ใช้ช่วงเวลาและประเภทเดียวกับสรุปด้านบน · {range}</p>
+      {recent.loading ? <p role="status">กำลังโหลดรายวัน…</p> : error ? <p className="workspace-note">รายการรายวันยังโหลดไม่สำเร็จ กดรีเฟรชรายงานเพื่อลองใหม่</p> : !series.length ? <p>ไม่มีเซสชันในรายงาน Voice Bot สำหรับช่วงเวลาและประเภทที่เลือก</p> : <div className="activity-table-wrap"><table className="activity-table"><thead><tr><th>วันที่</th><th>เซสชัน</th><th>เวลาเฉลี่ย (วินาที)</th></tr></thead><tbody>{series.map(item => <tr key={item.bucket_start}><td>{dayValue(item.bucket_start)}</td><td>{numberValue(item.call_count)}</td><td>{item.call_count ? numberValue(item.avg_call_duration_seconds) : '—'}</td></tr>)}</tbody><tfoot><tr><th scope="row">รวมในช่วงที่เลือก</th><td><strong>{numberValue(total)}</strong></td><td>—</td></tr></tfoot></table></div>}
+    </section><p className="workspace-note">นับเฉพาะเซสชันที่ Voice Bot ส่งกลับในรายงานนี้ ยอดนี้เป็นจำนวนการใช้งาน ไม่ใช่จำนวนผู้ที่ตอบตกลง และไม่ใช่ยอดใช้คู่สายรายเดือนจากระบบโควตา</p>
   </main></div>;
 }

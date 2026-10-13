@@ -62,10 +62,13 @@ export function useTelephonyOverview(tenantId?: string) {
   const result = useRemote(`telephony:${tenantId}`, () => botnoiApi.getProvisioningOverview(tenantId!), Boolean(tenantId));
   return { ...result, overview: result.data };
 }
-export function useDashboardOverview() {
-  const result = useRemote('dashboard:7-days', () => {
+export function useDashboardOverview(period: '7-days' | 'month' = '7-days', source: 'all' | 'outbound' | 'preview' = 'all') {
+  const result = useRemote(`dashboard:${period}:${source}`, () => {
     const end = new Date();
-    return botnoiApi.getDashboardOverview({ startAt: new Date(end.getTime() - 7 * 86400000).toISOString(), endAt: end.toISOString(), granularity: 'day', timezone: 'Asia/Bangkok' });
+    const parts = new Intl.DateTimeFormat('en', { timeZone: 'Asia/Bangkok', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(end);
+    const part = (type: string) => Number(parts.find(item => item.type === type)?.value);
+    const start = new Date(Date.UTC(part('year'), part('month') - 1, period === 'month' ? 1 : part('day') - 6) - 7 * 3600000);
+    return botnoiApi.getDashboardOverview({ startAt: start.toISOString(), endAt: end.toISOString(), granularity: 'day', timezone: 'Asia/Bangkok', ...(source === 'all' ? {} : { source }) });
   });
   return { ...result, overview: result.data };
 }
