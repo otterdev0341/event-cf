@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
+import { InboundKnowledge } from '../components/InboundKnowledge';
 import { useAgents, useAgentDetail } from '../hooks/useBotnoiData';
 import { bindInboundNumber, getInboundSetup, getInboundHistory } from '../services/botnoi/inbound';
 import type { InboundSetup, InboundHistory } from '../services/botnoi/inbound';
@@ -27,6 +28,7 @@ export function InboundPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [mustRefresh, setMustRefresh] = useState(false);
+  const [lookupCallId, setLookupCallId] = useState('');
   const agent = useAgentDetail(agentId || undefined);
   const selected = setup?.numbers.find(item => item.did === did);
   const agentName = (id: string | null) => !id ? 'ยังไม่เลือก Agent' : agents.agents.find(item => item.agent_id === id)?.name || id;
@@ -89,9 +91,10 @@ export function InboundPage() {
         <div className="inbound-connection-note"><span>สถานะ Trunk: <strong>{setup.trunk_state || 'บริการไม่ระบุ'}</strong></span><span>ตรวจล่าสุด {dateText(setup.checked_at)}</span><a href="https://voicebot-stg.botnoigroup.com/home" target="_blank" rel="noopener noreferrer">จัดการเบอร์และระบบโทรศัพท์ ↗</a></div>
       </>}
     </section>
+    <InboundKnowledge callId={lookupCallId} />
     <section className="inbound-guide"><span className="inbound-guide__icon" aria-hidden="true">↙</span><div><h2>หลังเชื่อม ลองโทรเข้าเบอร์ของคุณ</h2><p>ใช้โทรศัพท์อีกเครื่องโทรเข้า ฟังว่าบอทที่เลือกเป็นผู้ตอบ แล้วรีเฟรชประวัติด้านล่าง การผูกเบอร์สำเร็จยังต้องตรวจด้วยสายจริง</p><p className="workspace-note">หน้านี้แสดงสถานะและประวัติสายเข้า ผลตอบรับและข้อความบทสนทนาของสายเข้ายังไม่รวมในผลแคมเปญโทรออก</p></div></section>
     <section className="activity-section"><div className="inbound-section-heading"><div><h2>ประวัติสายเข้าล่าสุด</h2><p className="workspace-note">สูงสุด 50 สายล่าสุดของบัญชีที่เชื่อม รวมทุกเบอร์ · เวลาไทย</p></div><Button href={`${routes.analytics}?source=inbound`} size="compact" variant="secondary">ดูสถิติสายเข้า →</Button></div>
-      {historyLoading ? <p role="status">กำลังโหลดประวัติสายเข้า…</p> : historyError ? <p className="workspace-alert" role="alert">{historyError}</p> : history && <>{history.items.length ? <div className="activity-table-wrap" tabIndex={0} role="region" aria-label="ตารางประวัติสายเข้า เลื่อนแนวนอนได้"><table className="activity-table inbound-history"><thead><tr><th>เวลาที่โทรเข้า</th><th>ผู้โทร / เบอร์รับสาย</th><th>Agent</th><th>สถานะ</th><th>ระยะเวลา</th></tr></thead><tbody>{history.items.map(call => <tr key={call.id}><td>{dateText(call.started_at)}<small className="inbound-call-id">{call.id}</small></td><td>{call.number || 'ไม่ระบุ'}<small className="inbound-call-id">เข้าเบอร์ {call.phone_number || 'ไม่ระบุ'}</small></td><td>{call.agent_name || agentName(call.agent_id)}</td><td><span className="inbound-call-status">{callStatus(call.status)}</span></td><td>{call.duration_seconds === null ? 'ไม่ระบุ' : `${Math.floor(call.duration_seconds / 60)}:${String(Math.floor(call.duration_seconds % 60)).padStart(2, '0')} นาที`}</td></tr>)}</tbody></table></div> : <div className="workspace-empty"><h3>ยังไม่มีประวัติสายเข้า</h3><p>เมื่อ Voice Bot บันทึกสายเข้าแล้ว รายการจะปรากฏที่นี่หลังรีเฟรช</p></div>}<p className="workspace-note">{history.has_more ? 'ยังมีประวัติเก่ากว่านี้ ดูยอดรวมตามช่วงเวลาได้ที่สถิติสายเข้า · ' : ''}ตรวจล่าสุด {dateText(history.checked_at)} · สถานะจบสายไม่ได้แปลว่าผู้โทรตอบตกลง</p></>}
+      {historyLoading ? <p role="status">กำลังโหลดประวัติสายเข้า…</p> : historyError ? <p className="workspace-alert" role="alert">{historyError}</p> : history && <>{history.items.length ? <div className="activity-table-wrap" tabIndex={0} role="region" aria-label="ตารางประวัติสายเข้า เลื่อนแนวนอนได้"><table className="activity-table inbound-history"><thead><tr><th>เวลาที่โทรเข้า</th><th>ผู้โทร / เบอร์รับสาย</th><th>Agent</th><th>สถานะ</th><th>ระยะเวลา</th><th>ข้อมูลของผู้โทร</th></tr></thead><tbody>{history.items.map(call => <tr key={call.id}><td>{dateText(call.started_at)}<small className="inbound-call-id">{call.id}</small></td><td>{call.number || 'ไม่ระบุ'}<small className="inbound-call-id">เข้าเบอร์ {call.phone_number || 'ไม่ระบุ'}</small></td><td>{call.agent_name || agentName(call.agent_id)}</td><td><span className="inbound-call-status">{callStatus(call.status)}</span></td><td>{call.duration_seconds === null ? 'ไม่ระบุ' : `${Math.floor(call.duration_seconds / 60)}:${String(Math.floor(call.duration_seconds % 60)).padStart(2, '0')} นาที`}</td><td><Button size="compact" variant="secondary" onClick={() => { setLookupCallId(call.id); document.getElementById('inbound-knowledge')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); }}>ดูงานของผู้โทร</Button></td></tr>)}</tbody></table></div> : <div className="workspace-empty"><h3>ยังไม่มีประวัติสายเข้า</h3><p>เมื่อ Voice Bot บันทึกสายเข้าแล้ว รายการจะปรากฏที่นี่หลังรีเฟรช</p></div>}<p className="workspace-note">{history.has_more ? 'ยังมีประวัติเก่ากว่านี้ ดูยอดรวมตามช่วงเวลาได้ที่สถิติสายเข้า · ' : ''}ตรวจล่าสุด {dateText(history.checked_at)} · สถานะจบสายไม่ได้แปลว่าผู้โทรตอบตกลง</p></>}
     </section>
   </main></div>;
 }

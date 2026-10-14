@@ -35,5 +35,21 @@
 .inbound-call-id { display:block; max-width:210px; overflow-wrap:anywhere; margin-top:5px; color:var(--color-muted); font-size:10px; }
 .inbound-history { min-width:690px; }
 .inbound-call-status { white-space:nowrap; }
+.inbound-knowledge { scroll-margin-top:24px; }
+.inbound-context-status { padding:16px; background:#fffcf6; border:1px solid #eee6d5; border-radius:12px; color:#7a6333; font-size:12px; }
+.inbound-context-status p { margin:8px 0 0; }
+.inbound-event-editor { border:1px solid #e7e9ef; border-radius:12px; background:#fff; }
+.inbound-event-editor summary { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; padding:18px; cursor:pointer; }
+.inbound-event-editor summary small { display:block; margin-top:5px; color:var(--color-muted); font-size:11px; }
+.inbound-event-badge { font-size:10px; color:#66548d; border:1px solid #e5dff0; padding:5px 9px; border-radius:20px; }
+.inbound-event-fields { border-top:1px solid #eef0f4; padding:20px; display:flex; flex-direction:column; gap:16px; }
+.inbound-event-fields > label:not(.inbound-consent) { display:flex; flex-direction:column; gap:8px; font-size:12px; }
+.inbound-event-fields > .button { align-self:flex-start; }
+.inbound-event-fields p { margin:0; }
+.inbound-lookup-result { padding:20px; border:1px solid #ded4f4; border-radius:12px; background:#faf8ff; }
+.inbound-lookup-result h3 { margin:0; font-size:16px; }
+.inbound-lookup-result article { border-top:1px solid #e4ddf2; margin-top:16px; padding-top:16px; }
+.inbound-lookup-result h4 { margin:0; }
+.inbound-event-answer { white-space:pre-wrap; overflow-wrap:anywhere; }
 @media(max-width:700px) { .inbound-routing-grid { grid-template-columns:1fr; gap:20px; } .inbound-editor { padding:20px 0 0; border-left:0; border-top:1px solid #eef0f4; } .inbound-connection-note { flex-direction:column; } .inbound-connection-note a { margin-left:0; } .inbound-guide { padding:18px; gap:12px; } .inbound-number { min-height:110px; } .inbound-review .draft-actions { flex-wrap:wrap; } }
 @media(prefers-reduced-motion:reduce) { .inbound-number { transition:none; } }

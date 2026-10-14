@@ -10,6 +10,7 @@ import { handlePreview } from './preview.mjs';
 import { connectedTranscriptTool } from './transcript.mjs';
 import { handleUsage } from './usage.mjs';
 import { handleInbound } from './inbound.mjs';
+import { handleInboundEvents } from './inbound-events.mjs';
 
 class HttpError extends Error { constructor(status, message, code) { super(message); this.status = status; this.code = code; } }
 const fail = (status, message, code) => { throw new HttpError(status, message, code); };
@@ -80,8 +81,12 @@ export async function handleVoice(req, res, env = process.env) {
     const inboundAction = path === '/workspace/inbound' && method === 'GET' ? 'overview'
       : path === '/workspace/inbound/history' && method === 'GET' ? 'history'
       : path === '/workspace/inbound/bind' && method === 'POST' ? 'bind' : null;
+    const inboundEventRoute = path.match(/^\/workspace\/inbound\/events\/([0-9a-f-]{36})$/i);
+    const inboundEventAction = path === '/workspace/inbound/events' && method === 'GET' ? 'list'
+      : path === '/workspace/inbound/lookup' && method === 'POST' ? 'lookup'
+      : inboundEventRoute && method === 'POST' ? 'save' : null;
     const isCall = method === 'POST' && tenantRoute?.[2] === '/calls';
-    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection && !isRecording && !isPreview && !isUsage && !inboundAction) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
+    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection && !isRecording && !isPreview && !isUsage && !inboundAction && !inboundEventAction) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
     const queryKeys = new Set(['agent_id', 'limit', 'start_at', 'end_at', 'timezone', 'granularity', 'include', 'month', ...(path === '/dashboard/v1/overview' || isUsage ? ['source'] : [])]);
     for (const [key, value] of target.searchParams) if (!queryKeys.has(key) || value.length > 200) fail(400, 'พารามิเตอร์ไม่ถูกต้อง');
     if (target.searchParams.has('source') && !(isUsage ? ['all', 'outbound', 'inbound'] : ['outbound', 'preview']).includes(target.searchParams.get('source'))) fail(400, 'ประเภทการใช้งานไม่ถูกต้อง');
@@ -115,6 +120,7 @@ export async function handleVoice(req, res, env = process.env) {
     };
     if (isUsage) return await handleUsage({ query: target.searchParams, connection, upstream, fail, send });
     if (inboundAction) return await handleInbound({ action: inboundAction, method, body: method === 'POST' ? await bodyOf(req) : undefined, connection, user, upstream, fail, send });
+    if (inboundEventAction) return await handleInboundEvents({ action: inboundEventAction, id: inboundEventRoute?.[1], method, body: method === 'POST' ? await bodyOf(req) : undefined, store, user, connection, upstream, fail, send });
     if (isPreview) return await handlePreview({ id: previewRoute[1], body: await bodyOf(req), connection, upstream, fail, send });
     if (isSetup) {
       await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env:{...env,...(env.VOICE_RESULT_CALLBACK_SECRET?.length>=32?{VOICE_RESULT_CALLBACK_SECRET:accountCallbackSecret(connection.account_id,env)}:{})},connection,upstream,fail,send,deadline,transcript:setupRoute[2]==='transcript-setup'});
