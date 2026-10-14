@@ -34,3 +34,5 @@ See [test results and remaining blockers](docs/TEST_REPORT.md). The older `test:
 - The website streams audio through an authenticated workspace route using the saved server-side Voice Bot JWT. It rechecks account and Agent ownership, validates the selected file against the current list, and never sends the provider JWT to the browser. VOICE_BOT_LOGS_BASE_URL can configure the provider log origin on the server.
 - Recordings appear on the Agent, campaign, and inbound pages. File timestamps are shown as supplied by the provider. They are not assigned to individual contacts without an exact provider Call ID or file reference.
 - Run npm run test:audio for isolated listing, authorization, WAV streaming and input validation checks.
+
+The recording player also offers an opt-in listening repair for the user-reviewed PCM/packed mu-law issue. Processing runs locally in a Web Worker, preserves the original download, and labels the derivative with its adjusted duration. It is limited to PCM16 stereo 8 kHz inputs under 16 MB; it is not an authoritative call timeline.
