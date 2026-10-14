@@ -9,6 +9,9 @@
     },
     "api/voice-result.mjs": {
       "maxDuration": 30
+    },
+    "api/voice-recording.mjs": {
+      "maxDuration": 30
     }
   },
   "rewrites": [

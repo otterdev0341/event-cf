@@ -223,6 +223,7 @@ export async function handleVoice(req, res, env = process.env) {
         if (body.metadata?.campaign_batch !== true && required.some(key => !outputs.includes(key) && (typeof variables[key] !== 'string' || !variables[key].trim()))) fail(400, 'กรุณาเติมตัวแปรใน Prompt ให้ครบก่อนโทร');
         if (previewTest) for (const key of outputs) delete variables[key];
         // Reserved correlation comes from this request, never CSV/browser data.
+        metadata.voice_request_id = body.request_id.toLowerCase();
         delete variables.vc_call_reference;
         delete variables.vc_record_conversation;
         if (usesCallback) {

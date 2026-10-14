@@ -44,7 +44,8 @@ export async function handleRecording({id,db,user,accountId,upstream,logsFetch,f
   const ownedPaths=entries.map(entry=>entry.path);
   const ownedLogs=Array.isArray(files)?files.filter(path=>typeof path==='string'&&ownedPaths.includes(path.replace(/\.txt$/i,'.wav'))):[];
   const link=record.response?.audio_link;
-  const linked=link?.account_id===accountId&&link?.agent_id===record.agent_id?entries.find(entry=>entry.id===link.recording_id):null;
+  const providerLink=link?.source==='provider_callback'&&link.request_id===record.id&&link.call_id===record.call_id&&link.campaign_id===record.metadata?.campaign_id;
+  const linked=(providerLink||link?.source==='manual')&&link?.account_id===accountId&&link?.agent_id===record.agent_id?entries.find(entry=>entry.id===link.recording_id):null;
   const exactPath=recordingPath([...ownedPaths,...ownedLogs],call);
   const path=linked?.path||exactPath;
   if(!path) {
@@ -52,5 +53,5 @@ export async function handleRecording({id,db,user,accountId,upstream,logsFetch,f
     return send(200,{state:'not_available',message:'ยังไม่มีไฟล์เสียงที่ยืนยันว่าเชื่อมกับสายนี้ในแคมเปญ บริการยังไม่ส่งรหัสเชื่อมไฟล์กับ Call ID'});
   }
   if(binary)return streamWav(await logsFetch('/logs/audio?'+new URLSearchParams({file_path:path})),res,fail);
-  return send(200,{state:'available',playback_path:`/workspace/calls/${id}/recording-audio${campaignId?'?'+new URLSearchParams({campaign_id:campaignId}):''}`,source:linked?'manual':'provider',linked_at:link?.updated_at??null});
+  return send(200,{state:'available',playback_path:`/workspace/calls/${id}/recording-audio${campaignId?'?'+new URLSearchParams({campaign_id:campaignId}):''}`,source:linked?link.source:'provider',linked_at:link?.updated_at??null});
 }

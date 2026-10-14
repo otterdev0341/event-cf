@@ -23,6 +23,10 @@ export function accountCallbackSecret(accountId,env) {
   if(!accountId || typeof env.VOICE_RESULT_CALLBACK_SECRET!=='string'||env.VOICE_RESULT_CALLBACK_SECRET.length<32)throw Error('Callback is not configured');
   return createHmac('sha256',env.VOICE_RESULT_CALLBACK_SECRET).update('voice-account-result-v2:'+accountId).digest('base64url');
 }
+export function accountRecordingSecret(accountId,env) {
+  if(!accountId || typeof env.VOICE_RESULT_CALLBACK_SECRET!=='string'||env.VOICE_RESULT_CALLBACK_SECRET.length<32)throw Error('Recording callback is not configured');
+  return createHmac('sha256',env.VOICE_RESULT_CALLBACK_SECRET).update('voice-account-recording-v1:'+accountId).digest('base64url');
+}
 export function connectionStore(env,deadline) {
   keyOf(env);
   if(!env.SUPABASE_SERVICE_ROLE_KEY)throw Error('Connection storage is not configured');
