@@ -231,8 +231,8 @@ main .campaign-form__control input,main .campaign-form__field > input { height: 
 .auth-card { border-radius: 20px; border: 1px solid #e7e9ef; box-shadow: 0 12px 50px #22253405; padding: 36px; }
 .auth-card__header h2 { font-size: 27px; }
 .password-input { height: 44px; border-color: var(--color-border-light); border-radius: 9px; background: #fff; }
-main .password-input input { height: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-main .password-input input:focus { outline: 0; box-shadow: none; }
+main .auth-card .auth-field .password-input > input { height: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+main .auth-card .auth-field .password-input > input:focus { outline: 0; box-shadow: none; }
 .auth-tabs { border-bottom-color: #e8e9ef; }
 .auth-google { border-radius: 10px; min-height: 44px; }
 /* Motion: entry, hover, press, selection, disclosure and loading. */
