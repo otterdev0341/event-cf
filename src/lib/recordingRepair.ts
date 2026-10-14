@@ -10,7 +10,7 @@ export async function repairRecording(blob: Blob, signal: AbortSignal): Promise<
     const abort = () => { cleanup(); reject(new DOMException('Cancelled','AbortError')); };
     const timer = setTimeout(() => { cleanup(); reject(Error('ปรับเสียงใช้เวลานานเกินไป ลองเลือกไฟล์ที่สั้นลง')); },20000);
     signal.addEventListener('abort',abort,{once:true});
-    worker.onerror = () => { cleanup(); reject(Error('ปรับเสียงไม่ได้ สามารถเลือกฟังต้นฉบับได้')); };
+    worker.onerror = () => { cleanup(); reject(Error('ปรับเสียงไม่ได้ กรุณาลองโหลดเสียงใหม่')); };
     worker.onmessage = (event: MessageEvent<RecordingRepair & {ok:boolean;error?:string}>) => {
       cleanup();
       if (!event.data.ok || !(event.data.buffer instanceof ArrayBuffer)) reject(Error(event.data.error || 'ปรับเสียงไม่ได้'));
