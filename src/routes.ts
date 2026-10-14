@@ -3,6 +3,7 @@ export const routes = {
   login: "/login",
   dashboard: "/dashboard",
   liveAgent: "/live-agent",
+  inbound: "/inbound",
   campaigns: "/campaigns",
   createCampaign: "/campaigns/new",
   dataMapping: "/campaigns/data-mapping",

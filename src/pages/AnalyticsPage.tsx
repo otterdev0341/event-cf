@@ -10,7 +10,7 @@ const dayValue = (value: string) => new Date(value).toLocaleDateString('th-TH', 
 
 export function AnalyticsPage() {
   const [period, setPeriod] = useState<'7-days' | 'month'>('month');
-  const [source, setSource] = useState<'all' | 'outbound' | 'inbound'>('all');
+  const [source, setSource] = useState<'all' | 'outbound' | 'inbound'>(() => new URLSearchParams(window.location.search).get('source') === 'inbound' ? 'inbound' : 'all');
   const usage = useCallUsage(period, source);
   const report = usage.report;
   const series = report?.series || [];
