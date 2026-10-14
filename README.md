@@ -26,3 +26,11 @@ Per-contact variables are previewed and sent in outbound metadata. Provider-side
 `npm run test:readiness` performs read-only connectivity and configuration checks using local environment settings. It exits nonzero when configuration or tables are missing. It never places calls.
 
 See [test results and remaining blockers](docs/TEST_REPORT.md). The older `test:integration` scripts have not been adapted for this backend and are not included in `npm test`.
+
+## Voice recordings
+
+- Search owned Agent logs using GET /logs/list_file/ with start_date and end_date (YYYY/MM/DD); the workspace accepts a maximum 31-day range.
+- The provider lists .txt records. Replace only the final .txt extension with .wav and fetch GET /logs/audio?file_path on backend-voicebot-stg.botnoigroup.com. This returns WAV bytes, not a JSON audio URL.
+- The website streams audio through an authenticated workspace route using the saved server-side Voice Bot JWT. It rechecks account and Agent ownership, validates the selected file against the current list, and never sends the provider JWT to the browser. VOICE_BOT_LOGS_BASE_URL can configure the provider log origin on the server.
+- Recordings appear on the Agent, campaign, and inbound pages. File timestamps are shown as supplied by the provider. They are not assigned to individual contacts without an exact provider Call ID or file reference.
+- Run npm run test:audio for isolated listing, authorization, WAV streaming and input validation checks.

@@ -1,0 +1,12 @@
+.agent-recordings-heading h2 { margin:8px 0; }
+.agent-recordings-filters { display:flex; align-items:flex-end; flex-wrap:wrap; gap:16px; margin:20px 0; }
+.agent-recordings-filters label { display:flex; flex-direction:column; gap:8px; font-size:12px; }
+.agent-recordings-filters input { min-width:160px; }
+.agent-recordings-list { list-style:none; padding:0; margin:0; max-height:360px; overflow:auto; }
+.agent-recordings-list li { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 0; border-top:1px solid var(--color-border,#e9eaf0); }
+.agent-recordings-list strong,.agent-recordings-player strong { display:block; font-size:13px; }
+.agent-recordings-list small { display:block; color:var(--color-muted); font-size:11px; margin-top:4px; }
+.agent-recordings-player { padding:20px; border:1px solid #e1d8f5; border-radius:12px; background:#faf8ff; margin-top:20px; }
+.agent-recordings-player audio { display:block; width:100%; margin:14px 0; }
+.agent-recordings-player a { font-size:12px; }
+@media(max-width:600px) { .agent-recordings-filters label { flex:1; min-width:130px; } .agent-recordings-filters input { min-width:0; width:100%; } }

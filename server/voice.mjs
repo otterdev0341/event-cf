@@ -11,6 +11,7 @@ import { connectedTranscriptTool } from './transcript.mjs';
 import { handleUsage } from './usage.mjs';
 import { handleInbound } from './inbound.mjs';
 import { handleInboundEvents } from './inbound-events.mjs';
+import { handleAudioLibrary } from './audio-library.mjs';
 
 class HttpError extends Error { constructor(status, message, code) { super(message); this.status = status; this.code = code; } }
 const fail = (status, message, code) => { throw new HttpError(status, message, code); };
@@ -70,8 +71,10 @@ export async function handleVoice(req, res, env = process.env) {
       || Boolean(tenantRoute && tenantRoute[2] !== '/calls');
     const resultRoute = path.match(/^\/workspace\/calls\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/result$/i);
     const isResult = Boolean(resultRoute && ['GET','POST'].includes(method));
-    const recordingRoute=path.match(/^\/workspace\/calls\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/recording$/i);
+    const recordingRoute=path.match(/^\/workspace\/calls\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(recording|recording-audio)$/i);
     const isRecording=Boolean(recordingRoute&&method==='GET');
+    const audioRoute=path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/audio(?:\/([0-9a-f]{64}))?$/);
+    const isAudio=Boolean(audioRoute&&method==='GET');
     const setupRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/(result-setup|transcript-setup|general-setup)$/);
     const isSetup = Boolean(setupRoute && ['GET','POST'].includes(method));
     const previewRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/preview-token$/);
@@ -86,8 +89,8 @@ export async function handleVoice(req, res, env = process.env) {
       : path === '/workspace/inbound/lookup' && method === 'POST' ? 'lookup'
       : inboundEventRoute && method === 'POST' ? 'save' : null;
     const isCall = method === 'POST' && tenantRoute?.[2] === '/calls';
-    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection && !isRecording && !isPreview && !isUsage && !inboundAction && !inboundEventAction) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
-    const queryKeys = new Set(['agent_id', 'limit', 'start_at', 'end_at', 'timezone', 'granularity', 'include', 'month', ...(path === '/dashboard/v1/overview' || isUsage ? ['source'] : [])]);
+    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection && !isRecording && !isAudio && !isPreview && !isUsage && !inboundAction && !inboundEventAction) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
+    const queryKeys = new Set(isAudio ? ['start_date','end_date'] : ['agent_id', 'limit', 'start_at', 'end_at', 'timezone', 'granularity', 'include', 'month', ...(path === '/dashboard/v1/overview' || isUsage ? ['source'] : [])]);
     for (const [key, value] of target.searchParams) if (!queryKeys.has(key) || value.length > 200) fail(400, 'พารามิเตอร์ไม่ถูกต้อง');
     if (target.searchParams.has('source') && !(isUsage ? ['all', 'outbound', 'inbound'] : ['outbound', 'preview']).includes(target.searchParams.get('source'))) fail(400, 'ประเภทการใช้งานไม่ถูกต้อง');
     if (target.searchParams.has('limit')) target.searchParams.set('limit', String(Math.min(100, Math.max(1, Number(target.searchParams.get('limit')) || 50))));
@@ -118,6 +121,17 @@ export async function handleVoice(req, res, env = process.env) {
       if (!response.ok) fail(response.status === 429 ? 429 : 502, `บริการ Voice Bot ตอบกลับ HTTP ${response.status}`);
       return response.json();
     };
+    let logsFetch;
+    if (isAudio || isRecording) {
+      const logsBase = new URL(env.VOICE_BOT_LOGS_BASE_URL || 'https://backend-voicebot-stg.botnoigroup.com');
+      if (logsBase.protocol !== 'https:' || logsBase.username || logsBase.password || logsBase.search || logsBase.hash) fail(503,'การตั้งค่าบริการเสียงไม่ถูกต้อง');
+      logsFetch = async route => {
+        const response = await fetch(new URL(route,logsBase),{method:'GET',redirect:'error',signal:AbortSignal.any([deadline,AbortSignal.timeout(30000)]),headers:{Authorization:`Bearer ${connection.token}`}});
+        if ([401,403].includes(response.status)) fail(428,'Voice Bot ไม่รับสิทธิ์ดึงเสียง ไปที่ตั้งค่าเพื่อเชื่อม Session JWT ใหม่');
+        return response;
+      };
+    }
+    if (isAudio) return await handleAudioLibrary({agentId:audioRoute[1],fileId:audioRoute[2],query:target.searchParams,accountId:connection.account_id,upstream,logsFetch,fail,send,res});
     if (isUsage) return await handleUsage({ query: target.searchParams, connection, upstream, fail, send });
     if (inboundAction) return await handleInbound({ action: inboundAction, method, body: method === 'POST' ? await bodyOf(req) : undefined, connection, user, upstream, fail, send });
     if (inboundEventAction) return await handleInboundEvents({ action: inboundEventAction, id: inboundEventRoute?.[1], method, body: method === 'POST' ? await bodyOf(req) : undefined, store, user, connection, upstream, fail, send });
@@ -126,7 +140,7 @@ export async function handleVoice(req, res, env = process.env) {
       await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env:setupRoute[2]==='general-setup'?env:{...env,...(env.VOICE_RESULT_CALLBACK_SECRET?.length>=32?{VOICE_RESULT_CALLBACK_SECRET:accountCallbackSecret(connection.account_id,env)}:{})},connection,upstream,fail,send,deadline,transcript:setupRoute[2]==='transcript-setup',general:setupRoute[2]==='general-setup'});
       return;
     }
-    if(isRecording)return await handleRecording({id:recordingRoute[1],db,user,accountId:connection.account_id,upstream,fail,send});
+    if(isRecording)return await handleRecording({id:recordingRoute[1],db,user,accountId:connection.account_id,upstream,logsFetch,fail,send,res,binary:recordingRoute[2]==='recording-audio'});
     if (isResult) {
       await handleCallResult({id:resultRoute[1],method,db,upstream,user,fail,send,accountId:connection.account_id});
       return;
@@ -245,5 +259,5 @@ export async function handleVoice(req, res, env = process.env) {
       if(error) result.persistence_warning='อ่านสถานะล่าสุดแล้ว แต่บันทึกไม่ได้';
     }
     send(200, path === '/me' ? pick(result, ['_id','username','role','permissions','email','verified']) : clean(result));
-  } catch (error) { send(error instanceof HttpError ? error.status : 503, { error: error instanceof HttpError ? error.message : 'เชื่อมต่อบริการไม่ได้ กรุณาลองใหม่', ...(error instanceof HttpError && error.code ? { code: error.code } : {}) }); }
+  } catch (error) { if (res.headersSent) { res.destroy(); return; } send(error instanceof HttpError ? error.status : 503, { error: error instanceof HttpError ? error.message : 'เชื่อมต่อบริการไม่ได้ กรุณาลองใหม่', ...(error instanceof HttpError && error.code ? { code: error.code } : {}) }); }
 }

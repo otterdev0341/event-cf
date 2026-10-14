@@ -11,7 +11,8 @@
     "test:integration": "node scripts/run-all-tests.mjs",
     "test:readiness": "node scripts/check-readiness.mjs",
     "test:inbound": "node scripts/test-inbound-events.mjs",
-    "test:general": "node scripts/test-general-events.mjs"
+    "test:general": "node scripts/test-general-events.mjs",
+    "test:audio": "node scripts/test-audio-library.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.6",

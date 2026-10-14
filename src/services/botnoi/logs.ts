@@ -64,10 +64,10 @@ export async function readLog(filePath: string): Promise<ReadLogResponse> {
 
 
 /**
- * Fetch raw binary audio (audio/wav) with Authorization Bearer header
+ * Fetch a selected owned recording through the authenticated workspace route.
  */
-export async function fetchAudioBlob(filePath: string): Promise<Blob> {
-  const query = new URLSearchParams({ file_path: filePath });
-  return botnoiFetchBlob(`/logs/audio_url?${query.toString()}`);
+export async function fetchAudioBlob(agentId: string, recordingId: string, startDate: string, endDate: string): Promise<Blob> {
+  const query = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  return botnoiFetchBlob(`/workspace/agents/${encodeURIComponent(agentId)}/audio/${encodeURIComponent(recordingId)}?${query.toString()}`);
 }
 

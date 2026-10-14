@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from './Button';
+import { AgentRecordings } from './AgentRecordings';
 import { supabase } from '../lib/supabase';
 import type { CampaignDraft } from '../lib/campaigns';
 import { botnoiFetch } from '../services/botnoi/client';
@@ -96,5 +97,6 @@ export function CampaignResults({campaign,queueRunning,revision,onStatus}:{campa
       {target.response?.review && <p className="workspace-note">บันทึกเมื่อ {date(target.response.review.updated_at)}</p>}
       <Button size="compact" disabled={saving || syncing || queueRunning} onClick={saveReview}>{saving?'กำลังบันทึก…':'บันทึกผลที่ตรวจแล้ว'}</Button>
     </section>}
+    {campaign.agentId && <AgentRecordings key={campaign.agentId} agentId={campaign.agentId} />}
   </section>;
 }

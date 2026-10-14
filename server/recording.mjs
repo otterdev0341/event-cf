@@ -1,5 +1,6 @@
 import { matchingLogPath } from '../shared/call-results.mjs';
 import { terminalCall } from '../shared/campaign-queue.mjs';
+import { audioEntries, logFileListPath, streamWav } from './audio-library.mjs';
 const audioPath=path=>typeof path==='string'&&/\.(wav|mp3|ogg|m4a|flac|webm)$/i.test(path);
 export function recordingPath(files,call) {
   if(!Array.isArray(files))return null;
@@ -11,7 +12,7 @@ export function recordingPath(files,call) {
   const log=matchingLogPath(files,call);
   if(!log)return null;
   const paired=paths.filter(path=>path.replace(/\.[^.]+$/,'')===log.replace(/\.[^.]+$/,''));
-  return paired.length===1?paired[0]:paired.length===0?log:null;
+  return paired.length===1?paired[0]:paired.length===0&&/\.txt$/i.test(log)?log.replace(/\.txt$/i,'.wav'):null;
 }
 export function safeRecordingUrl(value) {
   try{const url=new URL(value);const host=url.hostname.toLowerCase();
@@ -20,8 +21,8 @@ export function safeRecordingUrl(value) {
     return url.href;
   }catch{return null;}
 }
-export async function handleRecording({id,db,user,accountId,upstream,fail,send}) {
-  const {data:record,error}=await db.from('voice_call_requests').select('id,call_id,agent_id,metadata').eq('id',id).eq('owner_id',user.id).maybeSingle();
+export async function handleRecording({id,db,user,accountId,upstream,logsFetch,fail,send,res,binary=false}) {
+  const {data:record,error}=await db.from('voice_call_requests').select('id,call_id,agent_id,metadata,created_at').eq('id',id).eq('owner_id',user.id).maybeSingle();
   if(error||!record)fail(404,'ไม่พบคำขอโทรในบัญชีนี้');
   if(record.metadata?.voice_account_id!==accountId)fail(403,'ต้องเชื่อมบัญชี Voice Bot เดิมเพื่อฟังเสียงสายนี้');
   if(!record.call_id)return send(200,{state:'not_available',message:'ยังไม่มี Call ID จึงตรวจไฟล์เสียงไม่ได้'});
@@ -30,13 +31,17 @@ export async function handleRecording({id,db,user,accountId,upstream,fail,send})
   const call=await upstream(`/v1/provisioning/tenants/${encodeURIComponent(accountId)}/calls/${encodeURIComponent(record.call_id)}`);
   if(call.call_id!==record.call_id)fail(502,'Call ID จากบริการไม่ตรงกับคำขอ');
   if(!terminalCall(call.status))return send(200,{state:'pending',message:'สายยังไม่จบ กดตรวจเสียงอีกครั้งหลังจบสาย'});
-  const files=await upstream(`/logs/list_file/?agent_id=${encodeURIComponent(record.agent_id)}`);
-  const path=recordingPath(files,call);
+  const date=Date.parse(call.created_at||record.created_at);
+  if(!Number.isFinite(date))fail(502,'บริการไม่ระบุวันที่ของสายนี้');
+  const range={start:new Date(date-86400000).toISOString().slice(0,10),end:new Date(date+86400000).toISOString().slice(0,10)};
+  const listing=await logsFetch(logFileListPath(record.agent_id,range));
+  if(!listing.ok)fail(502,`บริการรายการเสียงตอบกลับ HTTP ${listing.status}`);
+  const files=await listing.json();
+  const entries=audioEntries(files,record.agent_id,range);
+  const ownedPaths=entries.map(entry=>entry.path);
+  const ownedLogs=Array.isArray(files)?files.filter(path=>typeof path==='string'&&ownedPaths.includes(path.replace(/\.txt$/i,'.wav'))):[];
+  const path=recordingPath([...ownedPaths,...ownedLogs],call);
   if(!path)return send(200,{state:'not_available',message:'บริการยังไม่มีไฟล์เสียงที่เชื่อมกับ Call ID นี้'});
-  let result;
-  try{result=await upstream(`/logs/audio_url?file_path=${encodeURIComponent(path)}`);}catch(error){if(/HTTP 404\b/.test(error.message))return send(200,{state:'not_available',message:'บริการมีบันทึกสายนี้ แต่ยังไม่มีไฟล์เสียง'});throw error;}
-  const url=safeRecordingUrl(typeof result==='string'?result:result?.audio_url||result?.url||result?.download_url);
-  if(!url)fail(502,'บริการยังไม่ส่งลิงก์เสียงที่ใช้งานได้ กรุณาตรวจอีกครั้ง');
-  // Signed links are short-lived capabilities: return only on explicit request, never persist in the database.
-  return send(200,{state:'available',url});
+  if(binary)return streamWav(await logsFetch('/logs/audio?'+new URLSearchParams({file_path:path})),res,fail);
+  return send(200,{state:'available',playback_path:`/workspace/calls/${id}/recording-audio`});
 }

@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { ConversationLog } from '../components/ConversationLog';
 import { BotTestRoom } from '../components/BotTestRoom';
 import { AgentResultSetup } from '../components/AgentResultSetup';
+import { AgentRecordings } from '../components/AgentRecordings';
 import { useAgents, useAgentDetail, useCallLogs } from '../hooks/useBotnoiData';
 import type { PreviewData } from '../hooks/useVoicePreview';
 import { parseCsv, type CsvData } from '../lib/campaigns';
@@ -26,6 +27,7 @@ export function LiveAgentPage() {
       </section>
       {agentId ? <AgentPreparation key={agentId} agentId={agentId} onTest={openPreview} /> : <section className="preview-empty"><span aria-hidden="true">✦</span><h2>เริ่มจากบอทที่อยากคุยด้วย</h2><p>เมื่อเลือกแล้ว ตัวแปรจาก Prompt จะปรากฏให้คุณเตรียมข้อมูล</p></section>}
     </div>
+    {(preview?.agentId || agentId) && <AgentRecordings key={preview?.agentId || agentId} agentId={preview?.agentId || agentId} />}
   </main></div>;
 }
 
