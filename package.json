@@ -10,7 +10,8 @@
     "test": "node scripts/test-local.mjs && node scripts/test-backend.mjs && node scripts/test-database.mjs && node scripts/test-campaign-queue.mjs && node scripts/test-call-results.mjs && node scripts/test-result-callback.mjs && node scripts/test-agent-setup.mjs && node scripts/test-voice-connection.mjs",
     "test:integration": "node scripts/run-all-tests.mjs",
     "test:readiness": "node scripts/check-readiness.mjs",
-    "test:inbound": "node scripts/test-inbound-events.mjs"
+    "test:inbound": "node scripts/test-inbound-events.mjs",
+    "test:general": "node scripts/test-general-events.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.6",

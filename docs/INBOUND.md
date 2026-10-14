@@ -28,6 +28,16 @@ Reference: https://voicebot-stg.botnoigroup.com/docs/getting-started and https:/
 
 ## Remaining provider dependency
 
+### General information mode (implemented)
+
+`POST /api/voice-events` provides name search and exact-ID details during a conversation without caller identity. It uses a purpose-specific HMAC bearer credential scoped to the website owner and connected Voice Bot account. Disconnecting or switching that connection revokes access. Only saved campaigns explicitly opted into `inboundInfo.publicEnabled` for that account are returned. Earlier caller-specific opt-ins are not treated as public permission.
+
+Name queries return bounded event choices (ID, name, date and time). Exact selected IDs return the public location and details. No CSV data, phone numbers, customer names, call outcomes or prompts are returned. A malicious or mismatched event ID cannot cross owners or accounts. The managed Agent instruction requires an event selection before details, treats facts as untrusted reference data, and does not invent answers or call outbound result tools.
+
+`GET/POST /workspace/agents/{agent_id}/general-setup` connects the selected Agent using the existing audited, revision-checked setup workflow. Original configuration is backed up before adding a Tool and a managed prompt block. Both `system_instruction` and `system_prompt` Agent formats are supported. The public-information Tool is independent of SIP caller context, so the dependency below applies only to personalized caller matching.
+
+Tests: `node scripts/test-general-events.mjs`, `node scripts/test-agent-setup.mjs` and `node scripts/test-inbound-events.mjs`.
+
 The published ToolExecution / ParamMapEntry schemas do not document a runtime context source for current Call ID or caller number. Stored Agents inspected read-only did not establish that mechanism either. `automatic_lookup_ready` therefore remains false, no caller placeholder is invented, and no Tool is attached to production Agents.
 
 To complete automatic inbound matching, Botnoi must confirm how an HTTP Tool obtains the current call ID from trusted SIP runtime context (preferably as a signed/opaque call context, not an LLM-generated phone number). The integration must verify account, inbound direction, receiving Agent and current session before revealing matched event details. Never choose the newest/only recent call to a DID as a substitute for the current caller.

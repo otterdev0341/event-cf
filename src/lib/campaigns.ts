@@ -9,7 +9,7 @@ export interface CampaignDraft {
   variables?: Record<string, string>;
   voiceAccountId?: string;
   recordConversation?: boolean;
-  inboundInfo?: { accountId: string; enabled: boolean; location: string; details: string };
+  inboundInfo?: { accountId: string; enabled: boolean; publicEnabled?: boolean; location: string; details: string };
   variableBindings?: Record<string, VariableBinding>;
   updatedAt: string;
 }

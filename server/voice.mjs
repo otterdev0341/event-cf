@@ -72,7 +72,7 @@ export async function handleVoice(req, res, env = process.env) {
     const isResult = Boolean(resultRoute && ['GET','POST'].includes(method));
     const recordingRoute=path.match(/^\/workspace\/calls\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/recording$/i);
     const isRecording=Boolean(recordingRoute&&method==='GET');
-    const setupRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/(result-setup|transcript-setup)$/);
+    const setupRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/(result-setup|transcript-setup|general-setup)$/);
     const isSetup = Boolean(setupRoute && ['GET','POST'].includes(method));
     const previewRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/preview-token$/);
     const isPreview = Boolean(previewRoute && method === 'POST');
@@ -123,7 +123,7 @@ export async function handleVoice(req, res, env = process.env) {
     if (inboundEventAction) return await handleInboundEvents({ action: inboundEventAction, id: inboundEventRoute?.[1], method, body: method === 'POST' ? await bodyOf(req) : undefined, store, user, connection, upstream, fail, send });
     if (isPreview) return await handlePreview({ id: previewRoute[1], body: await bodyOf(req), connection, upstream, fail, send });
     if (isSetup) {
-      await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env:{...env,...(env.VOICE_RESULT_CALLBACK_SECRET?.length>=32?{VOICE_RESULT_CALLBACK_SECRET:accountCallbackSecret(connection.account_id,env)}:{})},connection,upstream,fail,send,deadline,transcript:setupRoute[2]==='transcript-setup'});
+      await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env:setupRoute[2]==='general-setup'?env:{...env,...(env.VOICE_RESULT_CALLBACK_SECRET?.length>=32?{VOICE_RESULT_CALLBACK_SECRET:accountCallbackSecret(connection.account_id,env)}:{})},connection,upstream,fail,send,deadline,transcript:setupRoute[2]==='transcript-setup',general:setupRoute[2]==='general-setup'});
       return;
     }
     if(isRecording)return await handleRecording({id:recordingRoute[1],db,user,accountId:connection.account_id,upstream,fail,send});

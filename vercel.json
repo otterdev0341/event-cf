@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
+    "api/voice-events.mjs": {
+      "maxDuration": 30
+    },
     "api/voice.mjs": {
       "maxDuration": 60
     },

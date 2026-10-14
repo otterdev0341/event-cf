@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { callbackConfigured } from './callback.mjs';
 import { connectedTranscriptTool, compatibleTranscriptTool, withTranscriptPrompt, transcriptToolPayload } from './transcript.mjs';
+import { connectedGeneralTool, compatibleGeneralTool, withGeneralPrompt, generalToolPayload, generalEndpoint } from './general-events.mjs';
 
 const start = '[VOICE_CONFIRM_RESULT_SETUP_V1]';
 const end = '[/VOICE_CONFIRM_RESULT_SETUP_V1]';
@@ -62,18 +63,19 @@ function toolPayload(id, env, endpoint, accountId) {
   },required:fields},execution:{method:'POST',endpoint,auth:{type:'bearer',header_name:'Authorization',scheme:'Bearer',api_key:env.VOICE_RESULT_CALLBACK_SECRET},param_map:Object.fromEntries(fields.map(k => [k,{in:'body',key:k}])),headers:{'Content-Type':'application/json'},timeout:20}};
 }
 
-export async function handleAgentSetup({id,method,body,user,env,connection,upstream,fail,send,deadline,transcript=false}) {
-  const isConnected = transcript ? connectedTranscriptTool : connectedTool;
-  const compatible = transcript ? compatibleTranscriptTool : compatibleTool;
-  const extendPrompt = transcript ? withTranscriptPrompt : withPrompt;
-  const makeTool = transcript ? transcriptToolPayload : toolPayload;
+export async function handleAgentSetup({id,method,body,user,env,connection,upstream,fail,send,deadline,transcript=false,general=false}) {
+  const isConnected = general ? (agent,tools,endpoint,account) => connectedGeneralTool(agent,tools,endpoint,account,user.id) : transcript ? connectedTranscriptTool : connectedTool;
+  const compatible = general ? (tool,agent,endpoint,account) => compatibleGeneralTool(tool,agent,endpoint,account,user.id) : transcript ? compatibleTranscriptTool : compatibleTool;
+  const extendPrompt = general ? withGeneralPrompt : transcript ? withTranscriptPrompt : withPrompt;
+  const makeTool = general ? (id,env,endpoint,account) => generalToolPayload(id,env,endpoint,account,user.id) : transcript ? transcriptToolPayload : toolPayload;
   const accountId=connection?.account_id;
   const canManage = connection?connection.owner_id===user.id&&Boolean(user.email_confirmed_at):isSetupAdmin(user,env);
+  if (general && (!connection || (await upstream('/me'))._id !== accountId)) fail(403,'บัญชี Voice Bot ไม่ตรงกับบัญชีที่เชื่อม');
   if (method === 'POST' && !canManage) fail(403,'เฉพาะผู้ดูแลที่กำหนดไว้เท่านั้นที่เชื่อม Agent ได้');
   if (method === 'POST' && (!body || Array.isArray(body) || Object.keys(body).some(k => !['confirm','expected_revision'].includes(k)) || body.confirm !== true || !/^[0-9a-f]{64}$/.test(body.expected_revision || ''))) fail(400,'กรุณาตรวจ Agent และยืนยันการเชื่อมต่อ');
   const agents = await upstream('/agents');
   if (!Array.isArray(agents) || !agents.some(a => a.agent_id === id)) fail(403,'ไม่มีสิทธิ์เชื่อม Agent นี้');
-  const endpoint = receiverUrl(env);
+  const endpoint = general ? generalEndpoint(env) : receiverUrl(env);
   const configured = Boolean(callbackConfigured(env) && endpoint);
   let agent = await upstream('/agents/'+id);
   if (agent.agent_id !== id) fail(502,'Agent ที่บริการส่งกลับไม่ตรงกับคำขอ');
@@ -85,7 +87,7 @@ export async function handleAgentSetup({id,method,body,user,env,connection,upstr
   if (setupRevision(agent) !== body.expected_revision) fail(409,'Agent ถูกแก้ไขแล้ว กรุณาตรวจสถานะใหม่ก่อนเชื่อม');
   if (isConnected(agent,tools,endpoint,accountId)) return send(200,{...status(agent,tools),already_connected:true});
   // Abort before creating a tool if the prompt cannot safely be extended.
-  extendPrompt(agent,'vc_result_'+id.slice(4),fail);
+  extendPrompt(agent,(general?'vc_events_v1_':'vc_result_')+id.slice(4),fail);
   const db = createClient(env.SUPABASE_URL || env.VITE_SUPABASE_URL,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:(url,init) => fetch(url,{...init,signal:AbortSignal.any([deadline,AbortSignal.timeout(10000)])})}});
   const operation = randomUUID();
   const {data:locked,error:lockError} = await db.rpc('acquire_voice_agent_setup',{p_agent_id:id,p_lock_id:operation,...(accountId?{p_account_id:accountId}:{})});
@@ -114,7 +116,8 @@ export async function handleAgentSetup({id,method,body,user,env,connection,upstr
     const latest = await upstream('/agents/'+id);
     if (setupRevision(latest) !== body.expected_revision) fail(409,'Agent ถูกแก้ไขระหว่างเชื่อม Tool กรุณาตรวจสถานะใหม่');
     const payload = configOf(latest);
-    payload.agent_data = {...latest.agent_data,system_instruction:extendPrompt(latest,tool.name,fail),tools:[...(latest.agent_data.tools || []).filter(t => t.tool_id !== tool.tool_id),{tools_name:tool.name,tool_id:tool.tool_id}]};
+    const promptKey = general && latest.agent_data?.system_instruction === undefined ? 'system_prompt' : 'system_instruction';
+    payload.agent_data = {...latest.agent_data,[promptKey]:extendPrompt(latest,tool.name,fail),tools:[...(latest.agent_data.tools || []).filter(t => t.tool_id !== tool.tool_id),{tools_name:tool.name,tool_id:tool.tool_id}]};
     await upstream('/agent/create_update_agent',payload,'PUT');
     const verified = await upstream('/agents/'+id);
     if (setupRevision(verified) !== setupRevision(payload) || !isConnected(verified,tools,endpoint,accountId)) fail(502,'บริการยังไม่ยืนยันการเชื่อม Agent กรุณาตรวจสถานะใหม่');

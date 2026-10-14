@@ -11,6 +11,7 @@ export function eventProjection(record, accountId) {
   const info = c.inboundInfo;
   return { id: record.id, name: clipped(c.name, 120), event_date: clipped(c.eventDate, 30), event_time: clipped(c.eventTime, 20),
     enabled: Boolean(info?.enabled && info.accountId === accountId), location: clipped(info?.location, 500),
+    public_enabled: Boolean(info?.publicEnabled && info.accountId === accountId),
     details: clipped(info?.details), updated_at: record.updated_at,
     contact_count: Array.isArray(c.csv?.rows) ? c.csv.rows.length : 0 };
 }
@@ -32,7 +33,7 @@ export function lookupEvents(records, accountId, callerNumber) {
   return { status: events.length > 1 ? 'choose_event' : events.length ? 'matched' : 'no_match', events };
 }
 
-const readCampaigns = async (db, ownerId, fail) => {
+export const readCampaigns = async (db, ownerId, fail) => {
   const records = [];
   for (let offset = 0; ; offset += 100) {
     if (offset >= 10000) fail(503, 'มีแคมเปญมากเกินกว่าจะค้นครบ กรุณาติดต่อผู้ดูแล');
@@ -59,13 +60,13 @@ export async function handleInboundEvents({ action, id, method, body, store, use
       automatic_lookup_ready: false,
       context_notice: 'ระบบค้นจากเบอร์ในสายจริงพร้อมแล้ว แต่ยังต้องให้ Voice Bot ส่ง Call ID ของสายปัจจุบันให้ Tool ระหว่างสนทนา จึงจะค้นอัตโนมัติได้' });
   }
-  if (!uuid.test(id || '') || !body || Object.keys(body).some(key => !['account_id','enabled','location','details','expected_updated_at'].includes(key)) || body.account_id !== account._id || typeof body.enabled !== 'boolean' || typeof body.location !== 'string' || body.location.length > 500 || typeof body.details !== 'string' || body.details.length > 4000 || typeof body.expected_updated_at !== 'string') fail(400, 'รายละเอียดงานไม่ถูกต้อง');
+  if (!uuid.test(id || '') || !body || Object.keys(body).some(key => !['account_id','enabled','public_enabled','location','details','expected_updated_at'].includes(key)) || body.account_id !== account._id || typeof body.enabled !== 'boolean' || body.public_enabled !== undefined && typeof body.public_enabled !== 'boolean' || typeof body.location !== 'string' || body.location.length > 500 || typeof body.details !== 'string' || body.details.length > 4000 || typeof body.expected_updated_at !== 'string') fail(400, 'รายละเอียดงานไม่ถูกต้อง');
   const { data: record, error } = await store.from('voice_campaigns').select('id,data,updated_at').eq('id', id).eq('owner_id', user.id).eq('state', 'saved').maybeSingle();
   if (error) fail(503, 'อ่านแคมเปญไม่ได้');
   if (!record) fail(404, 'ไม่พบแคมเปญที่บันทึกแล้วในบัญชีนี้');
   if (record.updated_at !== body.expected_updated_at) fail(409, 'แคมเปญถูกแก้ไขแล้ว กรุณารีเฟรชก่อนบันทึก');
-  if (body.enabled && !body.details.trim()) fail(400, 'เพิ่มรายละเอียดที่บอทใช้ตอบก่อนเปิดใช้งาน');
-  const data = { ...record.data, inboundInfo: { accountId: account._id, enabled: body.enabled, location: body.location.trim(), details: body.details.trim() } };
+  if ((body.enabled || body.public_enabled) && !body.details.trim()) fail(400, 'เพิ่มรายละเอียดที่บอทใช้ตอบก่อนเปิดใช้งาน');
+  const data = { ...record.data, inboundInfo: { accountId: account._id, enabled: body.enabled, publicEnabled: body.public_enabled ?? Boolean(record.data.inboundInfo?.publicEnabled && record.data.inboundInfo.accountId === account._id), location: body.location.trim(), details: body.details.trim() } };
   const result = await store.from('voice_campaigns').update({ data, updated_at: new Date().toISOString() }).eq('id', id).eq('owner_id', user.id).eq('state', 'saved').eq('updated_at', record.updated_at).select('id,data,updated_at');
   if (result.error) fail(503, 'ยังยืนยันการบันทึกไม่ได้ กรุณารีเฟรชก่อนลองใหม่');
   if (result.data?.length !== 1) fail(409, 'ข้อมูลถูกแก้ไขพร้อมกัน กรุณารีเฟรชก่อนบันทึก');

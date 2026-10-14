@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { InboundKnowledge } from '../components/InboundKnowledge';
+import { GeneralEventSetup } from '../components/GeneralEventSetup';
 import { useAgents, useAgentDetail } from '../hooks/useBotnoiData';
 import { bindInboundNumber, getInboundSetup, getInboundHistory } from '../services/botnoi/inbound';
 import type { InboundSetup, InboundHistory } from '../services/botnoi/inbound';
@@ -91,6 +92,7 @@ export function InboundPage() {
         <div className="inbound-connection-note"><span>สถานะ Trunk: <strong>{setup.trunk_state || 'บริการไม่ระบุ'}</strong></span><span>ตรวจล่าสุด {dateText(setup.checked_at)}</span><a href="https://voicebot-stg.botnoigroup.com/home" target="_blank" rel="noopener noreferrer">จัดการเบอร์และระบบโทรศัพท์ ↗</a></div>
       </>}
     </section>
+    {agentId && <GeneralEventSetup agentId={agentId} onConnected={agent.refetch} />}
     <InboundKnowledge callId={lookupCallId} />
     <section className="inbound-guide"><span className="inbound-guide__icon" aria-hidden="true">↙</span><div><h2>หลังเชื่อม ลองโทรเข้าเบอร์ของคุณ</h2><p>ใช้โทรศัพท์อีกเครื่องโทรเข้า ฟังว่าบอทที่เลือกเป็นผู้ตอบ แล้วรีเฟรชประวัติด้านล่าง การผูกเบอร์สำเร็จยังต้องตรวจด้วยสายจริง</p><p className="workspace-note">หน้านี้แสดงสถานะและประวัติสายเข้า ผลตอบรับและข้อความบทสนทนาของสายเข้ายังไม่รวมในผลแคมเปญโทรออก</p></div></section>
     <section className="activity-section"><div className="inbound-section-heading"><div><h2>ประวัติสายเข้าล่าสุด</h2><p className="workspace-note">สูงสุด 50 สายล่าสุดของบัญชีที่เชื่อม รวมทุกเบอร์ · เวลาไทย</p></div><Button href={`${routes.analytics}?source=inbound`} size="compact" variant="secondary">ดูสถิติสายเข้า →</Button></div>

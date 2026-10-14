@@ -16,6 +16,7 @@ globalThis.fetch=async(input,init={})=>{
 };
 async function upstream(path,body,method='GET'){
  events.push({path,method,body});
+ if(path==='/me')return {_id:'account_fixture'};
  if(path==='/agents')return [{agent_id:id,name:'Fixture'}];
  if(path==='/agents/'+id){if(options.changeAfterCreate&&tools.length)agent.agent_data.system_instruction='Concurrent edit';return structuredClone(agent);}
  if(path==='/platform-config/tools'&&method==='GET')return structuredClone(tools);
@@ -31,7 +32,7 @@ async function upstream(path,body,method='GET'){
 }
 async function invoke(method='POST',extra={}){
  let output;const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
- try{await handleAgentSetup({id,method,body:{confirm:true,expected_revision:setupRevision(agent),...extra.body},user:extra.user||user,env:{...env,...extra.env},connection:extra.connection,transcript:extra.transcript,upstream,fail,send:(status,data)=>{events.push({response:true});output={status,data};},deadline:AbortSignal.timeout(10000)});return output;}catch(e){return {status:e.status||502,data:{error:e.message}};}
+ try{await handleAgentSetup({id,method,body:{confirm:true,expected_revision:setupRevision(agent),...extra.body},user:extra.user||user,env:{...env,...extra.env},connection:extra.connection,transcript:extra.transcript,general:extra.general,upstream,fail,send:(status,data)=>{events.push({response:true});output={status,data};},deadline:AbortSignal.timeout(10000)});return output;}catch(e){return {status:e.status||502,data:{error:e.message}};}
 }
 const writes=()=>events.filter(x=>x.path&&x.method!=='GET');
 async function test(name,fn){reset();await fn();passed++;console.log('PASS '+name);}
@@ -56,4 +57,6 @@ await test('A linked member configures only their own account with scoped audits
 await test('A connection owned by someone else never grants setup authority',async()=>{const r=await invoke('POST',{connection:{owner_id:'other_owner',account_id:'other_account'}});assert.equal(r.status,403);assert.equal(events.length,0);});
 await test('Opt-in transcript setup creates a separate guarded tool and reuses it on retry',async()=>{const original=structuredClone(agent);const r=await invoke('POST',{transcript:true});assert.equal(r.status,200);assert.equal(r.data.connected,true);assert.deepEqual(tools[0].parameters.required,['request_id','agent_id','transcript']);assert.ok(agent.agent_data.system_instruction.includes('{{vc_record_conversation}}'));assert.ok(agent.agent_data.system_instruction.startsWith(original.agent_data.system_instruction));const before=structuredClone(agent);events=[];assert.equal((await invoke('POST',{transcript:true})).data.already_connected,true);assert.equal(writes().length,0);assert.deepEqual(agent,before);});
 await test('Result and transcript tools coexist without replacing either instruction block',async()=>{await invoke();assert.equal((await invoke('POST',{transcript:true})).status,200);assert.equal(tools.length,2);assert.ok(agent.agent_data.system_instruction.includes('[VOICE_CONFIRM_RESULT_SETUP_V1]'));assert.ok(agent.agent_data.system_instruction.includes('[VOICE_CONFIRM_TRANSCRIPT_SETUP_V1]'));assert.ok((await invoke('GET')).data.connected);assert.ok((await invoke('GET',{transcript:true})).data.connected);});
+await test('General event setup uses a separate scoped tool and supports system_prompt agents',async()=>{agent.agent_data.system_prompt='Original support instructions';delete agent.agent_data.system_instruction;const result=await invoke('POST',{general:true,connection:{owner_id:user.id,account_id:'account_fixture'}});assert.equal(result.status,200);assert.equal(result.data.connected,true);assert.ok(agent.agent_data.system_prompt.includes('VOICE_CONFIRM_GENERAL_EVENTS_V1'));assert.equal(agent.agent_data.system_instruction,undefined);assert.ok(agent.agent_data.system_prompt.includes('ไม่ต้องถามเบอร์'));assert.equal(tools[0].execution.endpoint,'https://receiver.invalid/api/voice-events');assert.deepEqual(tools[0].parameters.required,['query','event_id']);assert.ok(!JSON.stringify(result).includes(tools[0].execution.auth.api_key));});
+await test('General event setup rejects stale account identity before creating a tool',async()=>{const result=await invoke('POST',{general:true,connection:{owner_id:user.id,account_id:'different'}});assert.equal(result.status,403);assert.equal(writes().length,0);});
 console.log(`${passed} agent setup checks passed; all credentials, data and network responses are isolated fixtures.`);
