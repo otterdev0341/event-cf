@@ -72,7 +72,7 @@ export async function handleVoice(req, res, env = process.env) {
     const resultRoute = path.match(/^\/workspace\/calls\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/result$/i);
     const isResult = Boolean(resultRoute && ['GET','POST'].includes(method));
     const recordingRoute=path.match(/^\/workspace\/calls\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(recording|recording-audio)$/i);
-    const isRecording=Boolean(recordingRoute&&method==='GET');
+    const isRecording=Boolean(recordingRoute&&(method==='GET'||method==='POST'&&recordingRoute[2]==='recording'));
     const audioRoute=path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/audio(?:\/([0-9a-f]{64}))?$/);
     const isAudio=Boolean(audioRoute&&method==='GET');
     const setupRoute = path.match(/^\/workspace\/agents\/(agt_[a-zA-Z0-9_-]+)\/(result-setup|transcript-setup|general-setup)$/);
@@ -140,7 +140,7 @@ export async function handleVoice(req, res, env = process.env) {
       await handleAgentSetup({id:setupRoute[1],method,body:method === 'POST' ? await bodyOf(req) : undefined,user,env:setupRoute[2]==='general-setup'?env:{...env,...(env.VOICE_RESULT_CALLBACK_SECRET?.length>=32?{VOICE_RESULT_CALLBACK_SECRET:accountCallbackSecret(connection.account_id,env)}:{})},connection,upstream,fail,send,deadline,transcript:setupRoute[2]==='transcript-setup',general:setupRoute[2]==='general-setup'});
       return;
     }
-    if(isRecording)return await handleRecording({id:recordingRoute[1],db,user,accountId:connection.account_id,upstream,logsFetch,fail,send,res,binary:recordingRoute[2]==='recording-audio'});
+    if(isRecording)return await handleRecording({id:recordingRoute[1],db,user,accountId:connection.account_id,upstream,logsFetch,fail,send,res,binary:recordingRoute[2]==='recording-audio',method,body:method==='POST'?await bodyOf(req):undefined});
     if (isResult) {
       await handleCallResult({id:resultRoute[1],method,db,upstream,user,fail,send,accountId:connection.account_id});
       return;

@@ -81,7 +81,7 @@ export async function handleResultCallback(req, res, env = process.env) {
     let update = db.from('voice_call_requests').update({ response: { ...(original || {}), callback } })
       .eq('id', record.id).eq('owner_id', record.owner_id).eq('agent_id', record.agent_id)
       .eq('call_id', record.call_id).is('response->callback->>received_at', null);
-    for (const [path, value] of [['response->review->>updated_at', original?.review?.updated_at], ['response->followup->>checked_at', original?.followup?.checked_at], ['response->transcript->>received_at',original?.transcript?.received_at]]) {
+    for (const [path, value] of [['response->review->>updated_at', original?.review?.updated_at], ['response->followup->>checked_at', original?.followup?.checked_at], ['response->transcript->>received_at',original?.transcript?.received_at], ['response->audio_link->>updated_at',original?.audio_link?.updated_at]]) {
       update = value ? update.eq(path, value) : update.is(path, null);
     }
     const saved = await update.select('id');

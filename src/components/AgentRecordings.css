@@ -11,4 +11,10 @@
 .agent-recordings-player a { font-size:12px; }
 .agent-recordings-ready { display:inline-flex; padding:7px 12px; margin:14px 0 4px; border-radius:8px; background:#eee8ff; color:#6547b2; font-size:12px; }
 .agent-recordings-adjustment { color:#6547b2; font-size:12px; }
+.call-recording { margin-top:20px; padding:20px; border:1px solid var(--color-border,#e9eaf0); border-radius:12px; background:#fff; }
+.call-recording h4 { margin:0 0 8px; }
+.call-recording-link label { display:flex; flex-direction:column; gap:8px; font-size:13px; }
+.call-recording-confirm { display:flex; flex-direction:column; align-items:flex-start; gap:16px; padding-top:20px; }
+.call-recording-confirm label { display:flex; align-items:flex-start; gap:8px; font-size:13px; }
+.call-recording-confirm input { flex-shrink:0; }
 @media(max-width:600px) { .agent-recordings-filters label { flex:1; min-width:130px; } .agent-recordings-filters input { min-width:0; width:100%; } }
