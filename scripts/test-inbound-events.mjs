@@ -35,12 +35,12 @@ await test('Unavailable caller never matches blank CSV cells', () => {
   assert.deepEqual(lookupEvents([record],account,'anonymous'), {status:'caller_unavailable',events:[]});
 });
 
-async function invoke({body={call_id:'call_fixture'}, action='lookup', method='POST', connectionAccount=account, direction='inbound', stale=false}={}) {
+async function invoke({body={call_id:'call_fixture'}, action='lookup', method='POST', connectionAccount=account, direction='inbound', stale=false, race=false}={}) {
   const filters=[], writes=[]; let sent;
   const row=campaign();
   const chain={ select(){return chain;}, eq(key,value){filters.push([key,value]);return chain;}, order(){return chain;},
     range(){return Promise.resolve({data:[row],error:null});}, maybeSingle(){return Promise.resolve({data:row,error:null});},
-    update(value){writes.push(value);return chain;} };
+    update(value){writes.push(value);return chain;}, then(resolve){return Promise.resolve({data:race?[]:[{...row,data:writes[0].data}],error:null}).then(resolve);} };
   const fail=(status,message)=>{throw Object.assign(Error(message),{status});};
   const upstream=async path=>path==='/me'?{_id:account}:path==='/calls/call_fixture'?{id:'call_fixture',direction,number:'+66812345678'}:assert.fail('Unexpected upstream route');
   try { await handleInboundEvents({action,id:cid,method,body:stale?{account_id:account,enabled:true,location:'Fixture',details:'Facts',expected_updated_at:'stale'}:body,
@@ -61,5 +61,17 @@ await test('Connection mismatch fails before reading campaign records', async ()
 });
 await test('Stale event edits cannot overwrite campaign data', async () => {
   const result=await invoke({action:'save',stale:true});assert.equal(result.sent.status,409);assert.equal(result.writes.length,0);
+});
+await test('Event save preserves CSV and outbound data and checks owner, state and timestamp', async () => {
+  const result=await invoke({action:'save',body:{account_id:account,enabled:true,location:'New venue',details:'New factual details',expected_updated_at:'2026-10-14T00:00:00Z'}});
+  assert.equal(result.sent.status,200);assert.equal(result.writes.length,1);
+  assert.deepEqual(result.writes[0].data.csv,campaign().data.csv);assert.equal(result.writes[0].data.eventDate,'2026-10-20');
+  assert.equal(result.writes[0].data.inboundInfo.accountId,account);
+  assert.equal(result.filters.filter(([k,v])=>k==='owner_id'&&v===owner).length,2);
+  assert.ok(result.filters.some(([k,v])=>k==='updated_at'&&v==='2026-10-14T00:00:00Z'));
+});
+await test('Concurrent event save reports conflict rather than success', async () => {
+  const result=await invoke({action:'save',race:true,body:{account_id:account,enabled:true,location:'New venue',details:'Facts',expected_updated_at:'2026-10-14T00:00:00Z'}});
+  assert.equal(result.sent.status,409);
 });
 console.log(`${passed} inbound event tests passed`);
