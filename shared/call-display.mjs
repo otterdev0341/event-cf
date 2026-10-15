@@ -1,10 +1,12 @@
 import { effectiveOutcome, outcomeLabels } from './call-results.mjs';
-import { terminalCall } from './campaign-queue.mjs';
 
 // A display state only: ending a call must not fabricate a recipient response.
 export function callResultDisplay(attempt) {
   const outcome=effectiveOutcome(attempt.response);
-  if(outcome.call_result==='UNDETERMINED'&&terminalCall(attempt.status)) {
+  if(outcome.call_result==='UNDETERMINED'&&['failed','no-answer'].includes(attempt.status)) {
+    return {key:'NO_ANSWER',label:'ไม่รับสาย',note:'โทรไม่สำเร็จ หรือไม่มีผู้รับสาย'};
+  }
+  if(outcome.call_result==='UNDETERMINED'&&attempt.status==='completed') {
     return {key:'ENDED_WITHOUT_RESULT',label:'ตัดสาย',note:'สายสิ้นสุดแล้ว โดยไม่มีผลตอบรับ'};
   }
   return {key:outcome.call_result,label:outcomeLabels[outcome.call_result]||'รอตรวจสอบ',note:null};
