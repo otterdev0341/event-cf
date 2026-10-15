@@ -23,6 +23,7 @@ export function talkSeconds(attempt) {
 }
 
 export function talkDuration(attempt) {
+  if(callResultDisplay(attempt).key==='NO_ANSWER')return '-';
   const seconds=talkSeconds(attempt);
   return seconds===null?'ยังไม่มีข้อมูลเวลา':`${Math.floor(seconds/60)} นาที ${seconds%60} วินาที`;
 }
