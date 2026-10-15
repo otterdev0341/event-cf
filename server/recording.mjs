@@ -47,7 +47,18 @@ export async function handleRecording({id,db,user,accountId,upstream,logsFetch,f
   const providerLink=link?.source==='provider_callback'&&link.request_id===record.id&&link.call_id===record.call_id&&link.campaign_id===record.metadata?.campaign_id;
   const linked=(providerLink||link?.source==='manual')&&link?.account_id===accountId&&link?.agent_id===record.agent_id?entries.find(entry=>entry.id===link.recording_id):null;
   const exactPath=recordingPath([...ownedPaths,...ownedLogs],call);
-  const path=linked?.path||exactPath;
+  let path=linked?.path||exactPath;
+  if(!path) {
+    // The call history API exposes the recording session that the provisioning
+    // response omits. Accept only the provider's exact link for this same call.
+    const detail=await upstream(`/calls/${encodeURIComponent(record.call_id)}`);
+    if(detail?.id!==record.call_id)fail(502,'Call ID ของประวัติจากบริการไม่ตรงกับคำขอ');
+    const conversation=detail.conversation;
+    if(conversation?.linked_by==='exact'&&conversation.agent_id===record.agent_id&&typeof conversation.key==='string') {
+      const wav=conversation.key.replace(/\.txt$/i,'.wav');
+      if(ownedPaths.includes(wav))path=wav;
+    }
+  }
   if(!path) {
     if(binary)fail(404,'ยังไม่ได้เชื่อมไฟล์เสียงกับสายนี้');
     return send(200,{state:'not_available',message:'ยังไม่มีไฟล์เสียงที่ยืนยันว่าเชื่อมกับสายนี้ในแคมเปญ บริการยังไม่ส่งรหัสเชื่อมไฟล์กับ Call ID'});
