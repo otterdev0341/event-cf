@@ -14,6 +14,8 @@ export function callResultDisplay(attempt) {
 
 export function talkSeconds(attempt) {
   const followup=attempt.response?.followup;
+  // A refreshed unsuccessful call with no answer has no connected talk time.
+  if(['failed','no-answer','busy'].includes(attempt.status)&&followup?.answered_at===null)return 0;
   const start=typeof followup?.answered_at==='string'?Date.parse(followup.answered_at):NaN;
   const end=typeof followup?.completed_at==='string'?Date.parse(followup.completed_at):NaN;
   if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)return null;
@@ -22,5 +24,5 @@ export function talkSeconds(attempt) {
 
 export function talkDuration(attempt) {
   const seconds=talkSeconds(attempt);
-  return seconds===null?'—':`${Math.floor(seconds/60)} นาที ${seconds%60} วินาที`;
+  return seconds===null?'ยังไม่มีข้อมูลเวลา':`${Math.floor(seconds/60)} นาที ${seconds%60} วินาที`;
 }
