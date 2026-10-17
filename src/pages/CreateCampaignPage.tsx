@@ -11,54 +11,6 @@ interface CampaignFieldProps {
   label: string;
 }
 
-type CallStartMode = "immediate" | "scheduled" | "manual";
-type CallingWindow = "business-hours" | "custom";
-type CallingDay = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
-
-const callingDays: Array<{ label: string; longLabel: string; value: CallingDay }> = [
-  { label: "จ.", longLabel: "วันจันทร์", value: "monday" },
-  { label: "อ.", longLabel: "วันอังคาร", value: "tuesday" },
-  { label: "พ.", longLabel: "วันพุธ", value: "wednesday" },
-  { label: "พฤ.", longLabel: "วันพฤหัสบดี", value: "thursday" },
-  { label: "ศ.", longLabel: "วันศุกร์", value: "friday" },
-  { label: "ส.", longLabel: "วันเสาร์", value: "saturday" },
-  { label: "อา.", longLabel: "วันอาทิตย์", value: "sunday" },
-];
-
-interface CampaignRadioOptionProps<T extends string> {
-  checked: boolean;
-  description?: string;
-  label: string;
-  name: string;
-  onChange: (value: T) => void;
-  value: T;
-}
-
-function CampaignRadioOption<T extends string>({
-  checked,
-  description,
-  label,
-  name,
-  onChange,
-  value,
-}: CampaignRadioOptionProps<T>) {
-  return (
-    <label className={`campaign-radio${checked ? " campaign-radio--selected" : ""}`}>
-      <input
-        type="radio"
-        name={name}
-        value={value}
-        checked={checked}
-        onChange={() => onChange(value)}
-      />
-      <span className="campaign-radio__copy">
-        <strong>{label}</strong>
-        {description ? <span>{description}</span> : null}
-      </span>
-    </label>
-  );
-}
-
 function CampaignField({ children, label }: CampaignFieldProps) {
   return (
     <label className="campaign-form__field">
@@ -93,44 +45,16 @@ export function CreateCampaignPage() {
     const value = (name: string) => String(form.get(name) || '');
     if (!value('campaignName').trim()) { setError('กรุณาระบุชื่อแคมเปญ'); return; }
     if (!csv) { setError('กรุณาอัปโหลดรายชื่อ CSV ก่อนดำเนินการต่อ'); return; }
-    if (callStartMode !== 'immediate' && !selectedCallingDays.length) { setError('กรุณาเลือกวันที่อนุญาตให้โทรอย่างน้อย 1 วัน'); return; }
-    if (callStartMode === 'scheduled' && new Date(value('callStartDate') + 'T' + value('callStartTime')).getTime() <= Date.now()) {
-      setError('เวลาเริ่มโทรต้องอยู่ในอนาคต'); return;
-    }
-    if (callStartMode !== 'immediate' && callingWindow === 'custom' && value('allowedStartTime') >= value('allowedEndTime')) {
-      setError('เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มต้น'); return;
-    }
     setSaving(true);
     try {
       await saveDraft({ id: campaignId, name: value('campaignName').trim(),
-        variables: draft?.variables, variableBindings: draft?.variableBindings, recordConversation: draft?.recordConversation === true, voiceAccountId: draft?.voiceAccountId, eventDate: value('eventDate'), eventTime: value('eventTime'), callStartMode,
-        callStartDate: value('callStartDate'), callStartTime: value('callStartTime'),
-        callingWindow: callStartMode === 'immediate' ? '' : callingWindow,
-        callingDays: callStartMode === 'immediate' ? [] : selectedCallingDays,
-        allowedStartTime: callStartMode === 'immediate' ? '' : value('allowedStartTime') || '09:00',
-        allowedEndTime: callStartMode === 'immediate' ? '' : value('allowedEndTime') || '18:00', csv, fileName,
+        variables: draft?.variables, variableBindings: draft?.variableBindings, recordConversation: draft?.recordConversation === true, voiceAccountId: draft?.voiceAccountId, eventDate: value('eventDate'), eventTime: value('eventTime'),
+        callStartMode: 'manual', callStartDate: '', callStartTime: '',
+        callingWindow: '', callingDays: [], allowedStartTime: '', allowedEndTime: '', csv, fileName,
         mapping: csv === draft?.csv ? draft.mapping : suggestMapping(csv.headers), agentId: draft?.agentId ?? '', updatedAt: draft?.updatedAt ?? '' });
       window.location.assign(routes.apiAgent);
     } catch (err) { setError((err as Error).message); } finally { setSaving(false); }
   }
-  const [callStartMode, setCallStartMode] = useState<CallStartMode>((draft?.callStartMode as CallStartMode) ?? "manual");
-  const [callingWindow, setCallingWindow] = useState<CallingWindow>((draft?.callingWindow as CallingWindow) || "business-hours");
-  const [selectedCallingDays, setSelectedCallingDays] = useState<CallingDay[]>((draft?.callStartMode !== "immediate" ? draft?.callingDays as CallingDay[] : undefined) ?? [
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-  ]);
-
-  const toggleCallingDay = (day: CallingDay) => {
-    setSelectedCallingDays((currentDays) =>
-      currentDays.includes(day)
-        ? currentDays.filter((currentDay) => currentDay !== day)
-        : [...currentDays, day],
-    );
-  };
-
   return (
     <div className="create-campaign-page">
       <AppHeader />
@@ -173,126 +97,6 @@ export function CreateCampaignPage() {
               </CampaignField>
             </div>
 
-            <div className="campaign-call-settings">
-              <fieldset className="campaign-choice-group">
-                <legend>แผนเริ่มการโทร</legend>
-                <div className="campaign-choice-grid campaign-choice-grid--three">
-                  <CampaignRadioOption
-                    checked={callStartMode === "immediate"}
-                    description="บันทึกความต้องการไว้ ใช้เมื่อเชื่อมระบบโทรแล้ว"
-                    label="ต้องการโทรทันที"
-                    name="callStartMode"
-                    onChange={setCallStartMode}
-                    value="immediate"
-                  />
-                  <CampaignRadioOption
-                    checked={callStartMode === "scheduled"}
-                    description="กำหนดวันและเวลาที่ต้องการเริ่มแคมเปญ"
-                    label="กำหนดเวลาเริ่มโทร"
-                    name="callStartMode"
-                    onChange={setCallStartMode}
-                    value="scheduled"
-                  />
-                  <CampaignRadioOption
-                    checked={callStartMode === "manual"}
-                    description="บันทึกแคมเปญไว้ก่อน โดยยังไม่เริ่มโทร"
-                    label="เริ่มเองภายหลัง"
-                    name="callStartMode"
-                    onChange={setCallStartMode}
-                    value="manual"
-                  />
-                </div>
-
-                {callStartMode === "scheduled" ? (
-                  <div className="campaign-form__row campaign-choice-inputs">
-                    <CampaignField label="วันที่เริ่มโทร">
-                      <span className="campaign-form__control">
-                        <input
-                          type="date" required defaultValue={draft?.callStartDate}
-                          name="callStartDate"
-                          placeholder="วว / ดด / ปปปป"
-                          inputMode="numeric"
-                        />
-                        <img src="/assets/create-campaign/calendar.svg" width="20" height="20" alt="" />
-                      </span>
-                    </CampaignField>
-                    <CampaignField label="เวลาเริ่มโทร">
-                      <span className="campaign-form__control">
-                        <input type="time" required name="callStartTime" defaultValue={draft?.callStartTime || "09:00"} inputMode="numeric" />
-                        <img src="/assets/create-campaign/clock.svg" width="20" height="20" alt="" />
-                      </span>
-                    </CampaignField>
-                  </div>
-                ) : null}
-              </fieldset>
-
-              <fieldset className="campaign-choice-group" hidden={callStartMode === "immediate"} disabled={callStartMode === "immediate"}>
-                <legend>ช่วงเวลาที่อนุญาตให้โทร</legend>
-                <div className="campaign-choice-grid campaign-choice-grid--two">
-                  <CampaignRadioOption
-                    checked={callingWindow === "business-hours"}
-                    label="เวลาทำการทั่วไป (09:00 - 18:00)"
-                    name="callingWindow"
-                    onChange={setCallingWindow}
-                    value="business-hours"
-                  />
-                  <CampaignRadioOption
-                    checked={callingWindow === "custom"}
-                    label="กำหนดช่วงเวลาเอง"
-                    name="callingWindow"
-                    onChange={setCallingWindow}
-                    value="custom"
-                  />
-                </div>
-
-                <div className="campaign-day-picker">
-                  <div className="campaign-day-picker__header">
-                    <span>วันที่อนุญาตให้โทร</span>
-                    <small>เลือกได้มากกว่า 1 วัน</small>
-                  </div>
-                  <div className="campaign-day-grid" role="group" aria-label="วันที่อนุญาตให้โทร">
-                    {callingDays.map((day) => {
-                      const isSelected = selectedCallingDays.includes(day.value);
-
-                      return (
-                        <label
-                          className={`campaign-day-option${isSelected ? " campaign-day-option--selected" : ""}`}
-                          key={day.value}
-                          title={day.longLabel}
-                        >
-                          <input
-                            type="checkbox"
-                            name="callingDays"
-                            value={day.value}
-                            checked={isSelected}
-                            aria-label={day.longLabel}
-                            onChange={() => toggleCallingDay(day.value)}
-                          />
-                          <span>{day.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {callingWindow === "custom" ? (
-                  <div className="campaign-form__row campaign-choice-inputs">
-                    <CampaignField label="เวลาเริ่มต้น">
-                      <span className="campaign-form__control">
-                        <input type="time" required name="allowedStartTime" defaultValue={draft?.allowedStartTime || "09:00"} inputMode="numeric" />
-                        <img src="/assets/create-campaign/clock.svg" width="20" height="20" alt="" />
-                      </span>
-                    </CampaignField>
-                    <CampaignField label="เวลาสิ้นสุด">
-                      <span className="campaign-form__control">
-                        <input type="time" required name="allowedEndTime" defaultValue={draft?.allowedEndTime || "18:00"} inputMode="numeric" />
-                        <img src="/assets/create-campaign/clock.svg" width="20" height="20" alt="" />
-                      </span>
-                    </CampaignField>
-                  </div>
-                ) : null}
-              </fieldset>
-            </div>
           </section>
 
           <section className="campaign-upload-panel" aria-labelledby="campaign-upload-title">
@@ -315,7 +119,7 @@ export function CreateCampaignPage() {
             </button>
           </section>
 
-          <p className="workspace-note">บันทึกแคมเปญแล้วเริ่มคิวโทรจากรายชื่อ CSV ได้ การตั้งเวลาอัตโนมัติยังไม่เปิดใช้งาน</p>
+          <p className="workspace-note">บันทึกแคมเปญแล้วกดเริ่มคิวโทรจากรายชื่อ CSV ได้</p>
           {error && <p className="workspace-alert" role="alert">{error}</p>}
           <footer className="create-campaign-actions"><span className="form-step-note">ขั้นตอนที่ 1 จาก 4</span>
             <a href={routes.campaigns}>ยกเลิกการสร้างแคมเปญ</a>

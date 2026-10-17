@@ -6,7 +6,6 @@ import { useAgentDetail } from '../hooks/useBotnoiData';
 import { completeDraft, getDraft, mappingErrors } from '../lib/campaigns';
 import { prepareCampaignRows } from '../../shared/campaign-inputs.mjs';
 import { routes } from '../routes';
-const days: Record<string, string> = { monday: 'จ.', tuesday: 'อ.', wednesday: 'พ.', thursday: 'พฤ.', friday: 'ศ.', saturday: 'ส.', sunday: 'อา.' };
 const dateLabel = (value: string) => value ? new Date(value + 'T00:00:00').toLocaleDateString('th-TH') : 'ยังไม่ระบุ';
 export function CampaignSummaryPage() {
   const [draft] = useState(getDraft);
@@ -32,8 +31,6 @@ export function CampaignSummaryPage() {
       <div className="wizard-summary-grid">
         <section className="wizard-summary-card"><header><h2>01 · รายละเอียดแคมเปญ</h2><a href={routes.createCampaign}>แก้ไข</a></header><dl>
           <div><dt>ชื่อแคมเปญ</dt><dd>{draft.name}</dd></div><div><dt>วันและเวลาจัดงาน</dt><dd>{dateLabel(draft.eventDate)}{draft.eventTime ? ` · ${draft.eventTime} น.` : ''}</dd></div>
-          <div><dt>แผนเริ่มโทร</dt><dd>{draft.callStartMode === 'immediate' ? 'ต้องการโทรทันที' : draft.callStartMode === 'scheduled' ? `กำหนดเวลา ${dateLabel(draft.callStartDate)} ${draft.callStartTime} น.` : 'เริ่มเองภายหลัง'}</dd></div>
-          {draft.callStartMode !== 'immediate' && <><div><dt>วันที่อนุญาตให้โทร</dt><dd>{draft.callingDays.map(d => days[d] || d).join(' · ') || 'ยังไม่ระบุ'}</dd></div><div><dt>ช่วงเวลาโทร</dt><dd>{draft.allowedStartTime} – {draft.allowedEndTime} น.</dd></div></>}
         </dl></section>
         <section className="wizard-summary-card"><header><h2>02 · Voice Agent</h2><a href={routes.apiAgent}>เปลี่ยน Agent</a></header>
           <p className={draft.recordConversation ? 'workspace-notice' : 'workspace-note'}>บันทึกบทสนทนา: {draft.recordConversation ? 'เปิด · ส่งข้อความผ่าน Tool แยกตามสาย' : 'ปิด'}</p>
