@@ -12,6 +12,7 @@ import { handleUsage } from './usage.mjs';
 import { handleInbound } from './inbound.mjs';
 import { handleInboundEvents } from './inbound-events.mjs';
 import { handleAudioLibrary } from './audio-library.mjs';
+import { handleSchedule } from './scheduler.mjs';
 
 class HttpError extends Error { constructor(status, message, code) { super(message); this.status = status; this.code = code; } }
 const fail = (status, message, code) => { throw new HttpError(status, message, code); };
@@ -30,21 +31,22 @@ async function bodyOf(req) {
 }
 
 // Shared by Vercel Functions and local Vite middleware. Never accepts an upstream URL from the client.
-export async function handleVoice(req, res, env = process.env) {
+export async function handleVoice(req, res, env = process.env, worker = null) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   const send = (status, data) => { res.statusCode = status; res.end(JSON.stringify(data)); };
   try {
-    const deadline = AbortSignal.timeout(45000);
+    const deadline = worker?.deadline || AbortSignal.timeout(45000);
     const sbUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
     const sbKey = env.SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY;
     if (!sbUrl || !sbKey) fail(503, 'ผู้ดูแลยังตั้งค่าการเชื่อมต่อเซิร์ฟเวอร์ไม่ครบ');
     const bearer = req.headers.authorization;
-    if (typeof bearer !== 'string' || !/^Bearer [^\s]+$/.test(bearer)) fail(401, 'กรุณาเข้าสู่ระบบ');
-    const db = createClient(sbUrl, sbKey, { global: { headers: { Authorization: bearer }, fetch: (url, init) => fetch(url, { ...init, signal: AbortSignal.any([deadline, AbortSignal.timeout(10000)]) }) }, auth: { persistSession: false, autoRefreshToken: false } });
-    const { data: { user }, error: authError } = await db.auth.getUser(bearer.slice(7));
+    if (!worker && (typeof bearer !== 'string' || !/^Bearer [^\s]+$/.test(bearer))) fail(401, 'กรุณาเข้าสู่ระบบ');
+    const db = worker?.db || createClient(sbUrl, sbKey, { global: { headers: { Authorization: bearer }, fetch: (url, init) => fetch(url, { ...init, signal: AbortSignal.any([deadline, AbortSignal.timeout(10000)]) }) }, auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: { user }, error: authError } = worker ? {data:{user:worker.user},error:null} : await db.auth.getUser(bearer.slice(7));
     if (authError || !user) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+    if(worker && (user.deleted_at || Date.parse(user.banned_until || '')>Date.now()))fail(403,'บัญชีนี้ถูกระงับการใช้งาน');
     const accessMode = env.VOICE_ACCESS_MODE?.trim() || 'members';
     if (!['members', 'allowlist'].includes(accessMode)) fail(503, 'ผู้ดูแลตั้งค่าโหมดสิทธิ์ไม่ถูกต้อง');
     if (accessMode === 'members') {
@@ -88,8 +90,10 @@ export async function handleVoice(req, res, env = process.env) {
     const inboundEventAction = path === '/workspace/inbound/events' && method === 'GET' ? 'list'
       : path === '/workspace/inbound/lookup' && method === 'POST' ? 'lookup'
       : inboundEventRoute && method === 'POST' ? 'save' : null;
+    const scheduleRoute=path.match(/^\/workspace\/campaigns\/([0-9a-f-]{36})\/schedule$/i);
+    const isSchedule=Boolean(scheduleRoute && ['GET','POST'].includes(method));
     const isCall = method === 'POST' && tenantRoute?.[2] === '/calls';
-    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection && !isRecording && !isAudio && !isPreview && !isUsage && !inboundAction && !inboundEventAction) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
+    if (!(method === 'GET' && readAllowed) && !isCall && !isResult && !isSetup && !isConnection && !isRecording && !isAudio && !isPreview && !isUsage && !inboundAction && !inboundEventAction && !isSchedule) fail(405, 'ไม่อนุญาตให้เรียกบริการนี้');
     const queryKeys = new Set(isAudio ? ['start_date','end_date'] : isRecording ? ['campaign_id'] : ['agent_id', 'limit', 'start_at', 'end_at', 'timezone', 'granularity', 'include', 'month', ...(path === '/dashboard/v1/overview' || isUsage ? ['source'] : [])]);
     for (const [key, value] of target.searchParams) if (!queryKeys.has(key) || value.length > 200) fail(400, 'พารามิเตอร์ไม่ถูกต้อง');
     if (target.searchParams.has('source') && !(isUsage ? ['all', 'outbound', 'inbound'] : ['outbound', 'preview']).includes(target.searchParams.get('source'))) fail(400, 'ประเภทการใช้งานไม่ถูกต้อง');
@@ -99,6 +103,7 @@ export async function handleVoice(req, res, env = process.env) {
     let store;
     try { store = connectionStore(env,deadline); } catch { fail(503,'ผู้ดูแลยังตั้งค่าระบบเชื่อมบัญชีไม่ครบ'); }
     const connection = await loadConnection(store,user,env,fail);
+    if(isSchedule)return await handleSchedule({method,body:method==='POST'?await bodyOf(req):undefined,campaignId:scheduleRoute[1],store,user,env,connection,fail,send});
     if(isConnection) return await handleConnection({method,body:method==='POST'?await bodyOf(req):undefined,user,env,db:store,connection,deadline,fail,send});
     // Saved evidence and manual review remain available even when a token expires or an account changes.
     if(isResult && method==='POST')return await handleCallResult({id:resultRoute[1],method,body:await bodyOf(req),db,user,fail,send});
@@ -181,8 +186,15 @@ export async function handleVoice(req, res, env = process.env) {
         const metadata = { variables, voice_account_id:connection.account_id };
         if (previewTest) { metadata.preview_test = true; metadata.output_variables = outputs; }
         if (body.metadata?.campaign_id) {
-          const { data: campaign, error } = await db.from('voice_campaigns').select('id,data,updated_at').eq('id', body.metadata.campaign_id).maybeSingle();
+          const { data: campaign, error } = await db.from('voice_campaigns').select('id,data,updated_at').eq('id', body.metadata.campaign_id).eq('owner_id',user.id).maybeSingle();
           if (error || !campaign) fail(403, 'ไม่พบแคมเปญของคุณ');
+          if(worker && (!worker.job || worker.job.owner_id!==user.id || worker.job.campaign_id!==campaign.id || worker.job.account_id!==connection.account_id || body.metadata.campaign_batch!==true || body.metadata.campaign_redial_of))fail(403,'คิวไม่ตรงกับแคมเปญ');
+          if(!worker) {
+            const {data:activeJobs,error:jobError}=await store.from('voice_campaign_jobs').select('id').eq('owner_id',user.id).eq('campaign_id',campaign.id).in('status',['scheduled','running']).limit(1);
+            // Older installations can keep manual calls until the scheduling migration is installed.
+            if(jobError && !['42P01','PGRST205'].includes(jobError.code))fail(503,'ตรวจคิวตั้งเวลาไม่ได้');
+            if(activeJobs?.length)fail(409,'มีคิวอัตโนมัติอยู่ กรุณายกเลิกคิวก่อนเริ่มโทรเอง');
+          }
           if(campaign.data?.recordConversation===true) {
             if(body.agent_id!==campaign.data?.agentId)fail(400,'Agent ไม่ตรงกับแคมเปญ');
             if(!recordingConnected)fail(409,'บอทยังไม่ได้เชื่อมบันทึกบทสนทนา กรุณาแก้แคมเปญและเชื่อมในขั้นตอนเลือก Agent');
@@ -232,7 +244,8 @@ export async function handleVoice(req, res, env = process.env) {
           metadata.callback_auth = 'account_v2';
         }
         // A durable reservation prevents a retry with the same ID from dialing twice.
-        const { error: reserveError } = await db.rpc('reserve_voice_call', { p_id: body.request_id, p_destination: body.destination, p_agent_id: body.agent_id, p_metadata: metadata });
+        if(worker && !metadata.campaign_id)fail(403,'ต้องระบุแคมเปญของคิว');
+        const { error: reserveError } = await db.rpc(worker?'reserve_scheduled_voice_call':'reserve_voice_call', { ...(worker?{p_job_id:worker.job.id,p_lease_id:worker.job.lease_id}:{}), p_id: body.request_id, p_destination: body.destination, p_agent_id: body.agent_id, p_metadata: metadata });
         if (reserveError) fail(reserveError.message.includes('rate_limit') ? 429 : 409, 'ยังส่งคำขอโทรไม่ได้: อาจส่งซ้ำ เกินโควตาต่อนาที หรือยังไม่ได้ติดตั้งตารางการโทร');
         let result;
         try { result = await upstream(path, { destination: body.destination, agent_id: body.agent_id, metadata }); }
