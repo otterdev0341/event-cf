@@ -11,7 +11,7 @@ interface CampaignFieldProps {
   label: string;
 }
 
-type CallStartMode = "immediate" | "scheduled" | "manual";
+type CallStartMode = "immediate" | "scheduled";
 type CallingWindow = "business-hours" | "custom";
 type CallingDay = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
 
@@ -113,7 +113,7 @@ export function CreateCampaignPage() {
       window.location.assign(routes.apiAgent);
     } catch (err) { setError((err as Error).message); } finally { setSaving(false); }
   }
-  const [callStartMode, setCallStartMode] = useState<CallStartMode>((draft?.callStartMode as CallStartMode) ?? "manual");
+  const [callStartMode, setCallStartMode] = useState<CallStartMode>(draft?.callStartMode === "scheduled" ? "scheduled" : "immediate");
   const [callingWindow, setCallingWindow] = useState<CallingWindow>((draft?.callingWindow as CallingWindow) || "business-hours");
   const [selectedCallingDays, setSelectedCallingDays] = useState<CallingDay[]>((draft?.callStartMode !== "immediate" ? draft?.callingDays as CallingDay[] : undefined) ?? [
     "monday",
@@ -176,7 +176,7 @@ export function CreateCampaignPage() {
             <div className="campaign-call-settings">
               <fieldset className="campaign-choice-group">
                 <legend>แผนเริ่มการโทร</legend>
-                <div className="campaign-choice-grid campaign-choice-grid--three">
+                <div className="campaign-choice-grid campaign-choice-grid--two">
                   <CampaignRadioOption
                     checked={callStartMode === "immediate"}
                     description="บันทึกความต้องการไว้ ใช้เมื่อเชื่อมระบบโทรแล้ว"
@@ -192,14 +192,6 @@ export function CreateCampaignPage() {
                     name="callStartMode"
                     onChange={setCallStartMode}
                     value="scheduled"
-                  />
-                  <CampaignRadioOption
-                    checked={callStartMode === "manual"}
-                    description="บันทึกแคมเปญไว้ก่อน โดยยังไม่เริ่มโทร"
-                    label="เริ่มเองภายหลัง"
-                    name="callStartMode"
-                    onChange={setCallStartMode}
-                    value="manual"
                   />
                 </div>
 
