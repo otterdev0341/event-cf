@@ -3,6 +3,7 @@ import { AppHeader } from "../components/AppHeader";
 import { Button } from "../components/Button";
 import { CampaignStepIndicator } from "../components/CampaignStepIndicator";
 import { routes } from "../routes";
+import { scheduledTime } from '../../shared/campaign-schedule.mjs';
 
 import { getDraft, saveDraft, parseCsv, suggestMapping, downloadCsvTemplate, type CsvData } from "../lib/campaigns";
 
@@ -29,6 +30,7 @@ export function CreateCampaignPage() {
   const [reading, setReading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [callStartMode, setCallStartMode] = useState(draft?.callStartMode === 'scheduled' ? 'scheduled' : 'immediate');
   async function importFile(file?: File) {
     if (!file) return;
     setReading(true); setError('');
@@ -45,11 +47,15 @@ export function CreateCampaignPage() {
     const value = (name: string) => String(form.get(name) || '');
     if (!value('campaignName').trim()) { setError('กรุณาระบุชื่อแคมเปญ'); return; }
     if (!csv) { setError('กรุณาอัปโหลดรายชื่อ CSV ก่อนดำเนินการต่อ'); return; }
+    if (callStartMode === 'scheduled') {
+      const scheduled = scheduledTime(value('callStartDate'), value('callStartTime'));
+      if (!scheduled || Date.parse(scheduled) <= Date.now()) { setError('กรุณาเลือกวันและเวลาโทรในอนาคต (เวลาไทย)'); return; }
+    }
     setSaving(true);
     try {
       await saveDraft({ id: campaignId, name: value('campaignName').trim(),
         variables: draft?.variables, variableBindings: draft?.variableBindings, recordConversation: draft?.recordConversation === true, voiceAccountId: draft?.voiceAccountId, eventDate: value('eventDate'), eventTime: value('eventTime'),
-        callStartMode: 'manual', callStartDate: '', callStartTime: '',
+        callStartMode, callStartDate: callStartMode === 'scheduled' ? value('callStartDate') : '', callStartTime: callStartMode === 'scheduled' ? value('callStartTime') : '',
         callingWindow: '', callingDays: [], allowedStartTime: '', allowedEndTime: '', csv, fileName,
         mapping: csv === draft?.csv ? draft.mapping : suggestMapping(csv.headers), agentId: draft?.agentId ?? '', updatedAt: draft?.updatedAt ?? '' });
       window.location.assign(routes.apiAgent);
@@ -97,6 +103,24 @@ export function CreateCampaignPage() {
               </CampaignField>
             </div>
 
+            <fieldset className="campaign-choice-group">
+              <legend>เริ่มโทรเมื่อไหร่</legend>
+              <div className="campaign-choice-grid campaign-choice-grid--two">
+                <label className={`campaign-radio${callStartMode === 'immediate' ? ' campaign-radio--selected' : ''}`}>
+                  <input type="radio" name="callStartMode" value="immediate" checked={callStartMode === 'immediate'} onChange={() => setCallStartMode('immediate')} />
+                  <span className="campaign-radio__copy"><strong>โทรตอนนี้</strong><span>เริ่มคิวหลังตรวจข้อมูลและยืนยันในขั้นตอนสุดท้าย</span></span>
+                </label>
+                <label className={`campaign-radio${callStartMode === 'scheduled' ? ' campaign-radio--selected' : ''}`}>
+                  <input type="radio" name="callStartMode" value="scheduled" checked={callStartMode === 'scheduled'} onChange={() => setCallStartMode('scheduled')} />
+                  <span className="campaign-radio__copy"><strong>โทรภายหลัง</strong><span>เลือกวันและเวลาให้ระบบเริ่มโทรอัตโนมัติ</span></span>
+                </label>
+              </div>
+              {callStartMode === 'scheduled' && <div className="campaign-form__row campaign-choice-inputs">
+                <CampaignField label="วันที่เริ่มโทร"><input type="date" name="callStartDate" required defaultValue={draft?.callStartDate} /></CampaignField>
+                <CampaignField label="เวลาเริ่มโทร (เวลาไทย)"><input type="time" name="callStartTime" required defaultValue={draft?.callStartTime || '09:00'} /></CampaignField>
+              </div>}
+              <p className="workspace-note">คิวโทรทำงานบนเซิร์ฟเวอร์ ปิดเว็บหรือปิดคอมได้ ระบบตรวจคิวทุกนาที</p>
+            </fieldset>
           </section>
 
           <section className="campaign-upload-panel" aria-labelledby="campaign-upload-title">
@@ -119,7 +143,7 @@ export function CreateCampaignPage() {
             </button>
           </section>
 
-          <p className="workspace-note">บันทึกแคมเปญแล้วกดเริ่มคิวโทรจากรายชื่อ CSV ได้</p>
+          <p className="workspace-note">ตรวจรายชื่อและ Agent ให้ครบก่อนยืนยันเริ่มคิวในขั้นตอนสุดท้าย</p>
           {error && <p className="workspace-alert" role="alert">{error}</p>}
           <footer className="create-campaign-actions"><span className="form-step-note">ขั้นตอนที่ 1 จาก 4</span>
             <a href={routes.campaigns}>ยกเลิกการสร้างแคมเปญ</a>

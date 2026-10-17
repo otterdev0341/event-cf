@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CampaignSchedule } from '../components/CampaignSchedule';
 import { CampaignResults } from '../components/CampaignResults';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
@@ -20,6 +21,7 @@ export function CampaignCallPage() {
   const [historyReady,setHistoryReady] = useState(false);
   const [historyRevision,setHistoryRevision] = useState(0);
   const [resultsRevision,setResultsRevision] = useState(0);
+  const [scheduledActive,setScheduledActive] = useState(false);
   const [running,setRunning] = useState(false);
   const [editing,setEditing] = useState(false);
   const [consent,setConsent] = useState(false);
@@ -61,12 +63,12 @@ export function CampaignCallPage() {
     window.addEventListener('beforeunload',warn); return()=>window.removeEventListener('beforeunload',warn);
   },[running]);
   async function edit(path:string) {
-    if (!campaign || running || busy.current) return;
+    if (!campaign || running || busy.current || scheduledActive) return;
     setEditing(true); setError('');
     try { await saveDraft(campaign); window.location.assign(path); } catch(e){setError((e as Error).message);setEditing(false);}
   }
   async function start() {
-    if (!campaign || !valid || !historyReady || !consent || busy.current) return;
+    if (!campaign || !valid || !historyReady || !consent || busy.current || scheduledActive) return;
     busy.current=true; stopped.current=false; setRunning(true); setConsent(false); setError(''); setMessage('กำลังตรวจ Agent คู่สาย และประวัติคำขอเดิม…');
     try {
       await navigator.locks.request(`voice-campaign:${campaign.id}`,{ifAvailable:true},async lock=>{
@@ -98,12 +100,13 @@ export function CampaignCallPage() {
   if(!campaign) return <div><AppHeader /><main className="page-shell real-data-page call-workspace"><h1>ไม่พบแคมเปญในบัญชีนี้</h1><Button href={routes.campaigns}>กลับไปแคมเปญ</Button></main></div>;
   return <div><AppHeader /><main className="page-shell real-data-page call-workspace">
     <header className="call-page-heading"><div><span className="ui-kicker">CAMPAIGN CALLS</span><h1>โทรตามรายชื่อ CSV</h1><p>{campaign.name} · {detail.agent?.bot_name || campaign.agentId} · {prepared.rows.length.toLocaleString()} รายชื่อ</p></div><Button href="#call-results" variant="secondary" size="compact">ดูผลและประวัติการโทร ↗</Button></header><nav className="call-page-nav" aria-label="ส่วนต่าง ๆ ของแคมเปญ"><a href="#call-preflight"><span>01</span>เตรียมข้อมูล</a><a href="#call-selection"><span>02</span>เลือกรายชื่อ</a><a href="#call-results"><span>03</span>ดูผลการโทร</a></nav>
-    <section className="wizard-agent-banner"><div><h2>{campaign.fileName}</h2><p>หนึ่งแถวต่อหนึ่งผู้ติดต่อ · ใช้ข้อมูลของแถวนั้นในการโทร</p></div><div className="draft-actions"><Button size="compact" variant="secondary" disabled={running || editing} onClick={()=>edit(routes.dataMapping)}>แก้ไขการจับคู่</Button><Button size="compact" variant="secondary" disabled={running || editing} onClick={()=>edit(routes.createCampaign)}>เปลี่ยนไฟล์ CSV</Button></div></section>
+    <CampaignSchedule campaignId={campaign.id} onActive={setScheduledActive} />
+    <section className="wizard-agent-banner"><div><h2>{campaign.fileName}</h2><p>หนึ่งแถวต่อหนึ่งผู้ติดต่อ · ใช้ข้อมูลของแถวนั้นในการโทร</p></div><div className="draft-actions"><Button size="compact" variant="secondary" disabled={running || editing || scheduledActive} onClick={()=>edit(routes.dataMapping)}>แก้ไขการจับคู่</Button><Button size="compact" variant="secondary" disabled={running || editing || scheduledActive} onClick={()=>edit(routes.createCampaign)}>เปลี่ยนไฟล์ CSV</Button></div></section>
     <section className="wizard-summary-card call-preflight" id="call-preflight"><div className="call-preflight__heading"><div><h2>ตรวจความพร้อมก่อนเริ่ม</h2><p role="status">{detail.loading?"กำลังอ่าน Agent…":`ข้อมูลครบ ${prepared.errors.length?0:prepared.rows.length-invalid.length} / ${prepared.rows.length} รายชื่อ`}</p></div></div><details><summary>ดูการจับคู่ตัวแปรและคอลัมน์ CSV</summary><div className="wizard-variable-list">{detail.variables.map(v=><code key={v}>{v} ← {prepared.bindings[v]?.source==='output'?'ผลลัพธ์หลังโทร':(prepared.bindings[v] as {column?:string})?.column || 'ยังไม่เลือกคอลัมน์'}</code>)}</div></details>
       {detail.error && <p className="workspace-alert" role="alert">{detail.error}</p>}{prepared.errors.map(e=><p className="workspace-alert" key={e}>{e}</p>)}
       {invalid.length>0 && <p className="workspace-alert">พบ {invalid.length} แถวที่ต้องแก้ข้อมูลก่อนเริ่ม ตรวจรายละเอียดในตารางด้านล่าง</p>}
       <p className="workspace-note">ตัวแปรที่เป็นผลลัพธ์หลังสนทนาให้กำหนดในหน้าจับคู่ ระบบจะไม่เติมค่าจำลองให้</p>
-      <Button size="compact" variant="secondary" disabled={running || editing} onClick={()=>{detail.refetch();setHistoryRevision(v=>v+1);setError('');setConsent(false);}}>ตรวจข้อมูลล่าสุด</Button>
+      <Button size="compact" variant="secondary" disabled={running || editing || scheduledActive} onClick={()=>{detail.refetch();setHistoryRevision(v=>v+1);setError('');setConsent(false);}}>ตรวจข้อมูลล่าสุด</Button>
     </section>
     <section className="wizard-summary-confirm" id="call-selection"><h2>เลือกรายชื่อที่จะโทร</h2><p>โทรเรียงทีละคน รอจบสายก่อนส่งคนถัดไป เว้นคำขออย่างน้อย 13 วินาที กรุณาเปิดหน้านี้และให้เครื่องทำงานไว้</p>
       <div className="call-scope" role="group" aria-label="ขอบเขตการโทร"><label><input type="radio" name="call-scope" checked={scope==='pending'} disabled={running} onChange={()=>{setScope('pending');setRedial(false);setConsent(false);}}/>รายชื่อที่ยังไม่จบทั้งหมด</label><label><input type="radio" name="call-scope" checked={scope==='selected'} disabled={running} onChange={()=>{setScope('selected');setConsent(false);}}/>เลือกเฉพาะบางคน</label></div>
@@ -111,10 +114,10 @@ export function CampaignCallPage() {
       <div className="call-selection-count" role="status"><strong>{historyReady?planned.length:'…'}</strong><span>รายชื่อที่จะดำเนินการ{scope==='selected'?` · เลือกไว้ ${selectedRows.length} คน`:''}{repeatCount?` · โทรซ้ำ ${repeatCount} คน`:''}</span></div>
       {scope==='selected'&&!redial&&selectedRows.some(index=>terminalCall(states[index]?.status))&&<p className="workspace-note">รายชื่อที่จบสายแล้วจะถูกข้าม เปิดตัวเลือกโทรซ้ำหากต้องการโทรอีกครั้ง</p>}
       {repeatCount>0&&<p className="workspace-alert">จะโทรออกใหม่ {repeatCount} คนที่เคยจบสายแล้ว ประวัติและผลสายเดิมยังอยู่</p>}
-      <label><input type="checkbox" checked={consent} disabled={running || !valid || !historyReady} onChange={e=>setConsent(e.target.checked)}/>ฉันตรวจรายชื่อและยืนยันดำเนินการ {planned.length} คน{repeatCount?` รวมโทรซ้ำ ${repeatCount} คน`:''}</label><div className="draft-actions"><Button disabled={running || editing || !valid || !historyReady || !consent || !navigator.locks} onClick={start}>เริ่ม / ดำเนินคิวที่เลือก {planned.length} คน</Button>{running && <Button variant="secondary" onClick={()=>{stopped.current=true;setConsent(false);setMessage('กำลังหยุดส่งรายชื่อถัดไป สายที่ส่งแล้วจะไม่ถูกยกเลิก');}}>หยุดคิว</Button>}</div><p className="workspace-note">สายที่ยังทำงานจะตรวจต่อโดยไม่ส่งซ้ำ หากปิดหน้าหรือเครื่องพัก คิวจะหยุดส่งรายชื่อถัดไป</p>{!navigator.locks && <p role="alert">เบราว์เซอร์นี้ไม่รองรับการล็อกคิว กรุณาใช้ Chrome หรือ Edge รุ่นปัจจุบัน</p>}</section>
+      <label><input type="checkbox" checked={consent} disabled={running || !valid || !historyReady} onChange={e=>setConsent(e.target.checked)}/>ฉันตรวจรายชื่อและยืนยันดำเนินการ {planned.length} คน{repeatCount?` รวมโทรซ้ำ ${repeatCount} คน`:''}</label><div className="draft-actions"><Button disabled={running || scheduledActive || editing || !valid || !historyReady || !consent || !navigator.locks} onClick={start}>เริ่ม / ดำเนินคิวที่เลือก {planned.length} คน</Button>{running && <Button variant="secondary" onClick={()=>{stopped.current=true;setConsent(false);setMessage('กำลังหยุดส่งรายชื่อถัดไป สายที่ส่งแล้วจะไม่ถูกยกเลิก');}}>หยุดคิว</Button>}</div><p className="workspace-note">สายที่ยังทำงานจะตรวจต่อโดยไม่ส่งซ้ำ หากปิดหน้าหรือเครื่องพัก คิวจะหยุดส่งรายชื่อถัดไป</p>{!navigator.locks && <p role="alert">เบราว์เซอร์นี้ไม่รองรับการล็อกคิว กรุณาใช้ Chrome หรือ Edge รุ่นปัจจุบัน</p>}</section>
     {message && <p className="workspace-notice" role="status">{message}</p>}{error && <p className="workspace-alert" role="alert">{error}</p>}
     <section className="wizard-summary-card" id="call-contacts"><h2>รายชื่อและสถานะการโทร</h2><div className="csv-preview"><table><thead><tr><th>เลือก</th><th>แถว</th><th>เบอร์โทร</th><th>ข้อมูลจาก CSV</th><th>สถานะ / สิ่งที่ต้องแก้</th></tr></thead><tbody>{pageRows.map(row=><tr key={row.index} className={scope==='selected'&&selectedRows.includes(row.index)?'call-row-selected':''}><td><input type="checkbox" aria-label={`เลือกโทรแถว ${row.index+1} เบอร์ ${row.destination}`} checked={scope==='selected'?selectedRows.includes(row.index):planned.some(p=>p.index===row.index)} disabled={running||!historyReady||scope!=='selected'||!!row.errors.length||!!prepared.errors.length} onChange={()=>changeSelection(row.index)}/></td><td>{row.index+1}</td><td>{row.destination || '—'}</td><td>{Object.entries(row.variables).map(([key,value])=><div key={key}><strong>{key}:</strong> {value}</div>)}</td><td><span className="call-state" data-state={row.errors.length||prepared.errors.length?'error':states[row.index]?.status}>{row.errors.length?row.errors.join(' · '):prepared.errors.length?'ต้องแก้การจับคู่ข้อมูล':labels[states[row.index]?.status] || states[row.index]?.status || 'ยังไม่ส่ง'}</span>{states[row.index]?.message && <p>{states[row.index].message}</p>}{states[row.index]?.callId && <small>Call ID: {states[row.index].callId}</small>}</td></tr>)}</tbody></table></div><div className="wizard-summary-actions"><Button variant="secondary" size="compact" disabled={page===0} onClick={()=>setPage(p=>p-1)}>ก่อนหน้า</Button><span>หน้า {page+1} / {Math.max(1,Math.ceil(prepared.rows.length/25))}</span><Button variant="secondary" size="compact" disabled={(page+1)*25>=prepared.rows.length} onClick={()=>setPage(p=>p+1)}>ถัดไป</Button></div></section>
-    <p className="workspace-note">“จบสาย” หมายถึงสถานะสายจากบริการ ไม่ได้แปลว่าผู้ติดต่อยืนยันตอบรับ การตั้งเวลาและการทำงานเบื้องหลังยังไม่รองรับในคิวนี้</p>
+    <p className="workspace-note">“จบสาย” หมายถึงสถานะสายจากบริการ ไม่ได้แปลว่าผู้ติดต่อยืนยันตอบรับ คิวอัตโนมัติทำงานบนเซิร์ฟเวอร์ ส่วนการเลือกโทรเองด้านบนต้องเปิดหน้านี้ไว้</p>
     <CampaignResults campaign={campaign} queueRunning={running} revision={resultsRevision+historyRevision} onStatus={(row,status,callId)=>{setStates(prev=>({...prev,[row]:{status,callId,message:'อัปเดตจากบริการแล้ว'}}));setHistory(prev=>prev.map(a=>a.call_id===callId?{...a,status}:a));}} />
     {!running && <Button href={routes.campaigns} variant="secondary">กลับไปแคมเปญ</Button>}
   </main></div>;
