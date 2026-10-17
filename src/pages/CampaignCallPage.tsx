@@ -32,6 +32,8 @@ export function CampaignCallPage() {
   const [scope,setScope]=useState<'pending'|'selected'>('pending');
   const [selectedRows,setSelectedRows]=useState<number[]>([]);
   const [redial,setRedial]=useState(false);
+  const wasScheduled = useRef(false);
+  useEffect(()=>{if(wasScheduled.current && !scheduledActive)setHistoryRevision(v=>v+1);wasScheduled.current=scheduledActive;},[scheduledActive]);
   const stopped = useRef(false), mounted = useRef(true), busy = useRef(false);
   const invalid = prepared.rows.filter(r => r.errors.length);
   const planned=planCampaignCalls(prepared.rows,history,scope==='selected'?selectedRows:null,scope==='selected'&&redial);
@@ -100,7 +102,7 @@ export function CampaignCallPage() {
   if(!campaign) return <div><AppHeader /><main className="page-shell real-data-page call-workspace"><h1>ไม่พบแคมเปญในบัญชีนี้</h1><Button href={routes.campaigns}>กลับไปแคมเปญ</Button></main></div>;
   return <div><AppHeader /><main className="page-shell real-data-page call-workspace">
     <header className="call-page-heading"><div><span className="ui-kicker">CAMPAIGN CALLS</span><h1>โทรตามรายชื่อ CSV</h1><p>{campaign.name} · {detail.agent?.bot_name || campaign.agentId} · {prepared.rows.length.toLocaleString()} รายชื่อ</p></div><Button href="#call-results" variant="secondary" size="compact">ดูผลและประวัติการโทร ↗</Button></header><nav className="call-page-nav" aria-label="ส่วนต่าง ๆ ของแคมเปญ"><a href="#call-preflight"><span>01</span>เตรียมข้อมูล</a><a href="#call-selection"><span>02</span>เลือกรายชื่อ</a><a href="#call-results"><span>03</span>ดูผลการโทร</a></nav>
-    <CampaignSchedule campaignId={campaign.id} onActive={setScheduledActive} />
+    <CampaignSchedule campaignId={campaign.id} onActive={setScheduledActive} configure version={campaign.updatedAt} rows={scope==='selected'?selectedRows:null} total={prepared.rows.length} pendingCount={redial?planCampaignCalls(prepared.rows,history,scope==='selected'?selectedRows:null,false).length:planned.length} disabled={running || editing || !historyReady || detail.loading || !!detail.error} />
     <section className="wizard-agent-banner"><div><h2>{campaign.fileName}</h2><p>หนึ่งแถวต่อหนึ่งผู้ติดต่อ · ใช้ข้อมูลของแถวนั้นในการโทร</p></div><div className="draft-actions"><Button size="compact" variant="secondary" disabled={running || editing || scheduledActive} onClick={()=>edit(routes.dataMapping)}>แก้ไขการจับคู่</Button><Button size="compact" variant="secondary" disabled={running || editing || scheduledActive} onClick={()=>edit(routes.createCampaign)}>เปลี่ยนไฟล์ CSV</Button></div></section>
     <section className="wizard-summary-card call-preflight" id="call-preflight"><div className="call-preflight__heading"><div><h2>ตรวจความพร้อมก่อนเริ่ม</h2><p role="status">{detail.loading?"กำลังอ่าน Agent…":`ข้อมูลครบ ${prepared.errors.length?0:prepared.rows.length-invalid.length} / ${prepared.rows.length} รายชื่อ`}</p></div></div><details><summary>ดูการจับคู่ตัวแปรและคอลัมน์ CSV</summary><div className="wizard-variable-list">{detail.variables.map(v=><code key={v}>{v} ← {prepared.bindings[v]?.source==='output'?'ผลลัพธ์หลังโทร':(prepared.bindings[v] as {column?:string})?.column || 'ยังไม่เลือกคอลัมน์'}</code>)}</div></details>
       {detail.error && <p className="workspace-alert" role="alert">{detail.error}</p>}{prepared.errors.map(e=><p className="workspace-alert" key={e}>{e}</p>)}

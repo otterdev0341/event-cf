@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { handleVoice } from '../server/voice.mjs';
 import { Readable } from 'node:stream';
-import { sealToken } from '../server/connection.mjs';
+import { sealToken, connectionStore } from '../server/connection.mjs';
 import { transcriptToolPayload, withTranscriptPrompt } from '../server/transcript.mjs';
 import { campaignRequestId } from '../shared/campaign-queue.mjs';
 let passed=0, requests=[], options={};
@@ -15,7 +15,7 @@ globalThis.fetch=async(input,init={})=>{
  if(url.hostname==='supabase.invalid') {
   if(url.pathname==='/auth/v1/user') return options.invalidSession?Response.json({message:'invalid'},{status:401}):Response.json({id:userId,email:'fixture@example.invalid',email_confirmed_at:options.unconfirmed?null:'2026-01-01'});
   if(url.pathname.endsWith('/voice_bot_connections')){assert.equal(url.searchParams.get('owner_id'),'eq.'+userId);return Response.json(options.noConnection?null:connection());}
-  if(url.pathname.endsWith('/rpc/reserve_voice_call')) return options.reserveError?Response.json({message:options.reserveError,code:'P0001'},{status:400}):Response.json(null);
+  if(url.pathname.endsWith('/rpc/reserve_voice_call')||url.pathname.endsWith('/rpc/reserve_scheduled_voice_call')) return options.reserveError?Response.json({message:options.reserveError,code:'P0001'},{status:400}):Response.json(null);
   if(url.pathname.endsWith('/voice_campaigns')) return Response.json(options.noCampaign?null:{id:userId,data:options.campaign || {csv:{rows:[['Fixture']]}},updated_at:'version-1'});
   if(url.pathname.endsWith('/voice_campaign_jobs')) return Response.json(options.activeJob?[{id:'active'}]:[]);
   if(url.pathname.endsWith('/voice_call_requests')) {
@@ -40,7 +40,7 @@ async function invoke(path='/me',body,extra={}) {
  Object.assign(req,{url:'/api/voice?path='+encodeURIComponent(path),method:body===undefined?'GET':'POST',headers:{authorization:'Bearer fixture-session',...extra.headers}});
  if(extra.parsedBody!==undefined)req.body=extra.parsedBody;
  let output;const headers={};const res={statusCode:200,setHeader(k,v){headers[k]=v;},end(s){output=JSON.parse(s);}};
- await handleVoice(req,res,{...env,...extra.env});return {status:res.statusCode,data:output,headers};
+ await handleVoice(req,res,{...env,...extra.env},extra.worker || null);return {status:res.statusCode,data:output,headers};
 }
 async function test(name,run){requests=[];options={};await run();passed++;console.log('PASS',name);}
 const callPath='/v1/provisioning/tenants/tenant_fixture/calls';
@@ -99,4 +99,20 @@ await test('Recording flag is derived from the saved campaign and bound to the n
 
 
 await test('Manual calls cannot overtake an active automatic campaign job',async()=>{options.campaign=csvCampaign();options.activeJob=true;assert.equal((await invoke(callPath,batchPayload())).status,409);assert.equal(calls().length,0);});
+await test('Recurring worker correlates its run and uses a leased reservation for explicit redial',async()=>{
+ options.campaign=csvCampaign();options.prompt='{{guest_name}} {{call_result}}';options.lastAttempt={id:userId,status:'completed',call_id:'old'};
+ const body=batchPayload();body.metadata.campaign_redial_of=userId;body.request_id=await campaignRequestId(userId,'version-1',1,userId);
+ const job={id:userId,lease_id:userId,run_id:'occurrence_fixture',owner_id:userId,campaign_id:userId,account_id:'tenant_fixture',redial:true,contact_rows:[1]};
+ const worker={db:connectionStore(env,AbortSignal.timeout(10000)),user:{id:userId,email:'fixture@example.invalid',email_confirmed_at:'2026-01-01'},job};
+ const result=await invoke(callPath,body,{worker});assert.equal(result.status,200,JSON.stringify(result.data));
+ const reserved=requests.find(r=>r.url.pathname.endsWith('/rpc/reserve_scheduled_voice_call'));assert.ok(reserved);assert.equal(JSON.parse(reserved.init.body).p_metadata.schedule_run_id,job.run_id);assert.equal(JSON.parse(reserved.init.body).p_lease_id,job.lease_id);
+});
+await test('A worker cannot redial or select rows outside its saved alarm',async()=>{
+ options.campaign=csvCampaign();options.lastAttempt={id:userId,status:'completed',call_id:'old'};
+ const body=batchPayload();body.metadata.campaign_redial_of=userId;body.request_id=await campaignRequestId(userId,'version-1',1,userId);
+ for(const changes of [{redial:false},{redial:true,contact_rows:[0]}]) {
+ const worker={db:connectionStore(env,AbortSignal.timeout(10000)),user:{id:userId,email_confirmed_at:'2026-01-01'},job:{id:userId,lease_id:userId,run_id:'occurrence',owner_id:userId,campaign_id:userId,account_id:'tenant_fixture',...changes}};
+ assert.equal((await invoke(callPath,body,{worker})).status,403);}
+ assert.equal(calls().length,0);
+});
 console.log(`\n${passed} backend checks passed; every network response was isolated inside this process.`);

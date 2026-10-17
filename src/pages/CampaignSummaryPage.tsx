@@ -3,17 +3,13 @@ import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { CampaignStepIndicator } from '../components/CampaignStepIndicator';
 import { useAgentDetail } from '../hooks/useBotnoiData';
-import { completeDraft, getDraft, mappingErrors, saveDraft } from '../lib/campaigns';
+import { completeDraft, getDraft, mappingErrors } from '../lib/campaigns';
 import { prepareCampaignRows } from '../../shared/campaign-inputs.mjs';
 import { routes } from '../routes';
-import { botnoiFetch } from '../services/botnoi/client';
-import { scheduledTime, scheduleLabel } from '../../shared/campaign-schedule.mjs';
 const dateLabel = (value: string) => value ? new Date(value + 'T00:00:00').toLocaleDateString('th-TH') : 'ยังไม่ระบุ';
 export function CampaignSummaryPage() {
   const [draft] = useState(getDraft);
   const detail = useAgentDetail(draft?.agentId);
-  const [savedCampaign, setSavedCampaign] = useState<typeof draft>(null);
-  const scheduled = draft?.callStartMode === 'scheduled' ? scheduledTime(draft.callStartDate, draft.callStartTime) : null;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmed, setConfirmed] = useState(false);
@@ -24,17 +20,8 @@ export function CampaignSummaryPage() {
   const invalidRows = prepared.rows.filter(row => row.errors.length);
   async function save() {
     if (!draft || saving || !canSave || !confirmed) return;
-    if (prepared.errors.length || invalidRows.length) { setError('กรุณาแก้ข้อมูลรายชื่อให้ครบก่อนเริ่มคิว'); return; }
-    if (draft.callStartMode === 'scheduled' && (!scheduled || Date.parse(scheduled) <= Date.now())) { setError('เวลาโทรผ่านไปแล้ว กรุณากลับไปเลือกวันและเวลาใหม่'); return; }
     setSaving(true); setError('');
-    try {
-      const readiness = await botnoiFetch<{ready:boolean}>(`/workspace/campaigns/${draft.id}/schedule`);
-      if (!readiness.ready) throw new Error('ตัวตั้งเวลาโทรยังไม่พร้อม ยังไม่ได้เริ่มคิว กรุณาลองใหม่ภายหลัง');
-      const saved = savedCampaign || await completeDraft(draft);
-      setSavedCampaign(saved);
-      await botnoiFetch(`/workspace/campaigns/${saved.id}/schedule`, {method:'POST', body:{action:'start',consent:true,campaign_version:saved.updatedAt}});
-      window.location.assign(routes.campaignCall(saved.id));
-    }
+    try { await completeDraft(draft); window.location.assign(routes.campaigns); }
     catch (err) { setError((err as Error).message); } finally { setSaving(false); }
   }
   return <div className="campaign-summary-page"><AppHeader /><main className="wizard-summary-main page-shell">
@@ -44,7 +31,6 @@ export function CampaignSummaryPage() {
       <div className="wizard-summary-grid">
         <section className="wizard-summary-card"><header><h2>01 · รายละเอียดแคมเปญ</h2><a href={routes.createCampaign}>แก้ไข</a></header><dl>
           <div><dt>ชื่อแคมเปญ</dt><dd>{draft.name}</dd></div><div><dt>วันและเวลาจัดงาน</dt><dd>{dateLabel(draft.eventDate)}{draft.eventTime ? ` · ${draft.eventTime} น.` : ''}</dd></div>
-          <div><dt>เริ่มโทร</dt><dd>{draft.callStartMode === 'scheduled' ? (scheduled ? scheduleLabel(scheduled) + ' น. (เวลาไทย)' : 'กรุณาเลือกวันและเวลาใหม่') : 'โทรตอนนี้ · เริ่มคิวหลังยืนยัน'}</dd></div>
         </dl></section>
         <section className="wizard-summary-card"><header><h2>02 · Voice Agent</h2><a href={routes.apiAgent}>เปลี่ยน Agent</a></header>
           <p className={draft.recordConversation ? 'workspace-notice' : 'workspace-note'}>บันทึกบทสนทนา: {draft.recordConversation ? 'เปิด · ส่งข้อความผ่าน Tool แยกตามสาย' : 'ปิด'}</p>
@@ -57,9 +43,9 @@ export function CampaignSummaryPage() {
           {staleMappings.length > 0 && <p className="workspace-alert" role="alert">Prompt เปลี่ยนแล้ว กรุณากลับไปจับคู่ใหม่: {staleMappings.join(', ')}</p>}
         </section>
       </div>
-      <section className="wizard-summary-confirm"><h2>ตรวจสอบก่อนบันทึก</h2><p>ระบบจะโทรตามรายชื่อทั้งหมดเมื่อคุณยืนยัน ปิดเว็บหรือปิดคอมได้ ระบบตรวจคิวทุกนาที</p><label><input type="checkbox" checked={confirmed} disabled={saving} onChange={e => setConfirmed(e.target.checked)} /> ฉันตรวจข้อมูลและอนุญาตให้โทร {draft.csv.rows.length} รายชื่อ{draft.callStartMode === 'scheduled' ? ' ตามวันเวลาที่เลือก' : ' หลังยืนยัน'}</label></section>
-      {error && <div className="workspace-alert" role="alert"><p>{error}</p>{savedCampaign && <Button size="compact" variant="secondary" disabled={saving} onClick={async()=>{try{await saveDraft(savedCampaign);window.location.assign(routes.createCampaign);}catch(e){setError((e as Error).message);}}}>กลับไปแก้วันเวลา</Button>}</div>}
-      <footer className="wizard-summary-actions"><Button variant="secondary" size="compact" href={routes.dataMapping}>ย้อนกลับ: จับคู่ข้อมูล</Button><div><Button variant="secondary" size="compact" href={routes.apiTest}>ไปหน้าโทรทดสอบ</Button><Button size="compact" disabled={saving || !canSave || !confirmed} onClick={save}>{saving ? 'กำลังบันทึกคิว…' : draft.callStartMode === 'scheduled' ? 'ยืนยันตั้งเวลาโทร' : 'ยืนยันโทรตอนนี้'}</Button></div></footer>
+      <section className="wizard-summary-confirm"><h2>ตรวจสอบก่อนบันทึก</h2><p>บันทึกแคมเปญก่อน แล้วเปิดหน้าโทรเพื่อกดเริ่มเอง หรือตั้งวันและเวลาโทรได้ตามต้องการ</p><label><input type="checkbox" checked={confirmed} disabled={saving} onChange={e => setConfirmed(e.target.checked)} /> ฉันตรวจรายละเอียด Agent และการจับคู่รายชื่อแล้ว</label></section>
+      {error && <p className="workspace-alert" role="alert">{error}</p>}
+      <footer className="wizard-summary-actions"><Button variant="secondary" size="compact" href={routes.dataMapping}>ย้อนกลับ: จับคู่ข้อมูล</Button><div><Button variant="secondary" size="compact" href={routes.apiTest}>ไปหน้าโทรทดสอบ</Button><Button size="compact" disabled={saving || !canSave || !confirmed} onClick={save}>{saving ? 'กำลังบันทึก…' : 'ยืนยันและบันทึกแคมเปญ'}</Button></div></footer>
     </>}
   </main></div>;
 }

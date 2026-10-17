@@ -188,7 +188,8 @@ export async function handleVoice(req, res, env = process.env, worker = null) {
         if (body.metadata?.campaign_id) {
           const { data: campaign, error } = await db.from('voice_campaigns').select('id,data,updated_at').eq('id', body.metadata.campaign_id).eq('owner_id',user.id).maybeSingle();
           if (error || !campaign) fail(403, 'ไม่พบแคมเปญของคุณ');
-          if(worker && (!worker.job || worker.job.owner_id!==user.id || worker.job.campaign_id!==campaign.id || worker.job.account_id!==connection.account_id || body.metadata.campaign_batch!==true || body.metadata.campaign_redial_of))fail(403,'คิวไม่ตรงกับแคมเปญ');
+          if(worker && (!worker.job || worker.job.owner_id!==user.id || worker.job.campaign_id!==campaign.id || worker.job.account_id!==connection.account_id || body.metadata.campaign_batch!==true || (body.metadata.campaign_redial_of && !worker.job.redial) || (worker.job.contact_rows && !worker.job.contact_rows.includes(body.metadata.contact_row))))fail(403,'คิวไม่ตรงกับแคมเปญ');
+          if(worker)metadata.schedule_run_id=worker.job.run_id;
           if(!worker) {
             const {data:activeJobs,error:jobError}=await store.from('voice_campaign_jobs').select('id').eq('owner_id',user.id).eq('campaign_id',campaign.id).in('status',['scheduled','running']).limit(1);
             // Older installations can keep manual calls until the scheduling migration is installed.

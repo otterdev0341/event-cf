@@ -1,15 +1,21 @@
 # Campaign scheduler
 
-The final campaign confirmation creates one durable job for the saved campaign
-version. `scheduled` uses an explicit Thailand date/time; `immediate` joins the
-next worker tick. The worker checks each active call before submitting the next
-CSV row. It submits at most one new call per invocation. No browser needs to stay
-open. Dispatch can be later than the chosen minute if other jobs are waiting or
-the provider is unavailable.
+Campaign creation only saves the campaign. It never starts calls or creates an
+alarm. The campaign call page has an optional clock button. Users can set one
+alarm, repeat daily, or choose weekdays, all in Thailand time. They explicitly
+confirm the selected contacts and whether completed contacts may be redialed.
+Without an alarm, the existing manual start button remains available.
+
+The server worker polls an active call before submitting the next CSV row and
+submits at most one new call per tick. Recurring alarms advance to the next future
+occurrence after completing a run; missed occurrences are skipped. A fresh run ID
+prevents the same contact being dispatched twice in one occurrence. Previously
+completed contacts are only redialed when the saved alarm explicitly allows it.
 
 ## Install
 
-1. Apply `supabase/migrations/202610170001_campaign_jobs.sql` as project owner.
+1. Apply `supabase/migrations/202610170001_campaign_jobs.sql` and then
+   `supabase/migrations/202610170002_optional_recurring_schedules.sql` as project owner.
 2. Deploy `/api/voice-scheduler` with the existing connection encryption,
    service role, and callback secret environment variables.
 3. Enable Supabase `pg_cron` and `pg_net`. Store `schedulerSecret(env)` from

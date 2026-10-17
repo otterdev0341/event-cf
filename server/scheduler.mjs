@@ -1,14 +1,14 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import { connectionStore } from './connection.mjs';
 import { prepareCampaignRows, promptVariables } from '../shared/campaign-inputs.mjs';
-import { campaignRequestId, terminalCall } from '../shared/campaign-queue.mjs';
-import { scheduledTime } from '../shared/campaign-schedule.mjs';
+import { campaignRequestId, terminalCall, latestAttempt } from '../shared/campaign-queue.mjs';
+import { firstScheduleTime, nextScheduleTime } from '../shared/campaign-schedule.mjs';
 
 export function schedulerSecret(env) {
   if ((env.VOICE_RESULT_CALLBACK_SECRET || '').length < 32) throw Error('Scheduler is not configured');
   return createHmac('sha256', env.VOICE_RESULT_CALLBACK_SECRET).update('voice-campaign-scheduler-v1').digest('hex');
 }
-const publicJob = job => job ? Object.fromEntries(['id','campaign_id','campaign_version','run_at','status','last_error','updated_at'].map(k=>[k,job[k]])) : null;
+const publicJob = job => job ? Object.fromEntries(['id','campaign_id','campaign_version','run_at','status','last_error','updated_at','recurrence','weekdays','local_time','redial','contact_rows','completed_runs','last_completed_at'].map(k=>[k,job[k]])) : null;
 
 // This context is constructed only by server code, never from HTTP request data.
 async function invoke(env, store, user, job, path, body, deadline) {
@@ -35,32 +35,42 @@ export async function handleSchedule({method,body,campaignId,store,user,env,conn
     if(error)fail(503,'ยกเลิกคิวไม่ได้ กรุณาลองใหม่');
     return send(200,{job:publicJob({...job,status:'cancelled'}),ready});
   }
-  if(body?.action!=='start' || body.consent!==true || body.campaign_version!==campaign.updated_at || campaign.state!=='saved')fail(409,'กรุณาตรวจและยืนยันแคมเปญล่าสุดก่อนเริ่มคิว');
-  // Retrying the confirmation cannot create a second run for the same saved version.
-  if(job && Date.parse(job.campaign_version)===Date.parse(campaign.updated_at))return send(200,{job:publicJob(job),ready});
+  if(body?.action!=='configure' || body.consent!==true || body.campaign_version!==campaign.updated_at || campaign.state!=='saved')fail(409,'กรุณาตรวจและยืนยันแคมเปญล่าสุดก่อนตั้งเวลา');
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.request_id || ''))fail(400,'ไม่มีรหัสการตั้งเวลา');
+  // The browser keeps this ID through retries; each new confirmation has its own ID.
+  const {data:existing,error:existingError}=await store.from('voice_campaign_jobs').select('*').eq('owner_id',user.id).eq('id',body.request_id).maybeSingle();
+  if(existingError)fail(503,'ตรวจการตั้งเวลาเดิมไม่ได้');
+  if(existing) {
+    if(existing.campaign_id!==campaignId || Date.parse(existing.campaign_version)!==Date.parse(campaign.updated_at))fail(409,'รหัสการตั้งเวลานี้ถูกใช้แล้ว');
+    return send(200,{job:publicJob(existing),ready});
+  }
   if(job && ['scheduled','running'].includes(job.status))fail(409,'แคมเปญนี้มีคิวอยู่แล้ว กรุณายกเลิกคิวเดิมก่อน');
   if(!ready)fail(503,'ตัวตั้งเวลาโทรยังไม่พร้อม ยังไม่ได้เริ่มคิว กรุณาลองใหม่ภายหลัง');
   if(!connection || connection.expires_at && Date.parse(connection.expires_at)<=Date.now())fail(428,'กรุณาเชื่อมบัญชี Voice Bot ใหม่ก่อนตั้งเวลา');
-  const later=campaign.data.callStartMode==='scheduled';
-  const runAt=later?scheduledTime(campaign.data.callStartDate,campaign.data.callStartTime):new Date().toISOString();
-  if(!runAt || later && Date.parse(runAt)<=Date.now())fail(400,'กรุณาเลือกวันและเวลาโทรในอนาคต (เวลาไทย)');
+  const rule=body.schedule;
+  if(!rule || !['once','daily','weekly'].includes(rule.recurrence) || typeof rule.redial!=='boolean' || !Array.isArray(rule.weekdays) || rule.weekdays.length>7 || rule.weekdays.some(d=>!Number.isInteger(d)||d<0||d>6) || new Set(rule.weekdays).size!==rule.weekdays.length)fail(400,'รูปแบบการตั้งเวลาไม่ถูกต้อง');
+  const runAt=firstScheduleTime(rule);
+  if(!runAt)fail(400,'กรุณาเลือกวันเวลาในอนาคต และวันที่ต้องการโทรซ้ำให้ครบ (เวลาไทย)');
+  const selected=body.contact_rows ?? null;
+  if(selected!==null && (!Array.isArray(selected) || !selected.length || selected.length>5000 || new Set(selected).size!==selected.length || selected.some(i=>!Number.isInteger(i)||i<0||i>=(campaign.data.csv?.rows?.length || 0))))fail(400,'กรุณาเลือกรายชื่อให้ถูกต้อง');
   if(connection.expires_at && Date.parse(connection.expires_at)<=Date.parse(runAt))fail(428,'Session Voice Bot จะหมดอายุก่อนเวลาโทร กรุณาเชื่อมใหม่');
   const agent=await invokeCall(env,store,user,null,`/agents/${campaign.data.agentId}`);
   const rows=prepareCampaignRows(campaign.data,promptVariables(agent));
-  if(rows.errors.length || !rows.rows.length || rows.rows.some(r=>r.errors.length))fail(400,'ข้อมูลรายชื่อหรือการจับคู่ Agent ยังไม่ครบ');
+  const targets=rows.rows.filter(r=>selected===null || selected.includes(r.index));
+  if(rows.errors.length || !targets.length || targets.some(r=>r.errors.length))fail(400,'ข้อมูลรายชื่อหรือการจับคู่ Agent ยังไม่ครบ');
   if(campaign.data.voiceAccountId && campaign.data.voiceAccountId!==connection.account_id)fail(409,'บัญชี Voice Bot ไม่ตรงกับแคมเปญ');
-  const {data:attempts,error:attemptError}=await store.from('voice_call_requests').select('id').eq('owner_id',user.id).eq('metadata->>campaign_id',campaignId).limit(1);
+  const {data:foreign,error:attemptError}=await store.from('voice_call_requests').select('id').eq('owner_id',user.id).eq('metadata->>campaign_id',campaignId).or(`metadata->>voice_account_id.is.null,metadata->>voice_account_id.neq.${connection.account_id},metadata->>campaign_version.is.null,metadata->>campaign_version.neq.${campaign.updated_at}`).limit(1);
   if(attemptError)fail(503,'อ่านประวัติการโทรไม่ได้');
-  if(attempts?.length)fail(409,'แคมเปญนี้เคยโทรแล้ว กรุณาเลือกดำเนินการต่อจากหน้าคิว หรือสร้างแคมเปญใหม่');
-  const {data:saved,error:saveError}=await store.from('voice_campaign_jobs').insert({owner_id:user.id,campaign_id:campaignId,campaign_version:campaign.updated_at,account_id:connection.account_id,run_at:runAt,next_run_at:runAt}).select('*').single();
+  if(foreign?.length)fail(409,'ประวัติใช้บัญชีหรือแคมเปญเวอร์ชันอื่น กรุณาตรวจประวัติก่อนตั้งเวลา');
+  const {data:saved,error:saveError}=await store.from('voice_campaign_jobs').insert({id:body.request_id,owner_id:user.id,campaign_id:campaignId,campaign_version:campaign.updated_at,account_id:connection.account_id,run_at:runAt,next_run_at:runAt,recurrence:rule.recurrence,weekdays:rule.recurrence==='weekly'?rule.weekdays:[],local_time:rule.time,redial:rule.redial,contact_rows:selected,run_id:randomUUID()}).select('*').single();
   if(saveError)fail(409,'บันทึกคิวไม่ได้หรือมีคิวแล้ว กรุณารีเฟรชสถานะ');
   return send(200,{job:publicJob(saved),ready});
 }
 
 export async function processCampaignJob({store,job,env,invokeCall=invoke}) {
   const deadline=AbortSignal.timeout(45000);
-  const finish=async(status,error=null)=>{
-    const {error:saveError}=await store.from('voice_campaign_jobs').update({status,last_error:error,lease_id:null,lease_until:null,updated_at:new Date().toISOString()}).eq('id',job.id).eq('lease_id',job.lease_id).eq('status','running');
+  const finish=async(status,error=null,extra={})=>{
+    const {error:saveError}=await store.from('voice_campaign_jobs').update({status,last_error:error,lease_id:null,lease_until:null,updated_at:new Date().toISOString(),...extra}).eq('id',job.id).eq('lease_id',job.lease_id).eq('status','running');
     if(saveError)throw Error('Could not save worker progress');
   };
   try {
@@ -84,16 +94,30 @@ export async function processCampaignJob({store,job,env,invokeCall=invoke}) {
       if(!attempt.call_id)throw Error('ยังยืนยันคำขอเดิมไม่ได้ คิวหยุดเพื่อป้องกันโทรซ้ำ');
       const result=await call(`/v1/provisioning/tenants/${job.account_id}/calls/${attempt.call_id}`);
       if(!terminalCall(result.status)){await finish('running');return;}
+      attempt.status=result.status;
     }
     const agent=await call(`/agents/${campaign.data.agentId}`);
     const prepared=prepareCampaignRows(campaign.data,promptVariables(agent));
-    if(prepared.errors.length || prepared.rows.some(r=>r.errors.length))throw Error('ข้อมูล Agent หรือรายชื่อเปลี่ยนแล้ว กรุณาตรวจแคมเปญ');
-    const row=prepared.rows.find(r=>!attempts.some(a=>a.metadata.contact_row===r.index));
-    if(!row){await finish('completed');return;}
+    const targets=prepared.rows.filter(r=>!job.contact_rows || job.contact_rows.includes(r.index));
+    if(prepared.errors.length || !targets.length || targets.some(r=>r.errors.length))throw Error('ข้อมูล Agent หรือรายชื่อเปลี่ยนแล้ว กรุณาตรวจแคมเปญ');
+    const thisRun=attempts.filter(a=>a.metadata.schedule_job_id===job.id && a.metadata.schedule_run_id===job.run_id);
+    const row=targets.find(r=>!thisRun.some(a=>a.metadata.contact_row===r.index) && (job.redial || !latestAttempt(attempts,r.index)));
+    if(!row){
+      const completed={completed_runs:(job.completed_runs || 0)+1,last_completed_at:new Date().toISOString()};
+      if(job.recurrence && job.recurrence!=='once') {
+        const next=nextScheduleTime(Math.max(Date.now(),Date.parse(job.run_at)),job.recurrence,job.local_time,job.weekdays);
+        if(!next)throw Error('คำนวณรอบถัดไปไม่ได้ กรุณาตั้งเวลาใหม่');
+        await finish('scheduled',null,{...completed,run_at:next,next_run_at:next,run_id:randomUUID()});
+      } else await finish('completed',null,completed);
+      return;
+    }
+    const previous=latestAttempt(attempts,row.index);
+    const redialOf=previous?.id;
+    if(previous && (!previous.call_id || !terminalCall(previous.status)))throw Error('ยังยืนยันสายก่อนหน้าไม่ได้ คิวหยุดเพื่อป้องกันโทรซ้ำ');
     const overview=await call(`/v1/provisioning/tenants/${job.account_id}/overview?include=tenant,trunk_status`);
     const config=overview.sections?.tenant,trunk=overview.sections?.trunk_status;
     if(!config?.ok || !trunk?.ok || !config.data.outbound?.enabled || trunk.data.disabled_at || !config.data.readiness?.pbx?.ready || (trunk.data.mode!=='ip' && trunk.data.registration?.state!=='registered'))throw Error('คู่สายไม่พร้อม กรุณาตรวจการเชื่อมต่อ');
-    const result=await call(`/v1/provisioning/tenants/${job.account_id}/calls`,{consent:true,destination:row.destination,agent_id:campaign.data.agentId,request_id:await campaignRequestId(campaign.id,campaign.updated_at,row.index),metadata:{variables:{},campaign_id:campaign.id,campaign_version:campaign.updated_at,campaign_batch:true,contact_row:row.index}});
+    const result=await call(`/v1/provisioning/tenants/${job.account_id}/calls`,{consent:true,destination:row.destination,agent_id:campaign.data.agentId,request_id:await campaignRequestId(campaign.id,campaign.updated_at,row.index,redialOf),metadata:{variables:{},campaign_id:campaign.id,campaign_version:campaign.updated_at,campaign_batch:true,contact_row:row.index,...(redialOf?{campaign_redial_of:redialOf}:{})}});
     if(!result.call_id)throw Error('ไม่ได้รับ Call ID คิวหยุดเพื่อป้องกันโทรซ้ำ');
     await finish('running');
   } catch(error) {
