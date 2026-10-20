@@ -1,0 +1,32 @@
+name: event-confirm
+services:
+  web:
+    image: event-confirm/web:${IMAGE_TAG:?Set IMAGE_TAG to an immutable build tag}
+    restart: unless-stopped
+    labels:
+      ci.project: event-confirm
+      ci.purpose: runtime
+    ports:
+      - "127.0.0.1:18346:80"
+      - "172.17.0.1:18346:80"
+    cpus: 0.25
+    mem_limit: 64m
+    memswap_limit: 64m
+    pids_limit: 64
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=8m
+      - /var/run:size=1m
+      - /tmp:size=4m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/event-confirm/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
