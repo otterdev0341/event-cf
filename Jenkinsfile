@@ -24,7 +24,7 @@ pipeline {
                     if (result != 0) { echo "WARNING: preflight cleanup failed (${result})" }
                 }
                 sh 'bash scripts/ci/capacity.sh'
-                sh 'bash -n scripts/ci/*.sh && git diff --check && docker compose config --quiet'
+                sh 'for script in scripts/ci/*.sh; do bash -n "$script" || exit; done; git diff --check && docker compose config --quiet'
             }
         }
         stage('Build foundation') {
