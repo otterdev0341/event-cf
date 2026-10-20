@@ -118,5 +118,8 @@ test('retry limit stops exhausted mock rows and swagger renders local JSON', asy
   await expect(page.locator('.opblock').first()).toBeVisible();
   const spec = await page.request.get('swagger-ui/openapi.json');
   expect(spec.ok()).toBe(true);
-  expect((await spec.json()).paths).toHaveProperty('/orgs/{org}/events/{event}/knowledge-import');
+  const document = await spec.json();
+  expect(document.paths).toHaveProperty('/orgs/{org}/events/{event}/knowledge-import');
+  expect(document.paths['/auth/login'].post.requestBody).toBeDefined();
+  expect(JSON.stringify(document)).not.toContain('\"$ref\"');
 });

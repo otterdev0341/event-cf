@@ -113,6 +113,7 @@ not imply a configured voice provider supports those languages.
 
 - Swagger UI: `/event-confirm/swagger-ui` redirects to `/event-confirm/swagger-ui/`.
 - OpenAPI JSON: `/event-confirm/swagger-ui/openapi.json` (OpenAPI 3.1).
+- Published OpenAPI JSON is self-contained: local path/schema references resolved at build time.
 - Local pinned swagger-ui-dist assets, no runtime CDN dependency; external validator off.
 - Browser/session API schemas live in contracts/schemas and contracts/paths, generated
   from Zod/contracts script. Missing documentation assets return 404, never SPA HTML.
