@@ -11,7 +11,10 @@ export default defineConfig(({ command, mode }) => {
     worker: { format: 'es' },
     optimizeDeps: { include: ['exceljs', 'papaparse', 'fflate', 'zod'] },
     plugins: [react(), tailwind()],
-    define: { __MOCK__: JSON.stringify(command === 'serve' && mode === 'mock') },
+    define: {
+      __MOCK__: JSON.stringify(mode === 'demo' || (command === 'serve' && mode === 'mock')),
+      __DEMO__: JSON.stringify(mode === 'demo'),
+    },
     server: { host: '127.0.0.1', port: 18446, strictPort: true },
   };
 });

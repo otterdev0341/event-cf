@@ -30,6 +30,10 @@ export async function mockRequest(path: string, request: Request = {}): Promise<
     if (!state.session) throw new ApiError(401, 'เข้าสู่ระบบเพื่อเปิด workspace');
     return structuredClone(state.session);
   }
+  if (path === '/auth/demo' && __DEMO__ && method === 'POST') {
+    state.session = structuredClone(state.profile);
+    return state.session;
+  }
   if (path === '/auth/login') {
     const login = z.object({ email: z.email(), password: z.string().min(8) }).parse(body);
     if (login.email !== 'admin@otterheaven.com' || login.password !== 'passwordpassword')

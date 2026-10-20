@@ -65,3 +65,12 @@ worker/provider callbacks, backend import validation, rate limits, pagination an
 Groovy API acceptance tests. Frontend permissions/validation are UX, not backend
 security. Preview defaults (2:1, 3 attempts, 15 minutes) need product confirmation
 before real outbound dispatch. See docs/plans/IMPLEMENTATION_PHASES.md.
+
+## Public UI demo
+
+The owner requested public mock browsing before backend implementation. Jenkins now
+checks the real-API production build, then packages `npm run build:demo` and tests
+that built artifact. The public entry button opens in-memory sample data without
+credentials. This is not authentication; edits reset on reload, no calls/email are
+sent, and no user data is shared between browsers. `npm run build` remains the
+mock-free real-API build for the eventual backend cutover.

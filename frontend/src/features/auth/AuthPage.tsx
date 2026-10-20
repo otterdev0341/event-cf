@@ -11,7 +11,7 @@ export function AuthPage() {
   const session = useSession();
   const [reset, setReset] = useState(location.pathname === '/forgot-password');
   const login = useMutation({
-    mutationFn: authService.login,
+    mutationFn: __DEMO__ ? authService.demo : authService.login,
     onSuccess: (data) => client.setQueryData(['session'], data),
   });
   const recovery = useMutation({ mutationFn: authService.reset });
@@ -40,47 +40,71 @@ export function AuthPage() {
             ? 'กรอกอีเมลเพื่อขอลิงก์ตั้งรหัสผ่านใหม่'
             : 'เข้าสู่ระบบเพื่อเตรียมประสบการณ์ที่ดีให้ผู้เข้าร่วม'}
         </p>
-        {__MOCK__ && (
+        {__MOCK__ && !__DEMO__ && (
           <div className="notice">
             Development preview · ไม่มีการโทรหรือส่งเมลจริง
             <br />
             <code>admin@otterheaven.com / passwordpassword</code>
           </div>
         )}
-        <form
-          className="form-grid"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const email = formText(e.currentTarget, 'email');
-            if (reset) recovery.mutate(email);
-            else login.mutate({ email, password: formText(e.currentTarget, 'password') });
-          }}
-        >
-          <Field label="Email">
-            <input name="email" type="email" autoComplete="email" required />
-          </Field>
-          {!reset && (
-            <Field label="Password">
-              <input name="password" type="password" minLength={8} autoComplete="current-password" required />
-            </Field>
-          )}
-          <Feedback error={reset ? recovery.error : login.error} notice={recovery.data?.message} />
-          <Button type="submit" variant="brand" pending={login.isPending || recovery.isPending}>
-            {reset ? 'ขอลิงก์ตั้งรหัสผ่าน' : 'เข้าสู่ workspace'}
-            <ArrowUpRight size={16} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              setReset(!reset);
-              login.reset();
-              recovery.reset();
+        {__DEMO__ ? (
+          <div className="form-grid">
+            <div className="notice">
+              UI DEMO · ข้อมูลจำลองสำหรับทดลองใช้งาน ไม่ต้องกรอกอีเมลหรือรหัสผ่าน
+              <br />
+              ไม่มีการโทรหรือส่งอีเมลจริง ข้อมูลรีเซ็ตเมื่อรีโหลดหน้า
+            </div>
+            <Feedback error={login.error} />
+            <Button
+              variant="brand"
+              pending={login.isPending}
+              onClick={() => login.mutate({ email: '', password: '' })}
+            >
+              เข้าสู่ workspace ตัวอย่าง <ArrowUpRight size={16} />
+            </Button>
+          </div>
+        ) : (
+          <form
+            className="form-grid"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const email = formText(e.currentTarget, 'email');
+              if (reset) recovery.mutate(email);
+              else login.mutate({ email, password: formText(e.currentTarget, 'password') });
             }}
           >
-            {reset ? 'กลับไปเข้าสู่ระบบ' : 'ลืมรหัสผ่าน?'}
-          </Button>
-        </form>
+            <Field label="Email">
+              <input name="email" type="email" autoComplete="email" required />
+            </Field>
+            {!reset && (
+              <Field label="Password">
+                <input
+                  name="password"
+                  type="password"
+                  minLength={8}
+                  autoComplete="current-password"
+                  required
+                />
+              </Field>
+            )}
+            <Feedback error={reset ? recovery.error : login.error} notice={recovery.data?.message} />
+            <Button type="submit" variant="brand" pending={login.isPending || recovery.isPending}>
+              {reset ? 'ขอลิงก์ตั้งรหัสผ่าน' : 'เข้าสู่ workspace'}
+              <ArrowUpRight size={16} />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setReset(!reset);
+                login.reset();
+                recovery.reset();
+              }}
+            >
+              {reset ? 'กลับไปเข้าสู่ระบบ' : 'ลืมรหัสผ่าน?'}
+            </Button>
+          </form>
+        )}
       </main>
     </div>
   );

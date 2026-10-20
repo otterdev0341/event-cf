@@ -1,6 +1,7 @@
 import { api, okSchema } from '../../shared/api/client';
 import { sessionSchema } from '../../shared/contracts/identity';
 export const authService = {
+  demo: () => api('/auth/demo', sessionSchema, { method: 'POST' }),
   completeReset: (body: { token: string; password: string }) =>
     api('/auth/reset/complete', okSchema, { method: 'POST', body }),
   session: (signal?: AbortSignal) => api('/auth/session', sessionSchema, { signal }),

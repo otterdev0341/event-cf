@@ -92,7 +92,8 @@ export function Shell() {
       <div className="min-w-0">
         {__MOCK__ && (
           <div className="preview-bar">
-            DEVELOPMENT PREVIEW — ข้อมูลจำลอง · ไม่มีการโทรจริง · ข้อมูลรีเซ็ตเมื่อ reload
+            {__DEMO__ ? 'UI DEMO' : 'DEVELOPMENT PREVIEW'} — ข้อมูลจำลอง · ไม่มีการโทรจริง · ข้อมูลรีเซ็ตเมื่อ
+            reload
           </div>
         )}
         <header className="topbar">

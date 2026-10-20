@@ -44,7 +44,10 @@
 - Do not store passwords, provider credentials or session tokens in persisted UI state.
 - Feature modules expose small public interfaces; do not deep-import their internals.
 - Preserve `/event-confirm/` in assets, navigation, deep links and API requests.
-- Mock adapters are for explicit development/test previews only; never production fallback.
+- Mock adapters are for explicit development/test previews or the owner-authorized public
+  UI demo (`vite build --mode demo`); never an automatic production fallback.
+  The public demo must disclose simulated data, no real calls/email and reload reset.
+  Default production builds still exclude mocks and use the real API.
 
 ## Backend boundaries
 
