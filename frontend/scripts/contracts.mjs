@@ -7,7 +7,7 @@ const destination = path.resolve(root, '../contracts/schemas');
 const update = process.argv.includes('--write');
 const schemas = {
   identity: ['orgSchema', 'sessionSchema', 'memberSchema'],
-  events: ['eventInputSchema', 'eventSchema', 'faqInputSchema', 'faqSchema', 'knowledgeSchema', 'eventPatchSchema', 'faqUpdateSchema'],
+  events: ['eventInputSchema', 'eventSchema', 'faqInputSchema', 'faqSchema', 'knowledgeSchema', 'eventPatchSchema', 'faqUpdateSchema', 'knowledgeImportSchema'],
   calling: ['outcomeSchema', 'participantSchema', 'queueSchema', 'importRowSchema', 'importPreviewSchema'],
   tickets: ['ticketInputSchema', 'ticketSchema'],
   credentials: ['credentialSchema', 'credentialInputSchema', 'issuedSchema'],

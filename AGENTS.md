@@ -94,3 +94,13 @@
 - Repository privacy and website access are separate controls. Do not claim privacy
   from `package.json: private=true` or from source-code changes.
 - Do not detach/delete a fork or replace its remote as a side effect of routine coding.
+
+## Operations UI contracts (2026-10-21 update)
+
+- Follow docs/plans/WORKSPACE_OPERATIONS_UPDATE.md and its JSON plan for the expanded P2–P5 UI.
+- Roles are root, org_admin, event_admin and team_member; Root is a platform privilege, never org-grantable.
+- Knowledge/category master/templates are event-scoped. Validate latest category revision on import.
+- Tickets have four stages and multiple active org-member assignee IDs; assignments do not grant event privileges.
+- maxRetries excludes the initial call; maxAttempts = maxRetries + 1. Never restart exhausted records implicitly.
+- Participant import requires lang_code; snapshot language into future Agent dispatches.
+- Swagger documents the implementation contract, not evidence of a deployed backend.

@@ -15,12 +15,25 @@
           "type": "string",
           "format": "email",
           "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+        },
+        "platformRole": {
+          "default": null,
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "root"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
         "id",
         "name",
-        "email"
+        "email",
+        "platformRole"
       ],
       "additionalProperties": false
     },
@@ -38,17 +51,25 @@
           "role": {
             "type": "string",
             "enum": [
-              "owner",
-              "admin",
-              "editor",
-              "viewer"
+              "root",
+              "org_admin",
+              "event_admin",
+              "team_member"
             ]
+          },
+          "eventIds": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
           "id",
           "name",
-          "role"
+          "role",
+          "eventIds"
         ],
         "additionalProperties": false
       }

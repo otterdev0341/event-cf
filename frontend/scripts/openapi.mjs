@@ -13,20 +13,24 @@ const rows = [
   ['/auth/reset/complete', 'post', object({ token: string, password: { type: 'string', minLength: 8 } }), ok, []],
   ['/organizations', 'post', object({ name: string }), ref('sessionSchema')],
   ['/invitations/accept', 'post', object({ token: string }), ref('sessionSchema')],
-  ['/orgs/{org}/members/{member}', 'patch', object({ role: { enum: ['admin', 'editor', 'viewer'] } }), ok],
+  ['/orgs/{org}/members/{member}', 'patch', object({ role: { enum: ['org_admin', 'event_admin', 'team_member'] }, eventIds: { type: 'array', items: string } }), ok],
   ['/orgs/{org}/members/{member}', 'delete', null, ok],
   ['/auth/session', 'get', null, ref('sessionSchema')],
   ['/auth/login', 'post', object({ email: { type: 'string', format: 'email' }, password: { type: 'string', minLength: 8 } }), ref('sessionSchema'), []],
   ['/auth/logout', 'post', null, ok],
   ['/auth/reset', 'post', object({ email: { type: 'string', format: 'email' } }), ok, []],
   ['/orgs/{org}/members', 'get', null, list('memberSchema')],
-  ['/orgs/{org}/members', 'post', object({ email: string, role: { enum: ['admin', 'editor', 'viewer'] } }), ok],
+  ['/orgs/{org}/members', 'post', object({ email: string, role: { enum: ['org_admin', 'event_admin', 'team_member'] }, eventIds: { type: 'array', items: string } }), ok],
   ['/orgs/{org}/events', 'get', null, list('eventSchema')],
   ['/orgs/{org}/events', 'post', ref('eventInputSchema'), ref('eventSchema')],
   [event, 'get', null, ref('eventSchema')],
   [event, 'patch', ref('eventPatchSchema'), ref('eventSchema')],
   [`${event}/knowledge`, 'get', null, ref('knowledgeSchema')],
-  [`${event}/categories`, 'post', object({ name: string }), ok],
+  [`${event}/categories`, 'get', null, { type: 'array', items: string }],
+  [`${event}/categories`, 'post', object({ name: string, expectedRevision: integer }), ok],
+  [`${event}/categories/{category}`, 'patch', object({ name: string, expectedRevision: integer }), ok],
+  [`${event}/categories/{category}`, 'delete', object({ expectedRevision: integer }), ok],
+  [`${event}/knowledge-import`, 'post', ref('knowledgeImportSchema'), ok],
   [`${event}/faqs`, 'post', ref('faqInputSchema'), ok],
   [`${event}/faqs/{faq}`, 'patch', ref('faqUpdateSchema'), ok],
   [`${event}/faqs/{faq}`, 'delete', null, ok],
@@ -35,11 +39,11 @@ const rows = [
   [`${event}/imports`, 'post', object({ rows: list('importRowSchema') }), ref('importPreviewSchema')],
   [`${event}/imports/{import}/commit`, 'post', null, ok],
   [`${event}/queue-state`, 'get', null, ref('queueSchema')],
-  [`${event}/queue-policy`, 'patch', object({ ratio: { type: 'integer', minimum: 1, maximum: 100 }, expectedVersion: integer }), ref('queueSchema')],
+  [`${event}/queue-policy`, 'patch', object({ ratio: { type: 'integer', minimum: 1, maximum: 100 }, maxRetries: { type: 'integer', minimum: 0, maximum: 10 }, expectedVersion: integer }), ref('queueSchema')],
   [`${event}/runs`, 'post', object({ action: { enum: ['start', 'pause', 'resume', 'cancel'] } }), ref('queueSchema')],
   [`${event}/tickets`, 'get', null, list('ticketSchema')],
   [`${event}/tickets`, 'post', ref('ticketInputSchema'), ref('ticketSchema')],
-  [`${event}/tickets/{ticket}`, 'patch', object({ expectedVersion: integer, status: { enum: ['open', 'in_progress', 'resolved'] }, assignee: string, dueDate: string, comment: string }, ['expectedVersion']), ref('ticketSchema')],
+  [`${event}/tickets/{ticket}`, 'patch', object({ expectedVersion: integer, status: { enum: ['open', 'in_progress', 'waiting', 'resolved'] }, assigneeIds: { type: 'array', items: string }, dueDate: string, comment: string }, ['expectedVersion']), ref('ticketSchema')],
   ['/orgs/{org}/credentials', 'get', null, list('credentialSchema')],
   ['/orgs/{org}/credentials', 'post', ref('credentialInputSchema'), ref('issuedSchema')],
   ['/orgs/{org}/credentials/{credential}/rotate', 'post', null, ref('issuedSchema')],
@@ -61,7 +65,7 @@ for (const [route, method, input, output, security] of rows) {
       default: { description: '401/403/404/409/422/429/503 error', content: { 'application/json': { schema: object({ message: string, code: string }, ['message']) } } },
     },
   };
-  if (route.endsWith('/commit') || route.endsWith('/runs') || (route.endsWith('/tickets') && method === 'post')) {
+  if (route.endsWith('/knowledge-import') || route.endsWith('/commit') || route.endsWith('/runs') || (route.endsWith('/tickets') && method === 'post')) {
     operation.parameters.push({ name: 'Idempotency-Key', in: 'header', required: true, schema: string });
   }
   item.operations[method] = operation;
@@ -75,7 +79,7 @@ async function emit(file, value) {
 }
 for (const item of Object.values(paths)) await emit(`paths/${item.name}.json`, item.operations);
 await emit('openapi.json', {
-  openapi: '3.1.0', info: { title: 'Event Confirm browser API — phase 0 contract', version: '0.1.0' },
+  openapi: '3.1.0', info: { title: 'Event Confirm API — implementation contract', version: '0.2.0', description: 'Planned backend contract. Public UI currently uses browser-local demo data; these backend endpoints are not deployed yet.' },
   servers: [{ url: '/event-confirm/api/v1' }], security: [{ SessionCookie: [] }],
   paths: Object.fromEntries(Object.entries(paths).map(([route, item]) => [route, { $ref: `./paths/${item.name}.json` }])),
   components: { securitySchemes: { SessionCookie: { type: 'apiKey', in: 'cookie', name: 'event_confirm_session' } } },

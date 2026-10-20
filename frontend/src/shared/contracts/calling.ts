@@ -1,4 +1,18 @@
 import { z } from 'zod';
+export const languageCodes = [
+  'th',
+  'en',
+  'ja',
+  'zh',
+  'ko',
+  'vi',
+  'id',
+  'ms',
+  'fr',
+  'de',
+  'es',
+  'ar',
+] as const;
 export const outcomeSchema = z.discriminatedUnion('result', [
   z.object({ result: z.literal('confirm'), reason: z.null() }),
   z.object({ result: z.literal('decline'), reason: z.null() }),
@@ -17,6 +31,7 @@ export const participantSchema = z.object({
   firstName: z.string(),
   lastName: z.string(),
   nickname: z.string(),
+  lang_code: z.enum(languageCodes),
   lane: z.enum(['new', 'fail', 'done']),
   state: z.enum(['ready', 'delayed', 'stopped', 'awaiting_result']),
   outcome: outcomeSchema,
@@ -37,6 +52,7 @@ export const importRowSchema = z.object({
   first_name: z.string(),
   last_name: z.string(),
   nickname: z.string(),
+  lang_code: z.string(),
   event_code: z.string(),
   event_date: z.string(),
 });

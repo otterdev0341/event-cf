@@ -51,3 +51,6 @@ render PNG แล้วแปลง format เป็น JPG โดยไม่�
 แอปเดิม บางข้อความยังอ้าง shared Voice Bot account, repository เก่า หรือระบุว่า
 scheduler ยังไม่มี ซึ่งไม่ตรงกับ source ปัจจุบันทั้งหมด ไม่ใช่หลักฐานว่า
 environment ของ `event-cf` ได้ตั้งค่า Supabase หรือ deploy แอปแล้ว
+
+- [Workspace operations update](plans/WORKSPACE_OPERATIONS_UPDATE.md) — team roles, charts, settings, event knowledge/category templates, lang_code, retry limits and Swagger.
+- [Machine-readable JSON plan](plans/WORKSPACE_OPERATIONS_UPDATE.json).

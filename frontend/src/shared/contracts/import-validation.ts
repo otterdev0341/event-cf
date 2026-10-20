@@ -1,3 +1,4 @@
+import { languageCodes } from './calling';
 import type { ImportRow } from './calling';
 export const templateHeaders = [
   'phone',
@@ -6,6 +7,7 @@ export const templateHeaders = [
   'nickname',
   'event_code',
   'event_date',
+  'lang_code',
 ] as const;
 export function normalizePhone(value: string): string {
   const phone = value.replace(/[\s()-]/g, '');
@@ -21,6 +23,8 @@ export function validateRows(
   if (!rows.length || rows.length > 5000) errors.push('ต้องมี 1–5,000 รายชื่อ');
   rows.forEach((row, index) => {
     const phone = normalizePhone(row.phone);
+    if (!(languageCodes as readonly string[]).includes(row.lang_code))
+      errors.push(`แถว ${index + 2}: lang_code ต้องเป็น ${languageCodes.join(', ')}`);
     const prefix = `แถว ${index + 2}: `;
     if (!/^\+[1-9]\d{7,14}$/.test(phone)) errors.push(prefix + 'เบอร์โทรไม่ถูกต้อง');
     if (phones.has(phone)) errors.push(prefix + 'เบอร์โทรซ้ำในไฟล์หรือ Event');

@@ -1,32 +1,28 @@
 import { useEffect } from 'react';
+import { SearchSelect } from '../components/SearchSelect';
 import { EventNavigation } from './EventNavigation';
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  CalendarDays,
-  BookOpen,
-  Users,
-  Phone,
-  Columns3,
-  KeyRound,
-  Settings2,
-  Menu,
-  LogOut,
-  X,
-} from 'lucide-react';
+import { CalendarDays, BookOpen, Users, Phone, Columns3, Settings2, Menu, LogOut, X } from 'lucide-react';
 import { useSession, authService } from '../features/auth';
 import { useEvents } from '../features/events';
 import { useWorkspace } from '../stores/workspace';
 import { Button, Badge, QueryState } from '../components/ui';
+const eventLinks: Record<string, string> = {
+  dashboard: '',
+  knowledge: 'knowledge',
+  participants: 'participants',
+  calling: 'calls',
+  tickets: 'tickets',
+};
 const links = [
+  ['dashboard', 'Dashboard', CalendarDays],
   ['events', 'Events', CalendarDays],
   ['knowledge', 'Knowledge & FAQ', BookOpen],
   ['participants', 'Participants', Users],
   ['calling', 'Call queues', Phone],
   ['tickets', 'Follow-up board', Columns3],
-  ['agent-access', 'Agent access', KeyRound],
-  ['organization', 'Organization', Settings2],
-  ['organizations', 'Switch workspace', Users],
+  ['settings', 'Settings', Settings2],
 ] as const;
 export function Shell() {
   const session = useSession();
@@ -66,6 +62,7 @@ export function Shell() {
           <X size={18} />
         </Button>
         <EventNavigation
+          key={orgId}
           orgId={orgId}
           eventId={eventId}
           events={events.data ?? []}
@@ -81,7 +78,12 @@ export function Shell() {
           {links.map(([path, label, Icon]) => (
             <NavLink
               key={path}
-              to={`/${path}`}
+              to={
+                eventId && path in eventLinks
+                  ? `/orgs/${encodeURIComponent(orgId)}/events/${encodeURIComponent(eventId)}/${eventLinks[path]}`
+                  : `/${path}`
+              }
+              end={path === 'dashboard'}
               className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               onClick={() => {
                 if (mobileNav) toggleNav();
@@ -112,13 +114,12 @@ export function Shell() {
           <Button className="mobile-menu" aria-label="เปิดเมนู" onClick={toggleNav}>
             <Menu size={18} />
           </Button>
-          <select aria-label="Organization" value={orgId} onChange={(e) => void switchOrg(e.target.value)}>
-            {session.data.organizations.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            label="Organization"
+            value={orgId}
+            options={session.data.organizations.map((o) => ({ id: o.id, label: o.name }))}
+            onChange={(id) => void switchOrg(id)}
+          />
           <div className="account">
             <Badge>{organization?.role}</Badge>
             <span className="account-name">{session.data.user.name}</span>

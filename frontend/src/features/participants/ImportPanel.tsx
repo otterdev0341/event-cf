@@ -67,6 +67,7 @@ export function ImportPanel({ event, onClose }: { event: EventDto; onClose: () =
                   <th>Phone</th>
                   <th>Name</th>
                   <th>Event</th>
+                  <th>Language</th>
                 </tr>
               </thead>
               <tbody>
@@ -77,6 +78,7 @@ export function ImportPanel({ event, onClose }: { event: EventDto; onClose: () =
                       {row.first_name} {row.last_name}
                     </td>
                     <td>{row.event_code}</td>
+                    <td>{row.lang_code}</td>
                   </tr>
                 ))}
               </tbody>

@@ -6,6 +6,8 @@ import {
   useRouteError,
 } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import { ThemeProvider } from './ThemeProvider';
+import { SettingsPage } from '../features/settings';
 import { ScopedRoute } from './ScopedRoute';
 import { Shell } from './Shell';
 import { AuthPage, TokenPage } from '../features/auth';
@@ -41,6 +43,8 @@ const router = createBrowserRouter(
       children: [
         { index: true, element: <Navigate to="/events" replace /> },
         { path: 'events', element: <EventsPage /> },
+        { path: 'dashboard', element: <EventOverview /> },
+        { path: 'settings', element: <SettingsPage /> },
         ...(__MOCK__
           ? [
               {
@@ -90,5 +94,10 @@ const router = createBrowserRouter(
   { basename: '/event-confirm' },
 );
 export function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <ThemeProvider />
+      <RouterProvider router={router} />
+    </>
+  );
 }

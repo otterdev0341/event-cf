@@ -22,7 +22,8 @@ test('organization stays in topbar while its events navigate from the sidebar', 
   await expect(page.locator('.topbar').getByRole('combobox')).toHaveCount(1);
   await events.getByRole('link', { name: 'Designing what comes next' }).click();
   await expect(page).toHaveURL(/\/orgs\/studio\/events\/design-2026$/);
-  await org.selectOption('community');
+  await org.fill('Community');
+  await page.getByRole('option', { name: 'Community Lab' }).click();
   await expect(events.getByRole('link', { name: 'Designing what comes next' })).toHaveCount(0);
   await events.getByRole('link', { name: 'Community open day' }).click();
   await expect(page).toHaveURL(/\/orgs\/community\/events\/community-day$/);

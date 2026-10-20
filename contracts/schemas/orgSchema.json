@@ -11,17 +11,25 @@
     "role": {
       "type": "string",
       "enum": [
-        "owner",
-        "admin",
-        "editor",
-        "viewer"
+        "root",
+        "org_admin",
+        "event_admin",
+        "team_member"
       ]
+    },
+    "eventIds": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "required": [
     "id",
     "name",
-    "role"
+    "role",
+    "eventIds"
   ],
   "additionalProperties": false
 }

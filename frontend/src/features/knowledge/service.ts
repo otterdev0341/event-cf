@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { api, eventPath, okSchema } from '../../shared/api/client';
-import { knowledgeSchema, faqInputSchema } from '../../shared/contracts/events';
+import { knowledgeSchema, faqInputSchema, knowledgeImportSchema } from '../../shared/contracts/events';
 export const knowledgeService = {
   get: (org: string, event: string, signal?: AbortSignal) =>
     api(`${eventPath(org, event)}/knowledge`, knowledgeSchema, { signal }),
@@ -13,6 +13,21 @@ export const knowledgeService = {
     api(`${eventPath(org, event)}/faqs/${id}`, okSchema, { method: 'DELETE' }),
   publish: (org: string, event: string) =>
     api(`${eventPath(org, event)}/publish`, okSchema, { method: 'POST' }),
-  category: (org: string, event: string, name: string) =>
-    api(`${eventPath(org, event)}/categories`, okSchema, { method: 'POST', body: { name } }),
+  category: (org: string, event: string, name: string, expectedRevision: number, previous?: string) =>
+    api(
+      `${eventPath(org, event)}/categories${previous ? `/${encodeURIComponent(previous)}` : ''}`,
+      okSchema,
+      { method: previous ? 'PATCH' : 'POST', body: { name, expectedRevision } },
+    ),
+  removeCategory: (org: string, event: string, name: string, expectedRevision: number) =>
+    api(`${eventPath(org, event)}/categories/${encodeURIComponent(name)}`, okSchema, {
+      method: 'DELETE',
+      body: { expectedRevision },
+    }),
+  importFaqs: (org: string, event: string, input: z.infer<typeof knowledgeImportSchema>, key: string) =>
+    api(`${eventPath(org, event)}/knowledge-import`, okSchema, {
+      method: 'POST',
+      body: knowledgeImportSchema.parse(input),
+      key,
+    }),
 };

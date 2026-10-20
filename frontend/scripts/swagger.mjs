@@ -1,0 +1,13 @@
+import { cp, mkdir } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+const require = createRequire(import.meta.url);
+const root = path.resolve(import.meta.dirname, '..');
+const output = path.join(root, 'dist/swagger-ui');
+const vendor = path.dirname(require.resolve('swagger-ui-dist/package.json'));
+await mkdir(output, { recursive: true });
+for (const file of ['swagger-ui-bundle.js', 'swagger-ui.css', 'LICENSE']) await cp(path.join(vendor, file), path.join(output, file));
+await cp(path.join(root, 'swagger'), output, { recursive: true });
+await cp(path.join(root, '../contracts/openapi.json'), path.join(output, 'openapi.json'));
+for (const dir of ['paths', 'schemas']) await cp(path.join(root, '../contracts', dir), path.join(output, dir), { recursive: true });
+console.log('Packaged local Swagger UI and OpenAPI JSON contracts');

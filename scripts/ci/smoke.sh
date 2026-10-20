@@ -17,3 +17,7 @@ if [[ "$base" == https://* ]]; then
   grep -qi "location: $base/event-confirm/" <<< "$headers"
   curl -fsSI --max-time 15 "$base/event-confirm/" | grep -qi 'X-Shared-Edge-Route: event-confirm'
 fi
+
+curl -fsS --max-time 15 "$base/event-confirm/swagger-ui/" | grep -q 'Swagger UI'
+curl -fsS --max-time 15 "$base/event-confirm/swagger-ui/openapi.json" | grep -q '"openapi": "3.1.0"'
+[[ "$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "$base/event-confirm/swagger-ui")" == 308 ]]

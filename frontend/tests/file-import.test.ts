@@ -6,7 +6,15 @@ async function workbookFile(phone: unknown, formula = false) {
   const workbook = new Workbook();
   const sheet = workbook.addWorksheet('Participants');
   sheet.addRow(templateHeaders);
-  sheet.addRow([phone, formula ? { formula: '1+1', result: 2 } : 'Jane', 'Doe', '', 'EV26', '2026-12-12']);
+  sheet.addRow([
+    phone,
+    formula ? { formula: '1+1', result: 2 } : 'Jane',
+    'Doe',
+    '',
+    'EV26',
+    '2026-12-12',
+    'th',
+  ]);
   const data = await workbook.xlsx.writeBuffer();
   return new File([data as BlobPart], 'participants.xlsx');
 }

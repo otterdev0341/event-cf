@@ -42,11 +42,15 @@
                 "enum": [
                   "open",
                   "in_progress",
+                  "waiting",
                   "resolved"
                 ]
               },
-              "assignee": {
-                "type": "string"
+              "assigneeIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               },
               "dueDate": {
                 "type": "string"

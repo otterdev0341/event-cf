@@ -74,15 +74,22 @@
               },
               "role": {
                 "enum": [
-                  "admin",
-                  "editor",
-                  "viewer"
+                  "org_admin",
+                  "event_admin",
+                  "team_member"
                 ]
+              },
+              "eventIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               }
             },
             "required": [
               "email",
-              "role"
+              "role",
+              "eventIds"
             ]
           }
         }

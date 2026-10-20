@@ -83,3 +83,10 @@ frontend component/E2E tests ตรวจ UI journeys ทั้งหมดใ�
 - [SeaORM async runtime](https://www.sea-ql.org/SeaORM/docs/install-and-config/database-and-async-runtime/): PostgreSQL driver/runtime features
 
 Dependency versions ยังไม่ freeze จากแผนนี้; ต้องผ่าน compatibility spike ก่อน commit manifest
+
+## 2026-10-21 requirement update
+
+See [Workspace operations update](WORKSPACE_OPERATIONS_UPDATE.md) and its
+[JSON plan](WORKSPACE_OPERATIONS_UPDATE.json). This supersedes the earlier role names,
+single assignee/three-stage board, template columns, dashboard and retry-policy UI.
+The remaining backend phases must implement these contracts and Swagger route parity.

@@ -17,6 +17,23 @@
     "nickname": {
       "type": "string"
     },
+    "lang_code": {
+      "type": "string",
+      "enum": [
+        "th",
+        "en",
+        "ja",
+        "zh",
+        "ko",
+        "vi",
+        "id",
+        "ms",
+        "fr",
+        "de",
+        "es",
+        "ar"
+      ]
+    },
     "lane": {
       "type": "string",
       "enum": [
@@ -224,6 +241,7 @@
     "firstName",
     "lastName",
     "nickname",
+    "lang_code",
     "lane",
     "state",
     "outcome",

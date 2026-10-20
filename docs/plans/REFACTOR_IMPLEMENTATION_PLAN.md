@@ -497,3 +497,10 @@ Private readiness acceptance:
 - [ntex runtime and handlers](https://docs.ntex.rs/api/ntex/index.html)
 - [SeaORM connection management](https://www.sea-ql.org/SeaORM/docs/install-and-config/connection/)
 - Visual reference: Exa design specification ที่ผู้ใช้ให้ใน conversation (ไม่อ้างว่าได้ audit live Exa dashboard)
+
+## 2026-10-21 requirement update
+
+See [Workspace operations update](WORKSPACE_OPERATIONS_UPDATE.md) and its
+[JSON plan](WORKSPACE_OPERATIONS_UPDATE.json). This supersedes the earlier role names,
+single assignee/three-stage board, template columns, dashboard and retry-policy UI.
+The remaining backend phases must implement these contracts and Swagger route parity.

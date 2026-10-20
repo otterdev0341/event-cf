@@ -30,8 +30,8 @@ export async function readImport(file: File): Promise<ImportRow[]> {
     await book.xlsx.load(data as never);
     if (book.worksheets.length !== 1) throw new Error('ใช้ได้ครั้งละหนึ่ง worksheet');
     const sheet = book.worksheets[0];
-    if (sheet.rowCount > 5001 || sheet.columnCount > 6)
-      throw new Error('XLSX ต้องมี 6 คอลัมน์ และไม่เกิน 5,000 รายชื่อ');
+    if (sheet.rowCount > 5001 || sheet.columnCount > templateHeaders.length)
+      throw new Error('XLSX ต้องมี 7 คอลัมน์ และไม่เกิน 5,000 รายชื่อ');
     const header = templateHeaders.map((_, i) => sheet.getRow(1).getCell(i + 1).text);
     checkHeaders(header);
     rows = [];

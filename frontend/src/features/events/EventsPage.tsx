@@ -14,9 +14,9 @@ export function EventsPage() {
   const events = useEvents();
   const location = useLocation();
   const { orgId, selectEvent } = useWorkspace();
-  const { canEdit } = usePermissions();
+  const { canCreateEvent, canEditEvent } = usePermissions();
   const [editing, setEditing] = useState<EventDto | 'new' | null>(
-    location.pathname.endsWith('/new') ? 'new' : null,
+    location.pathname.endsWith('/new') && canCreateEvent ? 'new' : null,
   );
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
@@ -51,7 +51,7 @@ export function EventsPage() {
         title="Good moments start here."
         description="ทุกอีเวนท์ ทุกคำถาม และทุกการยืนยัน — จัดการได้ในที่เดียว"
         action={
-          canEdit && (
+          canCreateEvent && (
             <Button
               variant="brand"
               onClick={() => {
@@ -136,7 +136,7 @@ export function EventsPage() {
                       <Link className="event-link" to="/knowledge" onClick={() => selectEvent(event.id)}>
                         Open workspace <ArrowUpRight size={14} />
                       </Link>
-                      {canEdit && (
+                      {canEditEvent(event.id) && (
                         <>
                           <Button
                             variant="ghost"

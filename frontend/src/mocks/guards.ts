@@ -1,10 +1,16 @@
 import { ApiError } from '../shared/api/client';
+import { permissions } from '../shared/policy/roles';
 import { state } from './state';
-export function authorize(orgId: string, write = false, admin = false) {
+export function authorize(orgId: string, write = false, admin = false, eventId = '', tickets = false) {
   if (!state.session) throw new ApiError(401, 'กรุณาเข้าสู่ระบบ');
   const org = state.session.organizations.find((org) => org.id === orgId);
-  if (!org || (write && org.role === 'viewer') || (admin && !['owner', 'admin'].includes(org.role))) {
-    throw new ApiError(403, 'ไม่มีสิทธิ์ทำรายการในองค์กรนี้');
+  const policy = permissions(state.session.user, org, eventId);
+  if (
+    (!org && state.session.user.platformRole !== 'root') ||
+    (admin && !policy.canAdmin) ||
+    (write && !(tickets ? policy.canTickets : policy.canEdit))
+  ) {
+    throw new ApiError(403, 'ไม่มีสิทธิ์ทำรายการในองค์กรหรือ Event นี้');
   }
   return org;
 }

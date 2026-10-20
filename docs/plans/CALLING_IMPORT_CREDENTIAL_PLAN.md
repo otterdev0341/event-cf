@@ -244,3 +244,10 @@ Provider callbacks ไม่ต้องส่งคู่นี้: ใช้ p
 | ชื่อ/สกุล | required; nickname optional | ก่อน template freeze |
 | Caller/provider mapping | use provider adapter เดิม; verify terminal no-connection และ final confirmation semantics | ก่อน P7a integration |
 | Scope ของ dual credentials | external event APIs; browser session และ provider callbacks แยก | ก่อน middleware/OpenAPI |
+
+## 2026-10-21 requirement update
+
+See [Workspace operations update](WORKSPACE_OPERATIONS_UPDATE.md) and its
+[JSON plan](WORKSPACE_OPERATIONS_UPDATE.json). This supersedes the earlier role names,
+single assignee/three-stage board, template columns, dashboard and retry-policy UI.
+The remaining backend phases must implement these contracts and Swagger route parity.

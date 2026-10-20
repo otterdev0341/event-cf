@@ -22,6 +22,9 @@
           "nickname": {
             "type": "string"
           },
+          "lang_code": {
+            "type": "string"
+          },
           "event_code": {
             "type": "string"
           },
@@ -34,6 +37,7 @@
           "first_name",
           "last_name",
           "nickname",
+          "lang_code",
           "event_code",
           "event_date"
         ],

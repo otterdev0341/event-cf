@@ -5,7 +5,8 @@ async function login(page: Page) {
   await page.getByLabel('Password', { exact: true }).fill('passwordpassword');
   await page.getByRole('button', { name: 'เข้าสู่ workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Good moments start here.' })).toBeVisible();
-  await page.getByRole('link', { name: 'Agent access' }).click();
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('link', { name: /^Agent access/ }).click();
 }
 test('create paired credentials, reveal once, mismatch and cascade revoke', async ({ page }) => {
   await login(page);
@@ -49,7 +50,8 @@ test('reset and invitation explicitly do not claim real delivery', async ({ page
   await page.getByRole('button', { name: 'ขอลิงก์ตั้งรหัสผ่าน' }).click();
   await expect(page.getByRole('status')).toContainText('ไม่มีการส่งอีเมลจริง');
   await login(page);
-  await page.getByRole('link', { name: 'Organization', exact: true }).click();
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('link', { name: /^Team management/ }).click();
   await page.getByRole('button', { name: 'Invite member' }).click();
   await page.getByLabel('Email', { exact: true }).fill('editor@example.test');
   await page.getByRole('button', { name: 'ส่งคำเชิญ' }).click();

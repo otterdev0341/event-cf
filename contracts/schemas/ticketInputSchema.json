@@ -19,9 +19,12 @@
       "minLength": 1,
       "maxLength": 4000
     },
-    "assignee": {
-      "type": "string",
-      "maxLength": 120
+    "assigneeIds": {
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "dueDate": {
       "anyOf": [
@@ -41,7 +44,7 @@
     "title",
     "type",
     "description",
-    "assignee",
+    "assigneeIds",
     "dueDate"
   ],
   "additionalProperties": false

@@ -6,6 +6,7 @@ const row = {
   first_name: 'กานต์',
   last_name: 'ตัวอย่าง',
   nickname: '',
+  lang_code: 'th',
   event_code: 'EV26',
   event_date: '2026-12-12',
 };

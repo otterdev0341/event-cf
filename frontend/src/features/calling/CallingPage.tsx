@@ -1,5 +1,6 @@
+import { QueueVisual } from './QueueVisual';
 import { useState } from 'react';
-import { Play, Pause, SlidersHorizontal } from 'lucide-react';
+import { Play, Pause } from 'lucide-react';
 import { useEvent } from '../events';
 import { participantService } from '../participants';
 import { useWorkspace } from '../../stores/workspace';
@@ -27,8 +28,8 @@ export function CallingPage() {
     await callingService.run(orgId, eventId, action, crypto.randomUUID());
     setStartOpen(false);
   }, keys);
-  const policy = useAction(async (ratio: number) => {
-    await callingService.policy(orgId, eventId, ratio, queue!.version);
+  const policy = useAction(async (input: { ratio: number; maxRetries: number }) => {
+    await callingService.policy(orgId, eventId, input.ratio, queue!.version, input.maxRetries);
     setPolicyOpen(false);
   }, keys);
   if (!event) return <Empty title="เลือก Event เพื่อจัดการคิวโทร" />;
@@ -90,32 +91,13 @@ export function CallingPage() {
         }}
       />
       {queue && (
-        <div className="panel panel-heading mb-6">
-          <div>
-            <p className="eyebrow">WEIGHTED DISPATCH</p>
-            <h2 className="mt-2">{queue.ratio} new calls : 1 retry</h2>
-            <p className="muted text-xs mt-2">
-              {Array(Math.min(queue.ratio, 5)).fill('NEW').join(' → ')}
-              {queue.ratio > 5 ? ' → …' : ''} → FAIL · ตัวอย่างลำดับ เมื่อทั้งสองคิวพร้อม
-            </p>
-            <p className="muted text-xs">
-              Progress {queue.newSinceFail}/{queue.ratio} · สูงสุด {queue.maxAttempts} attempts · เว้น{' '}
-              {queue.delayMinutes} นาที
-            </p>
-          </div>
-          <div className="flex gap-3 items-center">
-            <Badge tone={queue.status}>{queue.status}</Badge>
-            {canEdit && (
-              <Button
-                disabled={queue.status === 'running' || queue.pendingTurn}
-                onClick={() => setPolicyOpen(true)}
-              >
-                <SlidersHorizontal size={15} />
-                ปรับสัดส่วน
-              </Button>
-            )}
-          </div>
-        </div>
+        <QueueVisual
+          queue={queue}
+          people={people.data ?? []}
+          canEdit={canEdit}
+          onPolicy={() => setPolicyOpen(true)}
+          onParticipant={setDetail}
+        />
       )}
       {__MOCK__ && (
         <p className="notice">
@@ -150,7 +132,9 @@ export function CallingPage() {
               <tr key={p.id}>
                 <td>
                   {p.firstName} {p.lastName}
-                  <p className="font-mono text-xs muted">{p.phone}</p>
+                  <p className="font-mono text-xs muted">
+                    {p.phone} · {p.lang_code}
+                  </p>
                 </td>
                 <td>
                   <Badge tone={p.outcome.result ?? ''}>{p.outcome.result ?? 'pending'}</Badge>
@@ -199,7 +183,10 @@ export function CallingPage() {
             className="form-grid"
             onSubmit={(e) => {
               e.preventDefault();
-              policy.mutate(Number(formText(e.currentTarget, 'ratio')));
+              policy.mutate({
+                ratio: Number(formText(e.currentTarget, 'ratio')),
+                maxRetries: Number(formText(e.currentTarget, 'maxRetries')),
+              });
             }}
           >
             <Field
@@ -208,6 +195,19 @@ export function CallingPage() {
             >
               <input name="ratio" type="number" min={1} max={100} required defaultValue={queue?.ratio} />
             </Field>
+            <Field label="Maximum retries" hint="จำนวนครั้งโทรซ้ำ ไม่รวมสายแรก · 0 = ไม่โทรซ้ำ">
+              <input
+                name="maxRetries"
+                type="number"
+                min={0}
+                max={10}
+                required
+                defaultValue={(queue?.maxAttempts ?? 1) - 1}
+              />
+            </Field>
+            <p className="muted text-xs">
+              ไม่รับสายครบจำนวนจะหยุดโทร โดยเก็บประวัติและเหตุผล retry exhausted ไว้
+            </p>
             <Feedback error={policy.error} />
             <Button variant="brand" pending={policy.isPending}>
               ยืนยันเปลี่ยนสัดส่วน

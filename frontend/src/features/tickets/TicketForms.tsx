@@ -1,3 +1,4 @@
+import { AssigneePicker } from './AssigneePicker';
 import type { Ticket, TicketInput } from '../../shared/contracts/tickets';
 import { Dialog } from '../../components/Dialog';
 import { Button, Field, Feedback, formText, Badge } from '../../components/ui';
@@ -23,7 +24,7 @@ export function TicketForm({
             title: formText(f, 'title'),
             type: formText(f, 'type') as TicketInput['type'],
             description: formText(f, 'description'),
-            assignee: formText(f, 'assignee'),
+            assigneeIds: new FormData(f).getAll('assigneeIds').map(String),
             dueDate: formText(f, 'dueDate'),
           });
         }}
@@ -41,9 +42,7 @@ export function TicketForm({
           <textarea name="description" required maxLength={4000} />
         </Field>
         <div className="form-pair">
-          <Field label="Assignee">
-            <input name="assignee" maxLength={120} />
-          </Field>
+          <AssigneePicker />
           <Field label="Due date">
             <input name="dueDate" type="date" />
           </Field>
@@ -66,7 +65,7 @@ export function TicketDetail({
 }: {
   ticket: Ticket;
   onClose: () => void;
-  onSave: (input: { assignee?: string; dueDate?: string; comment?: string }) => void;
+  onSave: (input: { assigneeIds?: string[]; dueDate?: string; comment?: string }) => void;
   pending: boolean;
   error: Error | null;
   canEdit: boolean;
@@ -81,16 +80,14 @@ export function TicketDetail({
           e.preventDefault();
           const f = e.currentTarget;
           onSave({
-            assignee: formText(f, 'assignee'),
+            assigneeIds: new FormData(f).getAll('assigneeIds').map(String),
             dueDate: formText(f, 'dueDate'),
             ...(formText(f, 'comment').trim() ? { comment: formText(f, 'comment') } : {}),
           });
         }}
       >
         <div className="form-pair">
-          <Field label="Assignee">
-            <input name="assignee" defaultValue={ticket.assignee} disabled={!canEdit} />
-          </Field>
+          <AssigneePicker selected={ticket.assigneeIds} disabled={!canEdit} />
           <Field label="Due date">
             <input name="dueDate" type="date" defaultValue={ticket.dueDate} disabled={!canEdit} />
           </Field>

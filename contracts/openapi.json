@@ -1,8 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Event Confirm browser API — phase 0 contract",
-    "version": "0.1.0"
+    "title": "Event Confirm API — implementation contract",
+    "version": "0.2.0",
+    "description": "Planned backend contract. Public UI currently uses browser-local demo data; these backend endpoints are not deployed yet."
   },
   "servers": [
     {
@@ -53,6 +54,12 @@
     },
     "/orgs/{org}/events/{event}/categories": {
       "$ref": "./paths/orgs-org-events-event-categories.json"
+    },
+    "/orgs/{org}/events/{event}/categories/{category}": {
+      "$ref": "./paths/orgs-org-events-event-categories-category.json"
+    },
+    "/orgs/{org}/events/{event}/knowledge-import": {
+      "$ref": "./paths/orgs-org-events-event-knowledge-import.json"
     },
     "/orgs/{org}/events/{event}/faqs": {
       "$ref": "./paths/orgs-org-events-event-faqs.json"

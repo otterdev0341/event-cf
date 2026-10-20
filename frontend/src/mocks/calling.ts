@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { importRowSchema } from '../shared/contracts/calling';
+import { importRowSchema, languageCodes } from '../shared/contracts/calling';
 import { normalizePhone, validateRows } from '../shared/contracts/import-validation';
 import { ApiError } from '../shared/api/client';
 import { findEvent, version } from './guards';
@@ -27,6 +27,7 @@ export function callingRoutes(org: string, eventId: string, tail: string[], meth
             firstName: row.first_name,
             lastName: row.last_name,
             nickname: row.nickname,
+            lang_code: z.enum(languageCodes).parse(row.lang_code),
             lane: 'new',
             state: 'ready',
             outcome: { result: null, reason: null },
@@ -56,12 +57,25 @@ export function callingRoutes(org: string, eventId: string, tail: string[], meth
   if (method === 'GET') return queue;
   if (tail[0] === 'queue-policy') {
     const input = z
-      .object({ ratio: z.number().int().min(1).max(100), expectedVersion: z.number() })
+      .object({
+        ratio: z.number().int().min(1).max(100),
+        expectedVersion: z.number(),
+        maxRetries: z.number().int().min(0).max(10),
+      })
       .parse(body);
     version(queue.version, input.expectedVersion);
     if (queue.status === 'running' || queue.pendingTurn)
       throw new ApiError(409, 'หยุดคิวและรอ pending turn ก่อนเปลี่ยนอัตรา');
     queue.ratio = input.ratio;
+    queue.maxAttempts = input.maxRetries + 1;
+    for (const person of participants) {
+      if (
+        person.lane === 'fail' &&
+        ['ready', 'delayed'].includes(person.state) &&
+        person.attempts.length >= queue.maxAttempts
+      )
+        person.state = 'stopped';
+    }
     queue.newSinceFail = 0;
     queue.version++;
   } else {

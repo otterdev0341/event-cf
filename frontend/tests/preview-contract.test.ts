@@ -16,7 +16,7 @@ describe('preview transport boundaries', () => {
     const before = structuredClone(state.knowledge['design-2026'].published);
     await mockRequest(`${base}/faqs`, {
       method: 'POST',
-      body: { question: 'New draft?', answer: 'Not yet published.', category: 'General' },
+      body: { question: 'New draft?', answer: 'Not yet published.', category: 'สถานที่และเวลา' },
     });
     expect(state.knowledge['design-2026'].published).toEqual(before);
     await mockRequest(`${base}/publish`, { method: 'POST' });
@@ -32,6 +32,7 @@ describe('preview transport boundaries', () => {
             first_name: 'Test',
             last_name: 'Person',
             nickname: '',
+            lang_code: 'th',
             event_code: 'DESIGN26',
             event_date: '2026-12-12',
           },

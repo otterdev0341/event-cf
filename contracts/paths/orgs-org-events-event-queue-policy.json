@@ -32,12 +32,18 @@
                 "minimum": 1,
                 "maximum": 100
               },
+              "maxRetries": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10
+              },
               "expectedVersion": {
                 "type": "integer"
               }
             },
             "required": [
               "ratio",
+              "maxRetries",
               "expectedVersion"
             ]
           }

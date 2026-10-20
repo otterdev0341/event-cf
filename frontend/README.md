@@ -74,3 +74,17 @@ that built artifact. The public entry button opens in-memory sample data without
 credentials. This is not authentication; edits reset on reload, no calls/email are
 sent, and no user data is shared between browsers. `npm run build` remains the
 mock-free real-API build for the eventual backend cutover.
+
+## Operations UI extension
+
+- Search organizations in the topbar and event names/codes in the sidebar.
+- Event Dashboard uses Chart.js (daily/weekly calls, per-member open/closed tickets).
+- Settings owns theme selection, organization, team/event grants and Agent access.
+- Follow-up supports four columns, drag/drop, table view and multiple active org assignees.
+- Knowledge/category master and XLSX templates are event-scoped; imports remain drafts.
+- Participant templates require lang_code; Queue settings include maxRetries, excluding the initial call.
+- Swagger UI is served at /event-confirm/swagger-ui/ with local OpenAPI JSON. Backend execution is disabled.
+- See docs/plans/WORKSPACE_OPERATIONS_UPDATE.md and .json for the remaining backend work.
+
+Libraries follow official integration guides: [Chart.js](https://www.chartjs.org/docs/latest/getting-started/integration)
+and [Swagger UI](https://swagger.io/docs/open-source-tools/swagger-ui/usage/installation/).

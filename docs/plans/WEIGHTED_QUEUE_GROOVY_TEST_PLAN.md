@@ -216,3 +216,10 @@ Fixtures สำหรับ Q03/04 ต้องมี eligible fail jobs ตั�
 
 ยังต้องยืนยัน product defaults: ratio default 2:1 หรือ 5:1, นิยาม not_confirmed กับ
 explicitly_declined, max attempts/delay และ business fairness ระหว่าง Events
+
+## 2026-10-21 requirement update
+
+See [Workspace operations update](WORKSPACE_OPERATIONS_UPDATE.md) and its
+[JSON plan](WORKSPACE_OPERATIONS_UPDATE.json). This supersedes the earlier role names,
+single assignee/three-stage board, template columns, dashboard and retry-policy UI.
+The remaining backend phases must implement these contracts and Swagger route parity.

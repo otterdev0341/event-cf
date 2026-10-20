@@ -33,7 +33,11 @@ export function AgentAccessPage() {
     setSecret(result.secret);
   }, keys);
   if (!canAdmin)
-    return <Empty title="เฉพาะ Owner และ Admin">Credential management ไม่เปิดให้ Editor/Viewer</Empty>;
+    return (
+      <Empty title="เฉพาะ Root และ Org admin">
+        Event admin และ Team member ไม่มีสิทธิ์จัดการ credentials
+      </Empty>
+    );
   return (
     <>
       <PageHeader

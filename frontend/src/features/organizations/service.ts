@@ -2,11 +2,11 @@ import { z } from 'zod';
 import { api, okSchema } from '../../shared/api/client';
 import { sessionSchema, memberSchema, type Role } from '../../shared/contracts/identity';
 export const memberService = {
-  change: (org: string, id: string, role: Role) =>
-    api(`/orgs/${org}/members/${id}`, okSchema, { method: 'PATCH', body: { role } }),
+  change: (org: string, id: string, role: Role, eventIds: string[]) =>
+    api(`/orgs/${org}/members/${id}`, okSchema, { method: 'PATCH', body: { role, eventIds } }),
   remove: (org: string, id: string) => api(`/orgs/${org}/members/${id}`, okSchema, { method: 'DELETE' }),
   list: (org: string, signal: AbortSignal) => api(`/orgs/${org}/members`, z.array(memberSchema), { signal }),
-  invite: (org: string, body: { email: string; role: Role }) =>
+  invite: (org: string, body: { email: string; role: Role; eventIds: string[] }) =>
     api(`/orgs/${org}/members`, okSchema, { method: 'POST', body }),
 };
 

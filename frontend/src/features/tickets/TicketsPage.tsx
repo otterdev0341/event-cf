@@ -1,3 +1,6 @@
+import { useMembers } from '../organizations';
+import { TicketTable } from './TicketTable';
+import { ticketColumns } from './columns';
 import { useParams } from 'react-router-dom';
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
@@ -11,16 +14,15 @@ import { useTicketMove } from './hooks';
 import { TicketForm, TicketDetail } from './TicketForms';
 import type { TicketInput, Ticket } from '../../shared/contracts/tickets';
 import { Badge, Button, Empty, Feedback, PageHeader, QueryState } from '../../components/ui';
-const columns = [
-  { id: 'open', label: 'Open' },
-  { id: 'in_progress', label: 'In progress' },
-  { id: 'resolved', label: 'Resolved' },
-] as const;
+const columns = ticketColumns;
 export function TicketsPage() {
   const { event } = useEvent();
   const { ticketId } = useParams();
   const { orgId, eventId } = useWorkspace();
-  const { canEdit } = usePermissions();
+  const { canTickets: canEdit } = usePermissions();
+  const members = useMembers();
+  const assignees = (ticket: Ticket) =>
+    ticket.assigneeIds.map((id) => members.data?.find((m) => m.id === id)?.email ?? id).join(', ');
   const query = useEventQuery('tickets', ticketService.list);
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<string | null>(ticketId ?? null);
@@ -37,7 +39,7 @@ export function TicketsPage() {
   );
   const detail = query.data?.find((t) => t.id === selected);
   const update = useAction(
-    async (input: { assignee?: string; dueDate?: string; comment?: string }) => {
+    async (input: { assigneeIds?: string[]; dueDate?: string; comment?: string }) => {
       await ticketService.update(orgId, eventId, detail!.id, { ...input, expectedVersion: detail!.version });
       setSelected(null);
     },
@@ -47,7 +49,7 @@ export function TicketsPage() {
   const tickets =
     query.data?.filter(
       (t) =>
-        `${t.title} ${t.assignee}`.toLowerCase().includes(search.toLowerCase()) &&
+        `${t.title} ${assignees(t)}`.toLowerCase().includes(search.toLowerCase()) &&
         (type === 'all' || t.type === type),
     ) ?? [];
   const card = (ticket: Ticket) => (
@@ -72,7 +74,7 @@ export function TicketsPage() {
         <h3>{ticket.title}</h3>
       </button>
       <p className="muted text-xs">
-        {ticket.assignee || 'Unassigned'}
+        {assignees(ticket) || 'Unassigned'}
         {ticket.dueDate ? ` · Due ${ticket.dueDate}` : ''}
       </p>
       <select
@@ -125,9 +127,9 @@ export function TicketsPage() {
         <Button
           variant="outline"
           className="ml-auto"
-          onClick={() => setView(view === 'board' ? 'list' : 'board')}
+          onClick={() => setView(view === 'board' ? 'table' : 'board')}
         >
-          {view === 'board' ? 'List view' : 'Board view'}
+          {view === 'board' ? 'Table view' : 'Board view'}
         </Button>
       </div>
       <Feedback error={move.error} notice={create.notice || update.notice} />
@@ -161,10 +163,17 @@ export function TicketsPage() {
           ))}
         </div>
       ) : (
-        <div>
-          {tickets.map(card)}
-          {!tickets.length && <Empty title="ไม่มี ticket ที่ตรงกับตัวกรอง" />}
-        </div>
+        <TicketTable
+          tickets={tickets}
+          assignees={assignees}
+          canEdit={canEdit}
+          pending={move.isPending}
+          onOpen={(id) => {
+            update.reset();
+            setSelected(id);
+          }}
+          onMove={(ticket, status) => move.mutate({ ticket, status })}
+        />
       )}
       {creating && (
         <TicketForm

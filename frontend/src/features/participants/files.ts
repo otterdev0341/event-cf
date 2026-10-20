@@ -2,7 +2,7 @@ import Papa from 'papaparse';
 import { templateHeaders } from '../../shared/contracts/import-validation';
 export { parseImport } from './import-client';
 export async function downloadTemplate(event: { code: string; date: string }, format: 'csv' | 'xlsx') {
-  const sample = ['0812345678', 'ชื่อ', 'นามสกุล', 'ชื่อเล่น', event.code, event.date];
+  const sample = ['0812345678', 'ชื่อ', 'นามสกุล', 'ชื่อเล่น', event.code, event.date, 'th'];
   let blob: Blob;
   if (format === 'csv')
     blob = new Blob(['\uFEFF', Papa.unparse([templateHeaders, sample])], { type: 'text/csv;charset=utf-8' });

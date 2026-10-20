@@ -14,7 +14,7 @@ test('invalid imports cannot commit and preserve row errors', async ({ page }) =
     name: 'invalid.csv',
     mimeType: 'text/csv',
     buffer: Buffer.from(
-      'phone,first_name,last_name,nickname,event_code,event_date\n0812345678,Jane,Doe,,WRONG,2026-12-12',
+      'phone,first_name,last_name,nickname,event_code,event_date,lang_code\n0812345678,Jane,Doe,,WRONG,2026-12-12,th',
     ),
   });
   await expect(page.getByRole('alert')).toContainText('รหัสหรือวันที่ไม่ตรง');
@@ -61,13 +61,15 @@ test('direct route survives login', async ({ page }) => {
 });
 test('organization creation, invitation and scoped event links', async ({ page }) => {
   await login(page);
-  await page.getByRole('link', { name: 'Switch workspace' }).click();
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('link', { name: /^Organization/ }).click();
   await page.getByRole('button', { name: 'Create organization' }).click();
   await page.getByLabel('Organization name').fill('New team');
   await page.getByRole('button', { name: 'สร้างองค์กร' }).click();
-  await expect(page.getByLabel('Organization', { exact: true })).toContainText('New team');
+  await expect(page.getByLabel('Organization', { exact: true })).toHaveValue('New team');
   await expect(page.getByRole('heading', { name: 'ยังไม่มีอีเวนท์ที่ตรงกับการค้นหา' })).toBeVisible();
-  await page.getByRole('link', { name: 'Switch workspace' }).click();
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('link', { name: /^Organization/ }).click();
   await page.getByLabel('Invitation token').fill('expired');
   await page.getByRole('button', { name: 'รับคำเชิญ' }).click();
   await expect(page.getByRole('alert')).toContainText('คำเชิญหมดอายุ');

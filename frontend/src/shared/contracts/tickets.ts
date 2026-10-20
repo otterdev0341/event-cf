@@ -1,10 +1,10 @@
 import { z } from 'zod';
-export const ticketStatus = z.enum(['open', 'in_progress', 'resolved']);
+export const ticketStatus = z.enum(['open', 'in_progress', 'waiting', 'resolved']);
 export const ticketInputSchema = z.object({
   title: z.string().trim().min(1).max(180),
   type: z.enum(['unanswered', 'callback']),
   description: z.string().trim().min(1).max(4000),
-  assignee: z.string().max(120),
+  assigneeIds: z.array(z.string()).max(50),
   dueDate: z.union([z.iso.date(), z.literal('')]),
 });
 export const ticketSchema = ticketInputSchema.extend({

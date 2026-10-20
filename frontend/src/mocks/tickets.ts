@@ -1,12 +1,20 @@
 import { z } from 'zod';
 import { ticketInputSchema, ticketStatus } from '../shared/contracts/tickets';
 import { ApiError } from '../shared/api/client';
+import { validateAssignees } from './members';
 import { state } from './state';
 import { version } from './guards';
-export function ticketRoutes(eventId: string, id: string | undefined, method: string, body: unknown) {
+export function ticketRoutes(
+  org: string,
+  eventId: string,
+  id: string | undefined,
+  method: string,
+  body: unknown,
+) {
   if (method === 'GET') return state.tickets.filter((t) => t.eventId === eventId);
   if (!id) {
     const input = ticketInputSchema.parse(body);
+    validateAssignees(org, input.assigneeIds);
     const ticket = {
       ...input,
       id: crypto.randomUUID(),
@@ -25,17 +33,18 @@ export function ticketRoutes(eventId: string, id: string | undefined, method: st
     .object({
       expectedVersion: z.number(),
       status: ticketStatus.optional(),
-      assignee: z.string().optional(),
+      assigneeIds: z.array(z.string()).max(50).optional(),
       dueDate: z.union([z.iso.date(), z.literal('')]).optional(),
       comment: z.string().trim().min(1).max(2000).optional(),
     })
     .parse(body);
   version(ticket.version, input.expectedVersion);
+  if (input.assigneeIds) validateAssignees(org, input.assigneeIds);
   if (input.status) {
     ticket.status = input.status;
     ticket.activity.push(`เปลี่ยนสถานะเป็น ${input.status}`);
   }
-  if (input.assignee !== undefined) ticket.assignee = input.assignee;
+  if (input.assigneeIds !== undefined) ticket.assigneeIds = input.assigneeIds;
   if (input.dueDate !== undefined) ticket.dueDate = input.dueDate;
   if (input.comment)
     ticket.comments.push({ id: crypto.randomUUID(), text: input.comment, at: new Date().toISOString() });

@@ -25,11 +25,13 @@ test('events, FAQ publish snapshot, tenant switch and read-only role', async ({ 
   page.once('dialog', (d) => d.accept());
   await page.getByRole('button', { name: 'Publish knowledge' }).click();
   await expect(page.getByRole('heading', { name: 'Where is registration?' })).toBeVisible();
-  await page.getByLabel('Organization', { exact: true }).selectOption('community');
+  await page.getByLabel('Organization', { exact: true }).fill('Community');
+  await page.getByRole('option', { name: 'Community Lab' }).click();
   await expect(page.getByRole('heading', { name: 'Where is registration?' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'เพิ่มคำถาม', exact: true })).toHaveCount(0);
-  await page.getByRole('link', { name: 'Agent access' }).click();
-  await expect(page.getByRole('heading', { name: 'เฉพาะ Owner และ Admin' })).toBeVisible();
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('link', { name: /^Agent access/ }).click();
+  await expect(page.getByRole('heading', { name: 'เฉพาะ Root และ Org admin' })).toBeVisible();
 });
 test('CSV import does not call; explicit start, pause and 5:1 policy', async ({ page }) => {
   await login(page);
@@ -39,7 +41,7 @@ test('CSV import does not call; explicit start, pause and 5:1 policy', async ({ 
     name: 'participants.csv',
     mimeType: 'text/csv',
     buffer: Buffer.from(
-      'phone,first_name,last_name,nickname,event_code,event_date\n0812345678,Tester,Example,Test,DESIGN26,2026-12-12',
+      'phone,first_name,last_name,nickname,event_code,event_date,lang_code\n0812345678,Tester,Example,Test,DESIGN26,2026-12-12,th',
     ),
   });
   await page.getByRole('button', { name: 'ยืนยันนำเข้า 1 รายชื่อ' }).click();
@@ -50,9 +52,9 @@ test('CSV import does not call; explicit start, pause and 5:1 policy', async ({ 
   await page.getByRole('button', { name: 'ยืนยันเริ่มโทร' }).click();
   await page.getByRole('button', { name: 'Pause queue' }).click();
   await page.getByRole('button', { name: 'ปรับสัดส่วน' }).click();
-  await page.getByRole('spinbutton').fill('5');
+  await page.getByLabel('โทร NEW กี่ครั้ง ก่อน FAIL 1 ครั้ง', { exact: true }).fill('5');
   await page.getByRole('button', { name: 'ยืนยันเปลี่ยนสัดส่วน' }).click();
-  await expect(page.getByRole('heading', { name: '5 new calls : 1 retry' })).toBeVisible();
+  await expect(page.getByText('5 new calls : 1 retry', { exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Fail / retry queue' }).click();
   await expect(page.getByText('ไม่รับสาย (1 ครั้ง)')).toBeVisible();
 });
@@ -69,10 +71,13 @@ test('ticket create, keyboard move, comment and assignment', async ({ page }) =>
     page.getByRole('region', { name: 'In progress', exact: true }).getByText('Please call me tomorrow'),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Please call me tomorrow' }).click();
-  await page.getByLabel('Assignee').fill('Operations');
+  await page.getByRole('checkbox', { name: 'operations@example.test' }).check();
+  await page.getByRole('checkbox', { name: 'support@example.test' }).check();
   await page.getByLabel('Comment', { exact: true }).fill('Following up tomorrow morning.');
   await page.getByRole('button', { name: 'บันทึกการติดตาม' }).click();
-  await expect(page.getByText('Operations', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText('operations@example.test, support@example.test', { exact: true }),
+  ).toBeVisible();
 });
 test('mobile login, navigation and deep link render without overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

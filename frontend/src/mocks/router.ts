@@ -59,18 +59,29 @@ export async function mockRequest(path: string, request: Request = {}): Promise<
     if (!state.session) throw new ApiError(401, 'กรุณาเข้าสู่ระบบ');
     if (path === '/organizations') {
       const { name } = z.object({ name: z.string().trim().min(1).max(100) }).parse(body);
-      state.session.organizations.push({ id: crypto.randomUUID(), name, role: 'owner' });
+      state.session.organizations.push({ id: crypto.randomUUID(), name, role: 'org_admin', eventIds: [] });
     } else {
       const { token } = z.object({ token: z.string() }).parse(body);
       if (token !== 'preview-invite') throw new ApiError(422, 'คำเชิญหมดอายุหรือไม่ตรงกับบัญชี');
       if (!state.session.organizations.some((org) => org.id === 'invited'))
-        state.session.organizations.push({ id: 'invited', name: 'Invited workspace', role: 'editor' });
+        state.session.organizations.push({
+          id: 'invited',
+          name: 'Invited workspace',
+          role: 'team_member',
+          eventIds: [],
+        });
     }
     state.profile = structuredClone(state.session);
     return structuredClone(state.session);
   }
   const org = parts[1];
-  authorize(org, method !== 'GET', parts[2] === 'credentials' || parts[2] === 'members');
+  authorize(
+    org,
+    method !== 'GET',
+    parts[2] === 'credentials' || (parts[2] === 'members' && method !== 'GET'),
+    parts[3],
+    parts[4] === 'tickets',
+  );
   if (parts[2] === 'members') return memberRoutes(org, parts[3], method, body);
   if (parts[2] === 'credentials')
     return structuredClone(credentialRoutes(org, parts[3], parts[4], method, body));
@@ -82,7 +93,7 @@ export async function mockRequest(path: string, request: Request = {}): Promise<
   const key = request.key ? `${org}:${path}:${request.key}` : undefined;
   if (key && state.idempotency.has(key)) return structuredClone(state.idempotency.get(key));
   let result: unknown;
-  if (tail[0] === 'tickets') result = ticketRoutes(eventId, tail[1], method, body);
+  if (tail[0] === 'tickets') result = ticketRoutes(org, eventId, tail[1], method, body);
   else if (['participants', 'imports', 'queue-state', 'queue-policy', 'runs'].includes(tail[0])) {
     result = callingRoutes(org, eventId, tail, method, body);
   } else result = eventRoutes(org, eventId, tail, method, body);

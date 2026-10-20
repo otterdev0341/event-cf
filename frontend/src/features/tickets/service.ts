@@ -14,6 +14,12 @@ export const ticketService = {
     org: string,
     event: string,
     id: string,
-    body: { expectedVersion: number; status?: string; assignee?: string; dueDate?: string; comment?: string },
+    body: {
+      expectedVersion: number;
+      status?: string;
+      assigneeIds?: string[];
+      dueDate?: string;
+      comment?: string;
+    },
   ) => api(`${eventPath(org, event)}/tickets/${id}`, ticketSchema, { method: 'PATCH', body }),
 };

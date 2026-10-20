@@ -69,7 +69,9 @@ export function ParticipantsPage() {
               <tr key={p.id}>
                 <td>
                   {p.firstName} {p.lastName}
-                  <p className="muted text-xs">{p.nickname}</p>
+                  <p className="muted text-xs">
+                    {p.nickname} · {p.lang_code}
+                  </p>
                 </td>
                 <td className="font-mono text-xs">{p.phone}</td>
                 <td>

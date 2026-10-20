@@ -18,11 +18,16 @@ export const faqInputSchema = z.object({
   answer: z.string().trim().min(1).max(5000),
   category: z.string().trim().min(1).max(80),
 });
-export const faqSchema = faqInputSchema.extend({ id: z.string(), version: z.number() });
+export const faqSchema = faqInputSchema.extend({
+  id: z.string(),
+  version: z.number(),
+  updatedAt: z.iso.datetime().nullable().default(null),
+});
 export const knowledgeSchema = z.object({
   draft: z.array(faqSchema),
   published: z.array(faqSchema),
   categories: z.array(z.string()),
+  categoryRevision: z.number().int(),
 });
 export type EventDto = z.infer<typeof eventSchema>;
 export type EventInput = z.infer<typeof eventInputSchema>;
@@ -33,3 +38,9 @@ export const eventPatchSchema = z.union([
   z.object({ expectedVersion: z.number().int(), status: z.enum(['draft', 'published', 'archived']) }),
 ]);
 export const faqUpdateSchema = faqInputSchema.extend({ expectedVersion: z.number().int() });
+
+export const knowledgeImportSchema = z.object({
+  eventCode: z.string(),
+  categoryRevision: z.number().int(),
+  rows: z.array(faqInputSchema).min(1).max(1000),
+});
