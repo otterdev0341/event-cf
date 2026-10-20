@@ -1,0 +1,77 @@
+
+
+.calls-chart-card {
+  display: flex;
+  min-width: 0;
+  height: 277px;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 16px;
+  background: var(--color-white);
+}
+
+.calls-chart-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.calls-chart-card h2,
+.campaign-performance h2 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 27px;
+}
+
+.calls-chart-card header p {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.calls-bar-chart {
+  display: flex;
+  min-width: 0;
+  height: 166px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.calls-bar-chart__item {
+  display: grid;
+  min-width: 0;
+  height: 100%;
+  flex: 1 1 0;
+  grid-template-rows: 20px 1fr 22px;
+  align-items: end;
+  justify-items: center;
+}
+
+.calls-bar-chart__value {
+  align-self: start;
+  color: var(--color-heading);
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  line-height: 13px;
+}
+
+.calls-bar-chart__bar {
+  display: block;
+  width: 100%;
+  max-width: 88px;
+  align-self: end;
+  border-radius: 6px 6px 0 0;
+  background: var(--color-primary);
+}
+
+.calls-bar-chart__day {
+  align-self: end;
+  color: var(--color-body);
+  font-size: 11px;
+  line-height: 17px;
+}

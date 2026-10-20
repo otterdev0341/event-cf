@@ -1,0 +1,63 @@
+
+
+@media (max-width: 720px) {
+  .app-header__inner {
+    gap: 18px;
+  }
+
+  .app-nav {
+    display: none;
+  }
+
+  .dashboard-main {
+    gap: 24px;
+    padding-block: 32px 56px;
+  }
+
+  .dashboard-title {
+    height: auto;
+  }
+
+  .dashboard-title h1,
+  .dashboard-title h1 span {
+    font-size: 26px;
+    line-height: 36px;
+  }
+
+  .dashboard-title h1 span {
+    display: block;
+    margin-left: 0;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-stream-card {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .campaign-progress-card header {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .campaign-progress-card {
+    height: auto;
+    min-height: 147px;
+  }
+
+  .campaign-progress-card h2 {
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* Contact list */

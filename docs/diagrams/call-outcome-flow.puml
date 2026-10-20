@@ -1,0 +1,43 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 16
+skinparam dpi 130
+title Event Confirm — Call outcomes and weighted retry
+caption PROPOSED business rules; ticket creation is independent of attendance.
+start
+:Download template / upload / validate / commit;
+:Staff explicitly starts call run;
+:Enqueue NEW;
+repeat
+  :Claim eligible job using persisted Event ratio\n2:1 = N N F / 5:1 = N N N N N F\nFallback when the preferred lane is not ready;
+  :Dispatch through voice provider\nFinalize ratio once on accepted dispatch;
+  while (Authoritative terminal call and result available?) is (no)
+    :Await result / reconcile ambiguous dispatch
+Hold uncertain turn; do not blindly redial;
+    :Remain blocked for review until resolved;
+  endwhile (yes)
+  :Store transport outcome separately\nfrom final attendance result;
+  if (AI cannot answer a question / callback requested?) then (yes)
+    :Create or link Kanban ticket idempotently\nKeep attendance result unchanged;
+  endif
+  if (Attendance result?) then (confirm)
+    :Attendance confirmed\nCancel pending retries; keep any ticket open;
+    stop
+  elseif (Attendance result?) then (decline)
+    :Attendance declined\nCancel pending retries; retain history;
+    stop
+  else (unknown)
+    :Require reason\nno_answer / noisy_audio / ai_cannot_infer\nShow attempt history and no_answer_count;
+  endif
+  if (Retry eligible and within policy?) then (yes)
+    :Enqueue exactly one FAIL job\navailable_at = eligible result time + delay\nRespect call window / cutoff / suppression;
+  else (no)
+    :Keep attendance unknown + reason\nMark retry exhausted / stopped\nExpose for staff review;
+    stop
+  endif
+repeat while (FAIL job becomes eligible?) is (yes) not (cancelled / expired)
+:Stop retry; preserve outcome and reason;
+stop
+@enduml

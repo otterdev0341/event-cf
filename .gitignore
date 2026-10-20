@@ -7,3 +7,10 @@ vercel-preview-figma-ui/
 
 .env.*
 !.env.example
+
+# Refactor build/test outputs
+**/target/
+frontend/test-results/
+frontend/playwright-report/
+frontend/coverage/
+frontend/reports/

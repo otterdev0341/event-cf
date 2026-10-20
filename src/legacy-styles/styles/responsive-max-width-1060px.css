@@ -1,0 +1,13 @@
+
+
+@media (max-width: 1060px) {
+  .contact-detail-panels {
+    flex-direction: column;
+  }
+
+  .contact-profile,
+  .conversation-log {
+    width: 100%;
+    flex-basis: auto;
+  }
+}

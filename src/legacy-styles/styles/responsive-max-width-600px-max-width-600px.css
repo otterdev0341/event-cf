@@ -1,0 +1,2 @@
+
+@media (max-width: 600px) { .assistant-panel__header { gap: 8px; flex-wrap: wrap; } .demo-transcript { min-height: 140px; } .mapping-actions > div { flex-wrap: wrap; } }

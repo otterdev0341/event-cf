@@ -1,0 +1,55 @@
+
+
+.readiness-card,
+.test-variables {
+  border: 1px solid var(--color-border-light);
+  border-radius: 16px;
+  background: var(--color-white);
+}
+
+.readiness-card {
+  display: flex;
+  height: 204px;
+  flex: 0 0 204px;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.readiness-card header {
+  display: flex;
+  height: 28px;
+  flex: 0 0 28px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.readiness-card h2 {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.readiness-card ul {
+  display: flex;
+  padding: 0;
+  flex-direction: column;
+  gap: 16px;
+  list-style: none;
+}
+
+.readiness-card li {
+  display: flex;
+  height: 18px;
+  align-items: center;
+  gap: 8px;
+  color: #62626d;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.readiness-card li img {
+  display: block;
+  flex: 0 0 auto;
+}

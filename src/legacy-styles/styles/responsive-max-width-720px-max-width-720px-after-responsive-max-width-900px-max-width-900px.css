@@ -1,0 +1,51 @@
+
+
+@media (max-width: 720px) {
+  .data-mapping-title h1 {
+    font-size: 26px;
+    line-height: 36px;
+  }
+
+  .data-mapping-title p {
+    white-space: normal;
+  }
+
+  .mapping-file-bar__actions,
+  .mapping-file-bar__actions .button {
+    width: 100%;
+  }
+
+  .mapping-overview {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mapping-confirm-button.button {
+    width: 100%;
+  }
+
+  .mapping-workspace {
+    padding: 20px;
+  }
+
+  .mapping-workspace__header {
+    align-items: flex-start;
+  }
+
+  .mapping-workspace__header p {
+    white-space: normal;
+  }
+
+  .mapping-actions,
+  .mapping-actions > div {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mapping-actions .button {
+    width: 100%;
+  }
+}
+
+/* API Agent */

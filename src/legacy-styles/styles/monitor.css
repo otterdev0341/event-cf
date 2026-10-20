@@ -1,0 +1,25 @@
+
+
+.monitor-microphone {
+  position: relative;
+  width: 58.333px;
+  height: 91.667px;
+  flex: 0 0 91.667px;
+}
+
+.monitor-microphone img {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  display: block;
+}
+
+.monitor-waveform {
+  width: 200px;
+  height: 40px;
+  flex: 0 0 40px;
+}
+
+.monitor-waveform .waveform__bar {
+  background: var(--color-white);
+}

@@ -1,0 +1,33 @@
+
+
+@media (max-width: 720px) {
+  .api-test-titlebar {
+    min-height: 0;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .api-test-titlebar h1 {
+    font-size: 26px;
+    line-height: 36px;
+  }
+
+  .api-test-success,
+  .api-test-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .api-test-retry.button,
+  .api-test-back.button,
+  .api-test-create.button {
+    width: 100%;
+  }
+
+  .api-test-footer p {
+    align-items: flex-start;
+  }
+}
+
+/* Campaigns */

@@ -1,0 +1,18 @@
+/* Call results: evidence and review remain distinct from telephony state. */
+.campaign-results { scroll-margin-top: 90px; }
+.results-header { display:flex;justify-content:space-between;gap:20px;align-items:flex-start;flex-wrap:wrap; }
+.results-header p { color:var(--color-body);font-size:13px; }
+.results-counts { display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-block:1px solid #e7e4f2;margin:24px 0;padding:20px 0;gap:20px; }
+.results-counts strong { display:block;font:600 26px Inter,sans-serif;color:#6244c8; }
+.results-counts span,.result-date { display:block;font-size:12px;color:#72758a;margin-top:7px; }
+.results-filter { display:block;max-width:280px;margin:20px 0; }
+.result-badge { display:inline-block;background:#f2f1f7;color:#57526e;padding:5px 10px;border-radius:6px;font-size:12px; }
+.result-badge[data-result="CONFIRMED"] {background:#e6f7f0;color:#087851;}
+.result-badge[data-result="DECLINED"] {background:#fff0f0;color:#b03447;}
+.result-badge[data-result="UNDETERMINED"] {background:#fff6de;color:#8a640c;}
+.result-detail {margin-top:24px;padding:24px;border:1px solid #dcd5f2;border-left:4px solid #7451dc;border-radius:12px;background:#fcfbff;}
+.result-times {display:flex;gap:32px;flex-wrap:wrap;font-size:13px;margin:24px 0;}
+.result-times dt {color:#72758a;}.result-times dd {margin:4px 0;}
+.review-fields {display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0;}
+.result-detail label {display:block;font-size:13px;}.result-detail textarea {display:block;width:100%;margin:8px 0 16px;resize:vertical;}
+@media(max-width:700px){.results-counts{grid-template-columns:repeat(2,minmax(0,1fr));}.review-fields{grid-template-columns:1fr;}.result-detail{padding:16px;}.results-header .draft-actions{width:100%;}}

@@ -1,0 +1,7 @@
+
+
+.page-shell {
+  width: min(100%, var(--page-max-width));
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+}

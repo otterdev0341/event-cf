@@ -1,0 +1,30 @@
+
+
+.create-campaign-actions {
+  display: flex;
+  height: 75px;
+  grid-column: 1 / -1;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.create-campaign-actions > a {
+  align-self: center;
+  color: var(--color-body);
+  font-size: 15px;
+  line-height: 23px;
+  text-decoration: none;
+}
+
+.create-campaign-next.button {
+  width: 164px;
+  height: 51px;
+  min-height: 51px;
+  gap: 8px;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 23px;
+}

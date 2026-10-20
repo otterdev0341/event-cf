@@ -1,0 +1,16 @@
+
+
+@media (max-width: 1000px) {
+  .create-campaign-form {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-form-panel,
+  .campaign-upload-panel {
+    height: auto;
+  }
+
+  .campaign-upload-panel {
+    grid-row: 2;
+  }
+}

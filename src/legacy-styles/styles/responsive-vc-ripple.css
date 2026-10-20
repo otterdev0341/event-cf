@@ -1,0 +1,2 @@
+
+@keyframes vc-ripple { from { transform: scale(.85); opacity: .7; } to { transform: scale(1.45); opacity: 0; } }

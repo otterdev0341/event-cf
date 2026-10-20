@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "credential": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "org",
+            "event"
+          ]
+        },
+        "eventId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prefix": {
+          "type": "string"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "knowledge:read",
+              "tickets:create",
+              "calls:read",
+              "calls:create",
+              "calls:result"
+            ]
+          }
+        },
+        "expiresAt": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "revoked"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "eventId",
+        "parentId",
+        "prefix",
+        "scopes",
+        "expiresAt",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "secret": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "credential",
+    "secret"
+  ],
+  "additionalProperties": false
+}

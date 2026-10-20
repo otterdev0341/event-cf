@@ -1,0 +1,9 @@
+
+
+.bot-sandbox {
+  display: grid;
+  height: 625.667px;
+  flex: 0 0 625.667px;
+  grid-template-columns: minmax(0, 916px) 340px;
+  gap: 24px;
+}

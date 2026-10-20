@@ -1,0 +1,30 @@
+/* Live report: sizes adapt to actual data and missing-data notices. */
+.report-filters { display: flex; gap: 20px; flex-wrap: wrap; }
+.report-filters label { display: grid; gap: 8px; min-width: 220px; color: var(--color-body); font-size: 13px; }
+.report-update { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.report-update p { color: var(--color-body); font-size: 13px; line-height: 1.8; }
+.report-response { height: auto; min-height: 386px; }
+.report-donut { width: 160px; height: 160px; border-radius: 50%; padding: 22px; align-self: center; flex-shrink: 0; }
+.report-donut > div { width: 100%; height: 100%; border-radius: 50%; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.report-donut span { color: var(--color-body); font-size: 12px; }
+.report-donut strong { font-size: 28px; font-weight: 600; }
+.report-explanation { height: auto; min-height: 147px; }
+.report-explanation p { color: var(--color-body); font-size: 14px; line-height: 1.8; }
+.report-explanation header { align-items: start; flex-wrap: wrap; }
+.report-explanation header span { white-space: nowrap; }
+@media (max-width: 600px) { .report-filters label { min-width: 0; width: 100%; } .report-update { align-items: start; flex-direction: column; } }
+
+.real-data-page { display: flex; flex-direction: column; gap: 24px; padding-block: 40px 64px; min-height: calc(100dvh - 80px); }
+.real-data-page h1 { font-size: 28px; font-weight: 700; }
+.real-data-page header p { color: var(--color-body); line-height: 1.8; }
+.real-data-page .activity-section, .real-data-page .settings-card { display: flex; flex-direction: column; gap: 18px; height: auto; min-height: 0; }
+.real-data-page label { display: grid; gap: 8px; }
+.real-data-fields { display: grid; gap: 16px; margin: 0; }
+.real-data-fields > div { display: grid; grid-template-columns: minmax(100px, 1fr) 2fr; gap: 16px; }
+.real-data-fields dt { color: var(--color-body); }
+.real-data-fields dd { margin: 0; overflow-wrap: anywhere; }
+.real-text, .real-transcript p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
+.real-transcript { display: grid; gap: 16px; }
+.real-transcript article { padding: 18px; border-radius: 12px; background: #f6f7fb; }
+.workspace-intro-steps { color: #e4def4; display: grid; gap: 18px; padding: 24px; line-height: 1.8; }
+@media (max-width: 600px) { .real-data-fields > div { grid-template-columns: 1fr; gap: 4px; } }

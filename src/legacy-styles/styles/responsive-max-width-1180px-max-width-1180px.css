@@ -1,0 +1,16 @@
+
+
+@media (max-width: 1180px) {
+  .dashboard-visuals {
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+
+  .campaign-progress-card header {
+    align-items: flex-start;
+  }
+
+  .agent-stream-card__waveform {
+    width: 160px;
+    flex-basis: 160px;
+  }
+}

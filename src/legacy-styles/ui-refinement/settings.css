@@ -1,0 +1,36 @@
+/* Settings: separate account details from preferences with a responsive grid. */
+.settings-account-group { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.settings-profile, .settings-notifications { height: auto; min-height: 0; margin: 0; }
+.settings-card { padding: 28px; }
+.settings-profile__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.settings-profile__fields > label:last-child { grid-column: 1 / -1; }
+.settings-profile__identity { padding-bottom: 20px; border-bottom: 1px solid var(--color-border-light); }
+.settings-profile__avatar { width: 48px; height: 48px; flex-basis: 48px; border-radius: 14px; background: #eee8fa; color: var(--color-primary); }
+.settings-card h2 { font-size: 16px; font-weight: 600; }
+.settings-field > span { color: #646a7f; font-size: 12px; font-weight: 500; }
+.settings-field { min-width: 0; }
+.settings-field input { background: #fbfbfe; border-radius: 9px; }
+.settings-toggle-list { gap: 0; }
+.settings-toggle-list .toggle-switch { padding-block: 16px; font-size: 13px; line-height: 1.8; gap: 16px; }
+.settings-toggle-list .toggle-switch + .toggle-switch { border-top: 1px solid var(--color-border-light); }
+.settings-select-list { gap: 0; margin-top: 16px; }
+.settings-select-list > label { min-height: 56px; padding-block: 14px; }
+.settings-select-list > label + label { border-top: 1px solid var(--color-border-light); }
+.settings-system { max-width: 100%; }
+@media (max-width: 960px) {
+ .settings-account-group { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+ .settings-account-group { gap: 20px; }
+ .settings-card { padding: 22px; }
+ .settings-profile__fields { grid-template-columns: 1fr; gap: 18px; }
+ .settings-field input { font-size: 16px; min-height: 48px; }
+ .settings-profile__identity { gap: 12px; }
+ .settings-profile__identity > div { min-width: 0; }
+ .settings-profile__identity h2 { overflow-wrap: anywhere; }
+ .settings-select-list label > span:first-child { max-width: none; }
+}
+
+.settings-system { height: auto; min-height: 0; }
+.settings-select-list { height: auto; flex: initial; }
+.settings-select-list > label { height: auto; flex-shrink: 0; }

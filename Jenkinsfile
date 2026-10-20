@@ -27,6 +27,17 @@ pipeline {
                 sh 'for script in scripts/ci/*.sh; do bash -n "$script" || exit; done; git diff --check && docker compose config --quiet'
             }
         }
+        stage('Frontend phase checks') {
+            steps {
+                sh 'flock -x "$DOCKER_LOCK_FILE" bash scripts/ci/frontend-container.sh'
+            }
+            post {
+                always {
+                    junit testResults: 'frontend/reports/*.xml', allowEmptyResults: currentBuild.currentResult == 'ABORTED'
+                    archiveArtifacts artifacts: 'frontend/test-results/**/*,frontend/reports/*.xml', allowEmptyArchive: true
+                }
+            }
+        }
         stage('Build foundation') {
             steps {
                 sh '''

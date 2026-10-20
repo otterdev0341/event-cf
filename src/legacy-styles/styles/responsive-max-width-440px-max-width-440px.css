@@ -1,0 +1,10 @@
+
+
+@media (max-width: 440px) {
+  .analytics-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+/* Settings */

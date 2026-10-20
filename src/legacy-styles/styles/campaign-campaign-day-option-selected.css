@@ -1,0 +1,111 @@
+
+
+.campaign-day-option--selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.campaign-day-option:focus-within {
+  outline: 3px solid rgba(124, 92, 255, 0.28);
+  outline-offset: 2px;
+}
+
+.campaign-day-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.campaign-form__field > input:focus,
+.campaign-form__control:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-tint);
+  outline: 0;
+}
+
+.campaign-dropzone {
+  display: flex;
+  width: 100%;
+  height: 207px;
+  flex: 0 0 207px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 24px;
+  border: 2px dashed var(--color-border-light);
+  border-radius: 12px;
+  background: var(--color-page);
+  cursor: pointer;
+}
+
+.campaign-dropzone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.campaign-dropzone:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-tint);
+}
+
+.campaign-dropzone__icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-primary-tint);
+}
+
+.campaign-dropzone__icon img,
+.campaign-template-link img,
+.create-campaign-next img {
+  display: block;
+}
+
+.campaign-dropzone__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.campaign-dropzone__copy strong {
+  color: var(--color-heading);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 23px;
+}
+
+.campaign-dropzone__copy > span {
+  color: var(--color-body);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.campaign-template-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+  cursor: pointer;
+}

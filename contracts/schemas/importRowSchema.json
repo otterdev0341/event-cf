@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "phone": {
+      "type": "string"
+    },
+    "first_name": {
+      "type": "string"
+    },
+    "last_name": {
+      "type": "string"
+    },
+    "nickname": {
+      "type": "string"
+    },
+    "event_code": {
+      "type": "string"
+    },
+    "event_date": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "phone",
+    "first_name",
+    "last_name",
+    "nickname",
+    "event_code",
+    "event_date"
+  ],
+  "additionalProperties": false
+}

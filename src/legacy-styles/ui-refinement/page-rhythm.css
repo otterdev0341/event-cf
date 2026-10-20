@@ -1,0 +1,39 @@
+/* Consistent page rhythm, without the fixed mockup canvas heights. */
+.campaigns-main, .create-campaign-main, .data-mapping-main, .api-agent-main, .api-test-main, .dashboard-main, .analytics-main, .contact-list-main, .settings-main { height: auto; min-height: calc(100dvh - 80px); padding-block: 40px 64px; gap: 24px; }
+.campaigns-titlebar, .dashboard-title, .analytics-titlebar, .settings-title { height: auto; min-height: 0; flex-basis: auto; }
+.campaigns-titlebar h1, .create-campaign-main h1, .data-mapping-title h1, .api-agent-title h1, .api-test-titlebar h1, .dashboard-title h1, .analytics-titlebar h1, .settings-title h1 { font-size: 28px; line-height: 1.5; font-weight: 700; letter-spacing: -.5px; }
+.campaigns-titlebar p, .data-mapping-title p, .api-agent-title p, .api-test-titlebar p { font-size: 13px; line-height: 1.8; color: #818496; }
+.campaigns-titlebar > div { gap: 4px; }
+.campaign-summary-strip { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); border: 1px solid var(--color-border-light); border-radius: 16px; background: white; box-shadow: var(--ui-shadow); }
+.campaign-summary-strip > div { display: flex; align-items: center; gap: 16px; padding: 24px; min-width: 0; }
+.campaign-summary-strip > div + div { border-left: 1px solid var(--color-border-light); }
+.summary-symbol { display: grid; place-items: center; width: 43px; height: 43px; flex: 0 0 43px; border-radius: 12px; background: #f0ebfc; color: var(--color-primary); font-size: 24px; }
+.summary-symbol--teal { color: #238d83; background: #eaf7f5; }
+.summary-symbol--amber { color: #b8882a; background: #fdf6e8; }
+.campaign-summary-strip > div > div > span { color: #808497; font-size: 12px; }
+.campaign-summary-strip strong { display: block; font-size: 25px; line-height: 1.6; font-weight: 600; }
+.campaign-summary-strip strong small { font-size: 11px; color: #9396a5; margin-left: 9px; font-weight: 400; }
+.workspace-local-note { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border: 1px solid #e5dff6; border-radius: 12px; background: #f3f0fc; color: #7c6d9f; }
+.workspace-local-note p { margin: 0; font-size: 12px; font-weight: 500; }
+.workspace-local-note p span { font-weight: 400; margin-left: 10px; color: #9084a6; }
+.workspace-local-note a { margin-left: auto; color: #7961ab; font-size: 11px; white-space: nowrap; text-decoration: none; }
+.workspace-toolbar { margin: 8px 0 0; gap: 16px; }
+.workspace-toolbar h2 { margin: 0; font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.count-pill { border-radius: 7px; background: #eae5f6; color: #8068ad; padding: 2px 8px; font: 11px/1.5 'Inter',sans-serif; }
+.workspace-search { width: min(100%,300px); padding: 12px 15px; border-radius: 10px; background: white; font-size: 12px; min-height: 43px; }
+.campaigns-grid { height: auto; flex: initial; gap: 18px; }
+.campaign-card { height: auto; min-height: 0; flex: initial; background: white; border-color: var(--color-border-light); border-radius: 16px; padding: 26px; gap: 22px; box-shadow: var(--ui-shadow); overflow: visible; }
+.campaign-card__header { height: auto; flex: initial; min-height: 40px; gap: 16px; }
+.campaign-card .campaign-card__identity h2 { color: var(--color-heading); font-size: 16px; font-weight: 600; white-space: normal; line-height: 1.7; }
+.campaign-card__icon { border-radius: 11px; }
+.campaign-card__metrics { height: auto; flex: initial; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; padding-left: 56px; }
+.campaign-card__detail { min-width: 0; white-space: normal; }
+.campaign-card__detail span { color: #8a8d9d; font-size: 11px; }
+.campaign-card__detail strong, .campaign-card__detail:first-child strong { color: #52576c; font: 500 13px/1.6 'Noto Sans Thai',sans-serif; overflow-wrap: anywhere; }
+.campaign-card .draft-actions { margin: 0; padding-top: 18px; border-top: 1px solid #eff0f5; }
+.campaign-card .csv-preview { margin: 0; }
+.campaign-card .workspace-alert .draft-actions { padding-top: 12px; border: 0; }
+.workspace-empty { padding: 52px 24px; width: 100%; border-style: solid; border-color: var(--color-border-light); box-shadow: var(--ui-shadow); }
+.empty-visual { display: grid; place-items: center; width: 60px; height: 60px; margin: 0 auto 22px; border-radius: 18px; color: var(--color-primary); font-size: 32px; background: var(--color-primary-tint); }
+.workspace-empty h2 { font-size: 21px; }.workspace-empty p { font-size: 13px; margin-bottom: 24px; }
+.workspace-note { color: #7b7f92; font-size: 12px; }

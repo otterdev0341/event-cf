@@ -1,0 +1,53 @@
+:root {
+  font-family: "Noto Sans Thai", sans-serif;
+  color: #111115;
+  background: #f7f7fa;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --color-primary: #7c5cff;
+  --color-primary-tint: rgba(124, 92, 255, 0.08);
+  --color-page: #f7f7fa;
+  --color-header: #09090f;
+  --color-surface-dark: #111118;
+  --color-heading: #111115;
+  --color-body: #52525b;
+  --color-muted: #a1a1aa;
+  --color-border-dark: #27272a;
+  --color-border-light: #e4e4e7;
+  --color-white: #fff;
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-warning: #ffc300;
+  --page-gutter: 80px;
+  --page-max-width: 1440px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  background: var(--color-page);
+}
+
+button,
+a {
+  font: inherit;
+}
+
+button {
+  border: 0;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(124, 92, 255, 0.45);
+  outline-offset: 3px;
+}

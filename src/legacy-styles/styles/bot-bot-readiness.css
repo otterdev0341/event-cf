@@ -1,0 +1,10 @@
+
+
+.bot-readiness {
+  display: flex;
+  width: 340px;
+  height: 335px;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+}

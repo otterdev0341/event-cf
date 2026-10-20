@@ -1,0 +1,280 @@
+
+
+.campaign-form-panel,
+.campaign-upload-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 32px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 16px;
+  background: var(--color-white);
+}
+
+.campaign-form-panel {
+  min-height: 414px;
+}
+
+.campaign-upload-panel {
+  height: 367px;
+}
+
+.campaign-form-panel h2,
+.campaign-upload-panel h2 {
+  flex: 0 0 auto;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 27px;
+}
+
+.campaign-form__field {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.campaign-form__field > span:first-child {
+  color: var(--color-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+}
+
+.campaign-form__row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.campaign-form__field > input,
+.campaign-form__control {
+  width: 100%;
+  height: 55px;
+  min-width: 0;
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  background: var(--color-page);
+}
+
+.campaign-form__field > input,
+.campaign-form__control input,
+.campaign-form__control select {
+  color: var(--color-body);
+  font: 400 15px/23px "Noto Sans Thai", sans-serif;
+}
+
+.campaign-form__field > input {
+  padding: 16px;
+}
+
+.campaign-form__field input::placeholder {
+  color: var(--color-body);
+  opacity: 1;
+}
+
+.campaign-form__control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.campaign-form__control input,
+.campaign-form__control select {
+  width: 100%;
+  min-width: 0;
+  height: 53px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.campaign-form__control input[name="eventTime"] {
+  font-family: "Inter", sans-serif;
+}
+
+.campaign-form__control img {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.campaign-form__select-wrap select {
+  appearance: none;
+}
+
+.campaign-call-settings {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.campaign-choice-group {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.campaign-choice-group[hidden] {
+  display: none;
+}
+
+.campaign-choice-group legend {
+  margin-bottom: 10px;
+  padding: 0;
+  color: var(--color-body);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+}
+
+.campaign-choice-grid {
+  display: grid;
+  width: 100%;
+  gap: 10px;
+}
+
+.campaign-choice-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.campaign-choice-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.campaign-radio {
+  display: grid;
+  min-width: 0;
+  min-height: 72px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  background: var(--color-page);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.campaign-radio:hover {
+  border-color: #cbc7da;
+}
+
+.campaign-radio--selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.campaign-radio input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.campaign-radio:focus-within {
+  outline: 3px solid rgba(124, 92, 255, 0.28);
+  outline-offset: 2px;
+}
+
+.campaign-radio__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.campaign-radio__copy strong {
+  color: var(--color-heading);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.campaign-radio__copy > span {
+  color: var(--color-body);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.campaign-choice-inputs {
+  margin-top: 2px;
+}
+
+.campaign-day-picker {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.campaign-day-picker__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.campaign-day-picker__header > span {
+  color: var(--color-body);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+}
+
+.campaign-day-picker__header small {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.campaign-day-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.campaign-day-option {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  background: var(--color-page);
+  color: var(--color-body);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.campaign-day-option:hover {
+  border-color: #cbc7da;
+}

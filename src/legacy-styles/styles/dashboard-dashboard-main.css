@@ -1,0 +1,45 @@
+
+
+.dashboard-main {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding-block: 40px 80px;
+}
+
+.dashboard-title {
+  display: flex;
+  height: 71px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.dashboard-title h1,
+.dashboard-title p,
+.metric-card p,
+.response-card h2,
+.campaign-summary h2,
+.campaign-summary p,
+.activity-section h2,
+.pagination p {
+  margin: 0;
+}
+
+.dashboard-title h1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 42px;
+}
+
+.dashboard-title h1 span {
+  margin-left: 10px;
+  color: var(--color-primary);
+  font-size: 32px;
+}
+
+.dashboard-title p {
+  color: var(--color-body);
+  font-size: 15px;
+  line-height: 23px;
+}

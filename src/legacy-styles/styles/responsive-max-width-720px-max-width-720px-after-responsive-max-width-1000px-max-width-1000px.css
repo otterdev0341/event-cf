@@ -1,0 +1,45 @@
+
+
+@media (max-width: 720px) {
+  .campaigns-titlebar {
+    height: auto;
+    flex-basis: auto;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .create-campaign-button.button {
+    width: 100%;
+  }
+
+  .campaign-card {
+    padding: 24px;
+  }
+
+  .campaign-card__header {
+    height: auto;
+    align-items: flex-start;
+    flex-basis: auto;
+    flex-direction: column;
+  }
+
+  .campaign-card__identity h2 {
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .campaign-card__metrics {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .campaign-card__buttons {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .campaign-action.button {
+    flex: 1 1 auto;
+  }
+}

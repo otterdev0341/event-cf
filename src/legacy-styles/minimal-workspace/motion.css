@@ -1,0 +1,115 @@
+/* Motion: entry, hover, press, selection, disclosure and loading. */
+@media (prefers-reduced-motion: no-preference) {
+  main > section,main > header,.campaign-card,.auth-card,.bot-test-layout,.preview-card { animation: none; }
+  .button,.app-menu-toggle,.pagination button { transition: transform .2s var(--vc-ease),background .2s,border-color .2s,box-shadow .2s; }
+  .button:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 5px 12px #45307513; }
+  .button:not(:disabled):active,.pagination button:not(:disabled):active { transform: translateY(0) scale(.97); }
+  .app-nav__link { transition: background .2s,color .2s,transform .25s var(--vc-ease); }
+  .app-nav__link:hover { transform: translateX(3px); }
+  .app-nav__active-mark { animation: vc-mark-in .4s var(--vc-ease); }
+  .campaign-card,.metric-card,.feature-card { transition: border-color .25s,box-shadow .25s,transform .25s var(--vc-ease); }
+  .campaign-card:hover { border-color: #d1c5eb; box-shadow: 0 8px 24px #33215007; }
+  .metric-card:hover { border-color: #d7cbed; transform: translateY(-2px); }
+  main :is(input,select,textarea) { transition: border-color .2s,box-shadow .2s,background .2s; }
+  main :is(input,select,textarea):focus { box-shadow: 0 0 0 4px #6747ce0b; }
+  .campaign-radio,.campaign-day-option,.call-scope label { transition: border-color .2s,background .2s,transform .2s var(--vc-ease); }
+  .campaign-day-option:has(input:checked) { animation: vc-mark-in .24s var(--vc-ease); }
+  .activity-table tbody tr,.csv-preview tbody tr { transition: background .18s; }
+  .activity-table tbody tr:hover,.csv-preview tbody tr:hover { background: #faf8ff; }
+  details[open] > :not(summary),.campaign-card > .csv-preview,.workspace-alert,.phone-test-notice { animation: vc-disclose .28s var(--vc-ease); }
+  .campaign-dropzone:hover .campaign-dropzone__icon { transform: translateY(-4px); }
+  .campaign-dropzone__icon { transition: transform .25s var(--vc-ease); }
+  .app-header__footer:hover .workspace-soundmark i { animation: vc-signal .6s ease-in-out infinite alternate; }
+  .workspace-soundmark i:nth-child(2n) { animation-delay: -.2s; }
+  .workspace-soundmark i:nth-child(3) { animation-delay: -.4s; }
+  .campaign-steps__item--active .campaign-steps__number { animation: vc-mark-in .4s var(--vc-ease); }
+}
+@keyframes vc-mark-in { from { transform: scale(.8); opacity: .4; } to { transform: scale(1); opacity: 1; } }
+@keyframes vc-disclose { from { opacity: .3; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes vc-signal { to { transform: scaleY(.45); } }
+@media(min-width:1800px) { div:has(> .app-header) > main.page-shell { margin-left: calc(var(--workspace-rail) + (100% - var(--workspace-rail) - 1480px)/2); } }
+@media(max-width:1150px) {
+  :root { --workspace-rail: 210px; }
+  .app-header .app-header__inner { padding-inline: 12px; }
+  .app-header .brand__name { font-size: 15px; }
+  .app-header__subtitle { margin-left: 0; text-align: center; }
+  .metric-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .campaign-summary-strip > div { padding: 18px; }
+  .summary-symbol { display: none; }
+  .preview-binding { grid-template-columns: minmax(100px,.8fr) minmax(120px,1fr) minmax(120px,1fr); }
+}
+@media(max-width:850px) {
+  .app-header { background: #ffffffed; backdrop-filter: blur(16px); }
+  .app-header .app-header__inner { flex-direction: row; padding: 12px 20px; gap: 0; }
+  .app-header .brand__name { font-size: 17px; }
+  .app-header .app-nav__link { min-height: 44px; }
+  div:has(> .app-header) > main.page-shell { width: 100%; margin: 0; padding: 28px 22px 48px; min-height: calc(100dvh - 68px); }
+  .bot-test-layout { grid-template-columns: 1fr; }
+  .campaign-choice-grid--three { grid-template-columns: 1fr; }
+  .landing-refined .hero { gap: 36px; padding-block: 44px; }
+}
+@media(max-width:600px) {
+  div:has(> .app-header) > main.page-shell { padding: 24px 16px 40px; gap: 18px; }
+  div:has(> .app-header) > main h1 { font-size: 25px; }
+  div:has(> .app-header) > main > header p { font-size: 12px; }
+  .campaigns-titlebar,.call-page-heading,.preview-heading,.preview-section-head,.voice-connection__heading { align-items: flex-start; flex-direction: column; gap: 14px; }
+  .campaigns-titlebar > .button { align-self: stretch; }
+  .campaign-summary-strip { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .campaign-summary-strip > div { padding: 15px 10px; border: 0; }
+  .campaign-summary-strip > div > div { display: block; }
+  .campaign-summary-strip strong { display: block; }
+  .campaign-summary-strip > div + div { border-left: 1px solid #e7e9ef; border-top: 0; }
+  .campaign-summary-strip strong { font-size: 24px; }
+  .campaign-summary-strip small { display: block; margin-left: 0; font-size: 10px; }
+  .campaign-summary-strip > div > div > span { font-size: 10px; }
+  .workspace-toolbar { align-items: stretch; }
+  .workspace-search { width: 100%; }
+  :is(.campaign-card,.activity-section,.settings-card,.wizard-summary-card,.wizard-summary-confirm,.campaign-form-panel,.campaign-upload-panel,.api-preview-panel,.preview-card,.bot-chat-panel,.response-card,.campaign-progress-card) { padding: 18px; border-radius: 13px; }
+  .metric-card { padding: 16px; min-height: 128px; }
+  .metric-card__value { font-size: 29px; }
+  .metric-card__description { font-size: 10px; }
+  .metric-grid { gap: 10px; }
+  .campaign-card__metrics { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .campaign-card__detail:last-child { grid-column: 1 / -1; }
+  .campaign-card > .draft-actions { gap: 8px; }
+  .campaign-card > .draft-actions .button { padding-inline: 10px; }
+  .button--compact { min-height: 44px; }
+  .workspace-local-note { align-items: flex-start; flex-wrap: wrap; }
+  .workspace-local-note p { flex: 1; min-width: 0; }
+  .workspace-local-note p span { display: block; margin-left: 0; margin-top: 5px; }
+  .workspace-local-note a { margin-left: 0; }
+  .workspace-notice .button { margin-top: 8px; }
+  .campaign-steps { padding: 14px 10px; }
+  .campaign-steps__label { font-size: 10px; }
+  .campaign-form__row,.campaign-choice-grid--two,.wizard-summary-grid,.dashboard-visuals { grid-template-columns: 1fr; }
+  .campaign-form__row { flex-direction: column; }
+  .create-campaign-actions .button,.wizard-summary-actions > div,.wizard-summary-actions > div .button { width: 100%; }
+  .wizard-summary-actions > div { flex-direction: column; }
+  .preview-binding { grid-template-columns: 1fr; gap: 10px; }
+  .preview-binding-labels { display: none; }
+  .preview-section-head .button { align-self: stretch; }
+  .preview-steps { gap: 9px; flex-wrap: wrap; }
+  .preview-steps li { font-size: 10px; }
+  .preview-start-bar,.preview-import,.phone-test-destination { align-items: stretch; flex-direction: column; gap: 12px; }
+  .preview-start-bar .button { width: 100%; }
+  .bot-chat-header { flex-wrap: wrap; gap: 14px; }
+  .bot-chat-header .preview-chip { margin-left: 0; }
+  .real-data-fields > div { grid-template-columns: 1fr; gap: 4px; }
+  .real-data-fields dd { margin: 0; }
+  main :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea) { font-size: 16px; }
+  .activity-table { min-width: 620px; }
+  .activity-table :is(th,td),.csv-preview :is(th,td) { padding: 12px; }
+  .usage-controls,.usage-controls label { width: 100%; }
+  .usage-toolbar > .button { width: 100%; }
+  .pagination { flex-direction: column; align-items: flex-start; }
+  .auth-card { padding: 24px; border-radius: 16px; }
+  .landing-refined .hero { grid-template-columns: 1fr; }
+  .hero__actions { flex-direction: column; align-items: stretch; }
+  .hero h1 { font-size: 34px; }
+  .workflow-band { flex-direction: column; align-items: stretch; gap: 24px; }
+  .workflow-intro { flex-basis: auto; }
+  .workflow-band ol { grid-template-columns: 1fr 1fr; }
+  .features-heading { flex-direction: column; align-items: flex-start; }
+  .landing-footer { flex-wrap: wrap; }
+}
+@media(prefers-reduced-motion:reduce) { html { scroll-behavior: auto; } *,*::before,*::after { animation: none !important; transition: none !important; } }

@@ -1,0 +1,46 @@
+/* Four-step campaign setup and review. */
+.campaign-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.campaign-steps__item { min-width: 0; }
+.campaign-steps__line { min-width: 12px; max-width: 70px; }
+.wizard-agent-detail { width: 100%; padding: 22px; border: 1px solid var(--color-border-light); border-radius: 12px; background: #faf9ff; }
+.wizard-agent-detail h3 { margin: 0 0 12px; font-size: 16px; }
+.wizard-variable-list { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 12px; }
+.wizard-variable-list code { border: 1px solid #e4def8; border-radius: 7px; padding: 5px 9px; color: #5b43b7; background: #f6f2ff; font-size: 12px; overflow-wrap: anywhere; }
+.wizard-agent-banner { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 22px 26px; border: 1px solid #e4def8; border-radius: 14px; background: #faf9ff; }
+.wizard-agent-banner h2 { margin: 6px 0; font-size: 18px; }
+.wizard-agent-banner p { margin: 0; color: var(--color-body); font-size: 13px; }
+.wizard-summary-main { display: flex; flex-direction: column; gap: 28px; padding-block: 40px 60px; }
+.wizard-summary-main h1 { font-size: 28px; line-height: 1.5; font-weight: 700; letter-spacing: -.5px; }
+.wizard-summary-card h3, .wizard-summary-card header p { overflow-wrap: anywhere; }
+.wizard-summary-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; }
+.wizard-summary-card { min-width: 0; padding: 28px; background: white; border: 1px solid var(--color-border-light); border-radius: 16px; }
+.wizard-summary-card--wide { grid-column: 1 / -1; }
+.wizard-summary-card header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.wizard-summary-card h2, .wizard-summary-confirm h2 { margin: 0; font-size: 17px; }
+.wizard-summary-card header a { color: var(--color-primary); white-space: nowrap; font-size: 13px; }
+.wizard-summary-card header p { color: var(--color-body); font-size: 13px; margin-bottom: 0; }
+.wizard-summary-card dl { margin: 0; display: grid; gap: 18px; }
+.wizard-summary-card dl > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; }
+.wizard-summary-card dt { color: var(--color-body); font-size: 13px; }
+.wizard-summary-card dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.wizard-summary-confirm { padding: 24px 28px; background: #f5f2ff; border: 1px solid #e4def8; border-radius: 14px; }
+.wizard-summary-confirm p { color: var(--color-body); font-size: 13px; }
+.wizard-summary-confirm label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.wizard-summary-confirm input { margin-top: 5px; accent-color: var(--color-primary); }
+.wizard-summary-actions, .wizard-summary-actions > div { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.workflow-band ol { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .campaign-steps__line { display: none; }
+  .campaign-steps__group { flex-direction: column; gap: 7px; }
+  .workflow-band { flex-direction: column; align-items: stretch; }
+}
+@media (max-width: 600px) {
+  .campaign-steps { gap: 4px; padding: 14px 8px; }
+  .campaign-steps__label { white-space: normal; text-align: center; font-size: 10px; line-height: 1.5; }
+  .wizard-summary-grid { grid-template-columns: 1fr; gap: 16px; }
+  .wizard-summary-card, .wizard-summary-confirm { padding: 20px; }
+  .wizard-summary-card dl > div { grid-template-columns: 1fr; gap: 4px; }
+  .wizard-agent-banner { flex-direction: column; align-items: flex-start; }
+  .wizard-summary-actions, .wizard-summary-actions > div { flex-direction: column; align-items: stretch; width: 100%; }
+  .workflow-band ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

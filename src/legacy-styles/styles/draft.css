@@ -1,0 +1,3 @@
+
+.draft-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.draft-actions .button { min-height: 40px; }

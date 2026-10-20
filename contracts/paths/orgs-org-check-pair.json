@@ -1,0 +1,86 @@
+{
+  "post": {
+    "operationId": "post-orgs-org-check-pair",
+    "summary": "POST /orgs/{org}/check-pair",
+    "parameters": [
+      {
+        "name": "org",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "orgKeyId": {
+                "type": "string"
+              },
+              "eventKeyId": {
+                "type": "string"
+              },
+              "eventId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "orgKeyId",
+              "eventKeyId",
+              "eventId"
+            ]
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Success",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ok"
+              ]
+            }
+          }
+        }
+      },
+      "default": {
+        "description": "401/403/404/409/422/429/503 error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+
+
+@media (max-width: 960px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-visuals {
+    grid-template-columns: 1fr;
+  }
+
+  .response-card {
+    height: auto;
+  }
+
+  .response-legend {
+    flex-flow: row wrap;
+  }
+
+  .activity-section {
+    height: auto;
+  }
+}

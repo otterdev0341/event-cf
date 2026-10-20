@@ -1,0 +1,276 @@
+
+.contact-list-page {
+  min-height: 100dvh;
+  background: var(--color-page);
+  color: var(--color-heading);
+}
+
+.contact-list-main {
+  display: flex;
+  min-height: calc(100dvh - 80px);
+  flex-direction: column;
+  gap: 32px;
+  padding-block: 32px 80px;
+}
+
+.contact-list-titlebar {
+  display: flex;
+  min-height: 71px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.contact-list-titlebar > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.contact-list-titlebar h1,
+.contact-list-titlebar p {
+  margin: 0;
+}
+
+.contact-list-titlebar h1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 42px;
+}
+
+.contact-list-titlebar p {
+  color: var(--color-body);
+  font-size: 15px;
+  line-height: 23px;
+}
+
+.contact-import-button.button {
+  height: 48px;
+  min-height: 48px;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.contact-import-button img,
+.contact-call-button img {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.contact-filters {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.contact-filters__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.contact-search,
+.contact-status-filter,
+.contact-advanced-filter {
+  height: 40px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  background: var(--color-white);
+}
+
+.contact-search {
+  display: flex;
+  width: 320px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+}
+
+.contact-search > img {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.contact-search input {
+  min-width: 0;
+  height: 100%;
+  flex: 1 1 auto;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.contact-search input::placeholder {
+  color: #8e8e93;
+  opacity: 1;
+}
+
+.contact-search:focus-within,
+.contact-status-filter:focus-within {
+  border-color: var(--color-primary);
+  outline: 3px solid rgba(124, 92, 255, 0.12);
+}
+
+.contact-status-filter {
+  position: relative;
+  display: flex;
+  width: 160px;
+  align-items: center;
+}
+
+.contact-status-filter select {
+  width: 100%;
+  height: 100%;
+  padding: 0 38px 0 14px;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  background: transparent;
+  color: var(--color-body);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.contact-status-filter img {
+  position: absolute;
+  right: 14px;
+  display: block;
+  pointer-events: none;
+}
+
+.contact-advanced-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  color: var(--color-body);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.contact-advanced-filter:hover,
+.contact-retry-button:hover {
+  border-color: #d4d4d8;
+  background: #fafafa;
+}
+
+.contact-advanced-filter img {
+  display: block;
+}
+
+.contact-table-panel {
+  width: 100%;
+  padding: 32px 32px 32px 46px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 16px;
+  background: var(--color-white);
+  overflow: hidden;
+}
+
+.contact-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.contact-table {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.contact-table__checkbox-column {
+  width: 44px;
+}
+
+.contact-table__name-column {
+  width: 240px;
+}
+
+.contact-table__phone-column {
+  width: 200px;
+}
+
+.contact-table__status-column {
+  width: 180px;
+}
+
+.contact-table__date-column {
+  width: 240px;
+}
+
+.contact-table__attempt-column {
+  width: 118px;
+}
+
+.contact-table th,
+.contact-table td {
+  border-bottom: 1px solid var(--color-border-light);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.contact-table th {
+  height: 37px;
+  padding: 0 12px 12px 0;
+  color: #8e8e93;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.contact-table td {
+  height: 56px;
+  padding: 8px 12px 8px 0;
+  color: var(--color-body);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.contact-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.contact-table__name {
+  color: var(--color-heading) !important;
+  font-weight: 600;
+}
+
+.contact-table__phone,
+.contact-table__attempts {
+  font-family: "Inter", sans-serif;
+}
+
+.contact-checkbox {
+  position: relative;
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.contact-checkbox input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

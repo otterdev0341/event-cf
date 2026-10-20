@@ -1,0 +1,14 @@
+
+
+@media (max-width: 440px) {
+  .settings-profile__identity {
+    flex-direction: column;
+  }
+
+  .toggle-switch > span:first-child,
+  .settings-select-list label > span:first-child {
+    max-width: 210px;
+  }
+}
+
+/* Create campaign */

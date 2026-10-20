@@ -2,6 +2,20 @@
 
 เริ่มอ่านก่อน refactor:
 
+- [ผลส่งมอบ Phase 0–5](PHASE_0_5_DELIVERY.md) · [วิธีรัน frontend preview](../frontend/README.md)
+
+- [Implementation phases — ntex และ async gates](plans/IMPLEMENTATION_PHASES.md)
+
+- [ผลการโทร 3 แบบและกติกา retry/ticket ล่าสุด](plans/CALL_OUTCOME_MODEL.md)
+- [สถาปัตยกรรมใหม่ — JPG](diagrams/target-architecture.jpg) · [PlantUML](diagrams/target-architecture.puml)
+- [Call outcome / retry flow — JPG](diagrams/call-outcome-flow.jpg) · [PlantUML](diagrams/call-outcome-flow.puml)
+
+- [แผน refactor และ implementation — frontend ก่อน](plans/REFACTOR_IMPLEMENTATION_PLAN.md)
+- [รายละเอียด template รายชื่อ, โทรซ้ำ และ org/event credentials](plans/CALLING_IMPORT_CREDENTIAL_PLAN.md)
+- [Queue แบบเรียบง่ายและความพร้อมสำหรับ Lightsail](plans/QUEUE_LIGHTSAIL_DESIGN.md)
+- [คิว New/Fail สัดส่วน X:1 และ Groovy API test plan](plans/WEIGHTED_QUEUE_GROOVY_TEST_PLAN.md)
+- [Queue/Lightsail diagram — JPG](diagrams/queue-lightsail.jpg)
+- [Design specification](../DESIGN.md) และ [กฎ engineering / 300 บรรทัด](../AGENTS.md)
 - [สถาปัตยกรรมและขอบเขตระบบปัจจุบัน](ARCHITECTURE.md)
 - [Application architecture — JPG](diagrams/application-architecture.jpg)
 - [Deployment foundation — JPG](diagrams/deployment-foundation.jpg)

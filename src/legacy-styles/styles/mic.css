@@ -1,0 +1,38 @@
+
+
+.mic-control {
+  display: grid;
+  width: 120px;
+  height: 120px;
+  flex: 0 0 120px;
+  place-items: center;
+  padding: 0;
+  border: 2px solid var(--color-primary);
+  border-radius: 60px;
+  background: var(--color-primary-tint);
+  cursor: pointer;
+  transition: transform 160ms ease;
+}
+
+.mic-control:hover {
+  transform: scale(1.02);
+}
+
+.mic-control:active {
+  transform: scale(0.98);
+}
+
+.mic-control__inner {
+  display: grid;
+  width: 80px;
+  height: 80px;
+  place-items: center;
+  border-radius: 40px;
+  background: var(--color-primary);
+}
+
+.mic-control__inner img {
+  display: block;
+  width: 36px;
+  height: 36px;
+}

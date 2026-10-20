@@ -1,0 +1,6 @@
+
+
+.campaign-card .csv-preview { color: var(--color-heading); }
+.campaign-card .workspace-alert p { color: #9f1239; }
+.campaign-card .campaign-card__identity { min-width: 0; }
+.campaign-card .campaign-card__identity h2 { overflow-wrap: anywhere; }

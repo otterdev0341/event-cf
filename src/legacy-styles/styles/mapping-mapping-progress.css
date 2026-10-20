@@ -1,0 +1,140 @@
+
+
+.mapping-progress {
+  gap: 8px;
+}
+
+.mapping-progress .progress-bar__labels {
+  color: #92929c;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  line-height: 15px;
+}
+
+.mapping-progress .progress-bar__labels strong {
+  color: var(--color-primary);
+  font-weight: 700;
+  line-height: 15px;
+}
+
+.mapping-progress .progress-bar__track {
+  height: 7px;
+  border-radius: 999px;
+  background: #2d2d3a;
+}
+
+.mapping-progress .progress-bar__fill {
+  border-radius: 999px;
+}
+
+.mapping-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 12px;
+}
+
+.mapping-table {
+  min-width: 850px;
+  border-radius: 12px;
+  background: #2d2d3a;
+  overflow: hidden;
+}
+
+.mapping-table__row {
+  display: grid;
+  min-height: 56px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 120px;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--color-surface-dark);
+  column-gap: 0;
+}
+
+.mapping-table__row + .mapping-table__row {
+  margin-top: 1px;
+}
+
+.mapping-table__header {
+  min-height: 37px;
+  padding-block: 12px;
+  background: #1c1c24;
+  color: #92929c;
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 13px;
+}
+
+.mapping-table__row > strong {
+  color: var(--color-white);
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.mapping-table__variable {
+  color: var(--color-primary);
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 15px;
+}
+
+.mapping-table__variable--error {
+  color: var(--color-danger);
+}
+
+.mapping-table__sample {
+  color: #92929c;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.mapping-table__status {
+  display: flex;
+  width: 120px;
+  align-items: flex-start;
+}
+
+.mapping-workspace__note {
+  gap: 8px;
+}
+
+.mapping-workspace__note p {
+  min-width: 0;
+  color: #92929c;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.mapping-actions {
+  min-height: 47px;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.mapping-actions > div {
+  gap: 12px;
+}
+
+.mapping-back-button.button,
+.mapping-save-button.button,
+.mapping-next-button.button {
+  height: 47px;
+  min-height: 47px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 23px;
+}
+
+.mapping-back-button.button,
+.mapping-save-button.button {
+  padding: 12px 20px;
+}
+
+.mapping-next-button.button {
+  gap: 8px;
+  padding: 12px 24px;
+}

@@ -1,0 +1,34 @@
+
+
+@media (max-width: 720px) {
+  .settings-main {
+    gap: 24px;
+    padding-block: 32px 56px;
+  }
+
+  .settings-title {
+    min-height: 0;
+  }
+
+  .settings-title h1 {
+    font-size: 26px;
+    line-height: 36px;
+  }
+
+  .settings-card,
+  .settings-profile,
+  .settings-notifications,
+  .settings-system {
+    height: auto;
+    padding: 24px;
+  }
+
+  .settings-profile__identity {
+    align-items: flex-start;
+  }
+
+  .toggle-switch,
+  .settings-select-list label {
+    align-items: flex-start;
+  }
+}

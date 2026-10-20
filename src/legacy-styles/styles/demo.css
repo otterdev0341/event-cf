@@ -1,0 +1,4 @@
+
+.demo-transcript { min-height: 120px; width: 100%; padding: 18px 20px; border: 1px solid #302a48; border-radius: 14px; background: #191624; }
+.demo-transcript p { margin: 0; color: #d4d4df; font-size: 14px; line-height: 1.8; }
+.demo-transcript__line > span { display: block; margin-bottom: 7px; color: #bbaaff; font: 12px 'Inter', sans-serif; }

@@ -1,0 +1,43 @@
+
+
+.bot-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.bot-avatar {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.bot-avatar img {
+  display: block;
+}
+
+.bot-identity > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bot-identity h2 {
+  color: var(--color-white);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 23px;
+  white-space: nowrap;
+}
+
+.bot-identity p {
+  color: var(--color-success);
+  font-size: 11px;
+  line-height: 17px;
+  white-space: nowrap;
+}

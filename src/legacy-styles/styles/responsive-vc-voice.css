@@ -1,0 +1,2 @@
+
+@keyframes vc-voice { from { transform: scaleY(.25); opacity: .5; } to { transform: scaleY(1); opacity: 1; } }

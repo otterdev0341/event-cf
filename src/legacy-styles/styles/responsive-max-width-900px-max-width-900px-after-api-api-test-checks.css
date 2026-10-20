@@ -1,0 +1,16 @@
+
+
+@media (max-width: 900px) {
+  .api-test-main {
+    padding-bottom: 48px;
+  }
+
+  .api-test-code-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .api-code-panel,
+  .api-code-panel--response {
+    min-height: 0;
+  }
+}

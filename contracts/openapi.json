@@ -1,0 +1,112 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Event Confirm browser API — phase 0 contract",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "/event-confirm/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "SessionCookie": []
+    }
+  ],
+  "paths": {
+    "/auth/reset/complete": {
+      "$ref": "./paths/auth-reset-complete.json"
+    },
+    "/organizations": {
+      "$ref": "./paths/organizations.json"
+    },
+    "/invitations/accept": {
+      "$ref": "./paths/invitations-accept.json"
+    },
+    "/orgs/{org}/members/{member}": {
+      "$ref": "./paths/orgs-org-members-member.json"
+    },
+    "/auth/session": {
+      "$ref": "./paths/auth-session.json"
+    },
+    "/auth/login": {
+      "$ref": "./paths/auth-login.json"
+    },
+    "/auth/logout": {
+      "$ref": "./paths/auth-logout.json"
+    },
+    "/auth/reset": {
+      "$ref": "./paths/auth-reset.json"
+    },
+    "/orgs/{org}/members": {
+      "$ref": "./paths/orgs-org-members.json"
+    },
+    "/orgs/{org}/events": {
+      "$ref": "./paths/orgs-org-events.json"
+    },
+    "/orgs/{org}/events/{event}": {
+      "$ref": "./paths/orgs-org-events-event.json"
+    },
+    "/orgs/{org}/events/{event}/knowledge": {
+      "$ref": "./paths/orgs-org-events-event-knowledge.json"
+    },
+    "/orgs/{org}/events/{event}/categories": {
+      "$ref": "./paths/orgs-org-events-event-categories.json"
+    },
+    "/orgs/{org}/events/{event}/faqs": {
+      "$ref": "./paths/orgs-org-events-event-faqs.json"
+    },
+    "/orgs/{org}/events/{event}/faqs/{faq}": {
+      "$ref": "./paths/orgs-org-events-event-faqs-faq.json"
+    },
+    "/orgs/{org}/events/{event}/publish": {
+      "$ref": "./paths/orgs-org-events-event-publish.json"
+    },
+    "/orgs/{org}/events/{event}/participants": {
+      "$ref": "./paths/orgs-org-events-event-participants.json"
+    },
+    "/orgs/{org}/events/{event}/imports": {
+      "$ref": "./paths/orgs-org-events-event-imports.json"
+    },
+    "/orgs/{org}/events/{event}/imports/{import}/commit": {
+      "$ref": "./paths/orgs-org-events-event-imports-import-commit.json"
+    },
+    "/orgs/{org}/events/{event}/queue-state": {
+      "$ref": "./paths/orgs-org-events-event-queue-state.json"
+    },
+    "/orgs/{org}/events/{event}/queue-policy": {
+      "$ref": "./paths/orgs-org-events-event-queue-policy.json"
+    },
+    "/orgs/{org}/events/{event}/runs": {
+      "$ref": "./paths/orgs-org-events-event-runs.json"
+    },
+    "/orgs/{org}/events/{event}/tickets": {
+      "$ref": "./paths/orgs-org-events-event-tickets.json"
+    },
+    "/orgs/{org}/events/{event}/tickets/{ticket}": {
+      "$ref": "./paths/orgs-org-events-event-tickets-ticket.json"
+    },
+    "/orgs/{org}/credentials": {
+      "$ref": "./paths/orgs-org-credentials.json"
+    },
+    "/orgs/{org}/credentials/{credential}/rotate": {
+      "$ref": "./paths/orgs-org-credentials-credential-rotate.json"
+    },
+    "/orgs/{org}/credentials/{credential}/revoke": {
+      "$ref": "./paths/orgs-org-credentials-credential-revoke.json"
+    },
+    "/orgs/{org}/check-pair": {
+      "$ref": "./paths/orgs-org-check-pair.json"
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "SessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "event_confirm_session"
+      }
+    }
+  }
+}

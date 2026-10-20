@@ -1,0 +1,9 @@
+
+.workspace-note { color: var(--color-body); font-size: 14px; line-height: 1.8; }
+.workspace-alert, .workspace-notice { padding: 14px 18px; border-radius: 12px; font-size: 14px; line-height: 1.7; }
+.workspace-alert { background: #fff1f2; color: #9f1239; border: 1px solid #fecdd3; }
+.workspace-notice { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.workspace-empty { padding: 60px 24px; border: 1px dashed #c4b5fd; border-radius: 20px; text-align: center; background: white; }
+.workspace-empty h2 { margin-top: 0; }
+.workspace-empty p { color: var(--color-body); }
+.workspace-select { width: 100%; max-width: 100%; padding: 10px; border: 1px solid var(--color-border-light); border-radius: 8px; background: white; color: var(--color-heading); font: inherit; font-size: 13px; }

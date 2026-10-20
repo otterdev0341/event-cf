@@ -1,0 +1,15 @@
+
+
+.site-header {
+  height: 80px;
+  border-bottom: 1px solid var(--color-border-dark);
+  background: var(--color-header);
+}
+
+.site-header__inner {
+  display: flex;
+  height: 79px;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 16px;
+}

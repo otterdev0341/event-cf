@@ -1,0 +1,91 @@
+
+
+.contact-checkbox span {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid #d4d4d8;
+  border-radius: 4px;
+  background: var(--color-white);
+}
+
+.contact-checkbox input:checked + span {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.contact-checkbox input:focus-visible + span {
+  outline: 3px solid rgba(124, 92, 255, 0.35);
+  outline-offset: 2px;
+}
+
+.contact-checkbox img {
+  display: block;
+}
+
+.contact-table__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.contact-detail-button {
+  padding: 6px 0;
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  text-decoration: none;
+}
+
+.contact-retry-button {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 6px;
+  background: var(--color-white);
+  color: var(--color-body);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.contact-retry-button img {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.contact-empty-state {
+  margin: 24px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.contact-call-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.contact-call-button.button {
+  height: 48px;
+  min-height: 48px;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.contact-call-button.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}

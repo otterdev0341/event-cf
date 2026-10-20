@@ -1,0 +1,18 @@
+
+
+.create-campaign-button.button {
+  width: 154px;
+  height: 47px;
+  min-height: 47px;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 23px;
+}
+
+.create-campaign-button img,
+.campaign-action img {
+  display: block;
+  flex: 0 0 auto;
+}

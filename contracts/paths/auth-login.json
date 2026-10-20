@@ -1,0 +1,65 @@
+{
+  "post": {
+    "operationId": "post-auth-login",
+    "summary": "POST /auth/login",
+    "security": [],
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "password": {
+                "type": "string",
+                "minLength": 8
+              }
+            },
+            "required": [
+              "email",
+              "password"
+            ]
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Success",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "../schemas/sessionSchema.json"
+            }
+          }
+        }
+      },
+      "default": {
+        "description": "401/403/404/409/422/429/503 error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

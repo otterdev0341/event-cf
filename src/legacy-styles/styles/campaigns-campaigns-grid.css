@@ -1,0 +1,9 @@
+
+
+.campaigns-grid {
+  display: flex;
+  height: 831px;
+  flex: 0 0 831px;
+  flex-direction: column;
+  gap: 24px;
+}
