@@ -16,7 +16,9 @@ exercise expired/invalid states. These strings are omitted from production bundl
 
 `npm run dev` uses real HTTP endpoints with no fallback. `npm run build` emits a
 production build that expects the P6+ API. `vite build --mode mock` is rejected.
-The new workspace is not deployed by the current readiness-only Dockerfile.
+Jenkins packages the checked production build into the project nginx image.
+Public routes serve the frontend; API requests return JSON 503 until the P6+ backend
+is deployed. Development credentials do not authenticate against that public API.
 
 ## Checks
 

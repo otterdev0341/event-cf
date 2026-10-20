@@ -38,7 +38,7 @@ pipeline {
                 }
             }
         }
-        stage('Build foundation') {
+        stage('Build frontend image') {
             steps {
                 sh '''
                     flock -x "$DOCKER_LOCK_FILE" docker buildx build --builder otter-shared-ci \
@@ -51,7 +51,7 @@ pipeline {
                 '''
             }
         }
-        stage('Deploy foundation') {
+        stage('Deploy frontend') {
             steps { sh 'flock -x "$DOCKER_LOCK_FILE" bash scripts/ci/deploy.sh' }
         }
         stage('Public smoke') {

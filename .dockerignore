@@ -2,3 +2,6 @@
 !infra/
 !infra/Dockerfile
 !infra/nginx.conf
+!frontend/
+!frontend/dist/
+!frontend/dist/**
