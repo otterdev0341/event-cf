@@ -1,0 +1,49 @@
+@startuml
+!pragma layout smetana
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 16
+skinparam dpi 150
+skinparam componentStyle rectangle
+top to bottom direction
+title Event Confirm — Deployment foundation
+caption Infrastructure only. Application rewrite, credentials, database setup and scheduled calls remain pending.
+
+actor "Public client" as User
+cloud "otterdev.xyz\nHTTPS ingress" as Public
+node "Shared edge service\nshared-edge-nginx" as Edge #EAF2FF {
+  component "Exact /event-confirm -> 308\nPrefix /event-confirm/* -> proxy\nX-Shared-Edge-Route: event-confirm" as Route
+}
+node "Project runtime\nCompose: event-confirm" as Runtime #E7F5ED {
+  component "nginx readiness service\nHost port 18346\nLoopback + Docker bridge" as Nginx
+  artifact "event-confirm/web:jenkins-N" as Image
+}
+cloud "GitHub\notterdev0341/event-cf\nmain" as Git
+node "Jenkins\nevent-confirm job" as CI #F1F5FA {
+  component "Capacity + owned cleanup\nBuild + nginx validation\nDeploy + local/public smoke\nPost cleanup" as Pipeline
+}
+node "Shared CI builder\notter-shared-ci" as Builder #FFF8DF {
+  component "BuildKit\nOne parallel build step\nCentral cache GC" as BuildKit
+}
+User --> Public : HTTPS
+Public --> Route
+Route --> Nginx : HTTP / prefix preserved
+Git --> Pipeline : SCM polling
+Pipeline --> BuildKit : shared Docker lock
+BuildKit --> Image : immutable build tag
+Pipeline --> Runtime : Compose deploy / rollback
+Image --> Nginx
+note bottom of Nginx
+  0.25 CPU / 64 MiB RAM / no extra swap
+  64 PIDs / logs 5 MiB x 2
+  /event-confirm/healthz: 200
+  /event-confirm/api/*: JSON 503
+  Other project paths: readiness message
+end note
+note bottom of Pipeline
+  Disk gate: 20 GiB + 10% free + 10% free inodes
+  Keep deployed + rollback + referenced images
+  Preserve all volumes and shared caches
+end note
+@enduml

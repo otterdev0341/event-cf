@@ -125,5 +125,8 @@ Budget นี้สำหรับ readiness nginx เท่านั้น ต�
 6. เพิ่ม app build/tests และ publish reports ก่อน cleanup ใน Jenkins; foundation smoke
    ไม่ใช่หลักฐานว่า login, โทร, callback หรือ database ทำงาน
 
-ไฟล์ diagram เป็น JPG และมี [render.py](diagrams/render.py) สำหรับสร้างใหม่
+ไฟล์ diagram เป็น JPG ที่ render จาก PlantUML:
+[application](diagrams/application-architecture.puml) และ
+[deployment](diagrams/deployment-foundation.puml)
+ใช้ [render.py](diagrams/render.py) เรียก PlantUML แล้วแปลงเป็น JPG สำหรับสร้างใหม่
 การเปลี่ยนเอกสารรอบนี้ยังไม่เปลี่ยน application behavior หรือ migration

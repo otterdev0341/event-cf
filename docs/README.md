@@ -7,10 +7,22 @@
 - [Deployment foundation — JPG](diagrams/deployment-foundation.jpg)
 - [การ deploy บน Otter host และนโยบาย resource/cleanup](HOST_DEPLOYMENT.md)
 
-ภาพเป็น JPG ขนาด 1800 × 1100 เปิดด้วย image viewer จาก terminal ได้
+ภาพเป็น JPG ที่ render จาก PlantUML มาตรฐาน เปิดด้วย image viewer จาก terminal ได้
 เช่น `kitten icat docs/diagrams/application-architecture.jpg` เมื่อใช้ Kitty
 หรือ `chafa docs/diagrams/application-architecture.jpg` หากติดตั้ง chafa แล้ว
-สร้างภาพใหม่ด้วย `python3 docs/diagrams/render.py` (ต้องมี Pillow และ DejaVu Sans)
+ต้นฉบับ: [application-architecture.puml](diagrams/application-architecture.puml)
+และ [deployment-foundation.puml](diagrams/deployment-foundation.puml)
+
+สร้างภาพใหม่ด้วย:
+
+```bash
+python3 docs/diagrams/render.py /path/to/plantuml.jar
+```
+
+ต้องมี Java, [PlantUML](https://plantuml.com/command-line), Pillow และ DejaVu Sans
+ใช้ Smetana layout engine จึงไม่ต้องติดตั้ง Graphviz เพิ่ม ตัว script ให้ PlantUML
+render PNG แล้วแปลง format เป็น JPG โดยไม่จัดวางหรือวาด diagram เอง
+ไม่ส่ง source ไปยัง online renderer และไม่เก็บ JAR ไว้ใน Git
 
 เอกสารรายฟีเจอร์เดิม:
 
