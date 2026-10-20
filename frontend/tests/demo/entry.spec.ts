@@ -13,3 +13,25 @@ test('built public demo opens sample workspace without credentials or backend', 
   await page.reload();
   await expect(page.getByRole('button', { name: 'เข้าสู่ workspace ตัวอย่าง' })).toBeVisible();
 });
+
+test('organization stays in topbar while its events navigate from the sidebar', async ({ page }) => {
+  await page.goto('');
+  await page.getByRole('button', { name: 'เข้าสู่ workspace ตัวอย่าง' }).click();
+  const org = page.locator('.topbar').getByRole('combobox', { name: 'Organization', exact: true });
+  const events = page.getByRole('navigation', { name: 'Organization events', exact: true });
+  await expect(page.locator('.topbar').getByRole('combobox')).toHaveCount(1);
+  await events.getByRole('link', { name: 'Designing what comes next' }).click();
+  await expect(page).toHaveURL(/\/orgs\/studio\/events\/design-2026$/);
+  await org.selectOption('community');
+  await expect(events.getByRole('link', { name: 'Designing what comes next' })).toHaveCount(0);
+  await events.getByRole('link', { name: 'Community open day' }).click();
+  await expect(page).toHaveURL(/\/orgs\/community\/events\/community-day$/);
+  await expect(events.getByRole('link', { name: 'Community open day' })).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'เปิดเมนู', exact: true }).click();
+  await events.getByRole('link', { name: 'Community open day' }).click();
+  await expect(events).not.toBeVisible();
+});

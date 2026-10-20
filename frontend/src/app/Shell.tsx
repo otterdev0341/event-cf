@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { EventNavigation } from './EventNavigation';
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -64,6 +65,17 @@ export function Shell() {
         <Button className="mobile-menu" aria-label="ปิดเมนู" onClick={toggleNav}>
           <X size={18} />
         </Button>
+        <EventNavigation
+          orgId={orgId}
+          eventId={eventId}
+          events={events.data ?? []}
+          pending={events.isPending}
+          failed={events.isError}
+          onSelect={(id) => {
+            selectEvent(id);
+            if (mobileNav) toggleNav();
+          }}
+        />
         <p className="nav-group">WORKSPACE</p>
         <nav aria-label="Main navigation">
           {links.map(([path, label, Icon]) => (
@@ -104,15 +116,6 @@ export function Shell() {
             {session.data.organizations.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.name}
-              </option>
-            ))}
-          </select>
-          <span className="text-line">/</span>
-          <select aria-label="Current event" value={eventId} onChange={(e) => selectEvent(e.target.value)}>
-            {!events.data?.length && <option value="">เลือก Event</option>}
-            {events.data?.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
               </option>
             ))}
           </select>
