@@ -79,3 +79,13 @@ Real provider authentication/callback mapping, recording adapter and legacy data
 are not enabled. Schedule backend is available through the browser API/Swagger, but its
 frontend UI has not yet been ported. Historical run pagination and FAQ search are not exposed.
 Production load, off-host restore and real provider acceptance remain separate release gates.
+
+## Provisioned team test workspace
+
+Verified on the public deployment from Jenkins #17 (`e7dd1fe`).
+Org: `33429690-7f4d-47f1-b10a-0bb7dfe37bb5`.
+Event: `c20c2048-0b86-471d-9d3f-13b8b00e6e5d`.
+The queue is paused, with one completed smoke participant and one ready synthetic
+participant. Use action `resume`, poll for an accepted attempt, submit its final result,
+then pause. The private credential pair expires on 2027-01-31; it is not in Git.
+Use an explicit application User-Agent for scripted requests through the public edge.

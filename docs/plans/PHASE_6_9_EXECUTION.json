@@ -1,6 +1,6 @@
 {
   "updated": "2026-10-21",
-  "publicMode": "integration_deployment_pending",
+  "publicMode": "integration_live",
   "queue": {
     "newWeight": "1..100",
     "retryWeight": "1..100",
@@ -23,11 +23,11 @@
     },
     {
       "id": "P7b",
-      "status": "expanded_local_acceptance_passed_jenkins_pending"
+      "status": "expanded_jenkins_and_public_acceptance_passed"
     },
     {
       "id": "P8",
-      "status": "integration_deployment_prepared"
+      "status": "integration_deployed_production_gates_pending"
     },
     {
       "id": "P9",
@@ -35,19 +35,21 @@
     }
   ],
   "validation": {
-    "jenkinsBuild": 14,
-    "commit": "55e2295",
+    "jenkinsBuild": 17,
+    "commit": "e7dd1fe",
     "result": "SUCCESS",
-    "junitPassed": 45,
+    "junitPassed": 54,
     "junitFailed": 0,
-    "publicDemoSmoke": "passed",
     "latestLocal": {
       "rustScenarios": 16,
       "groovyScenarios": 12,
       "realBrowserScenarios": 3,
       "frontendUnit": 21,
       "legacyFixtureChecks": 50
-    }
+    },
+    "junitSkipped": 0,
+    "publicApiAcceptance": "passed",
+    "publicBrowserAcceptance": "passed"
   },
   "requiredInput": [
     "Legacy database/export and explicit owner-to-org/event mapping",

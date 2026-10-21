@@ -19,12 +19,11 @@ A higher limit does not silently restart stopped participants.
 | P6 | ntex/SeaORM backend, checksum migrations, Argon2 bounded hashing, session cookies, org/event permissions, event/FAQ CRUD and publish, invitation/reset tokens, mail outbox; real browser login/settings/category test | Focused pool/shutdown/security tests passed; sustained-load and full feature UI acceptance remain. Email provider deferred by owner |
 | P7 | Four ticket stages, multi-member assignment, version conflicts; paired hashed credentials, rotation/revocation; scoped Agent event/categories/published FAQ/participants/queue/result/ticket routes; transactional idempotency | Provider-specific callback authentication and full scope matrix; API/worker operational hardening |
 | P7a | Validated row import/commit with lang_code, durable X:Y dispatch, max retry/cooldown, uncertain-call reconciliation, late final result handling, active capacity bound | Actual provider adapter and signed callback mapping; rejection/reconciliation operator workflow; provider acceptance with authorized test number |
-| P7b | Pinned Gradle wrapper + Groovy/Spock HTTP acceptance, PostgreSQL Rust integration, real frontend/backend browser test, Jenkins blocking stage and report-before-cleanup ordering; expanded local HTTP/browser acceptance passed; Jenkins #15 in progress | Extend suite to every remaining production gate |
-| P8 | Persistent integration compose/API/nginx, simulated provider, runtime secrets provisioned, non-root images, resource budgets, rollback tags; Jenkins deployment in progress | Public acceptance evidence; real-provider/production load, off-host restore, monitoring and rollback rehearsal remain separate |
+| P7b | Pinned Gradle wrapper + Groovy/Spock HTTP acceptance, PostgreSQL Rust integration, real frontend/backend browser test, Jenkins blocking stage and report-before-cleanup ordering; expanded HTTP/browser acceptance passed in Jenkins #17 | Extend suite to every remaining production gate |
+| P8 | Persistent integration compose/API/nginx, simulated provider, runtime secrets provisioned, non-root images, resource budgets, rollback tags; Jenkins #17 deployed and public API/browser acceptance passed | real-provider/production load, off-host restore, monitoring and rollback rehearsal remain separate |
 | P9 | Rust schedule backend ported with Bangkok time/explicit redial/history tests; legacy scheduler/recording code preserved; 50 legacy fixture checks passed | Schedule UI, recording adapter/parity, legacy source/export and owner→org/event mapping; migration before retiring old paths |
 
-**P6–P9 production gates are not declared complete.** Integration deployment is in
-progress on the existing Otter host, with simulated calling and email delivery disabled.
+**P6–P9 production gates are not declared complete.** Integration deployment is live on the existing Otter host, with simulated calling and email delivery disabled.
 No real call, real email, AWS resource creation or legacy data deletion has occurred.
 
 ## Validation commands
@@ -131,7 +130,7 @@ they do not prove those journeys have been ported to the Rust backend.
 - Initial browser/Groovy failures were test harness issues (ambiguous parent-label selector
   and assignments inside Spock polling); fixed before evaluating product behavior.
 
-Deployment revision, final suite totals and public smoke evidence will be recorded after CI.
+Deployment evidence is recorded below.
 
 - FIFO regression added: tied import timestamps previously fell back to UUID sorting.
   Migration 005 adds a durable enqueue sequence, used by dispatch and participant listing.
@@ -139,3 +138,26 @@ Deployment revision, final suite totals and public smoke evidence will be record
 - Owner authorized removal of Tandem Docker resources to unblock shared disk guard.
   Removed six stopped Tandem containers and three Tandem images; retained named volumes.
   Root free space rose from approximately 45 to 55 GiB before Jenkins #15 started.
+
+- Jenkins #15 failed before deployment because repeated Java HTTP clients exhausted the
+  128-process test-container limit. Clients now close after each Spock case and the JVM
+  uses one active processor with Serial GC. All 12 API cases passed under the exact
+  CI CPU/memory/PID limits. Build #16 was stopped before repeating the known failure;
+  #17 passed commit `e7dd1fe` with the corrected harness.
+
+## Verified integration deployment
+
+- Jenkins event-confirm #17: SUCCESS, deployed commit `e7dd1fe` on 2026-10-21 UTC.
+- Published JUnit: 54 passed, zero failures/skips (21 unit, 12 browser preview,
+  6 demo, 3 real-backend browser, 12 Groovy). Rust: 16 PostgreSQL scenarios passed.
+- Public API and browser acceptance passed at https://otterdev.xyz/event-confirm/.
+  Login, event deep link, Settings reload and Swagger rendered successfully.
+- Public synthetic flow verified import without dispatch, simulated provider acceptance,
+  confirm with ticket, replay without duplicate attempt/ticket, and paused queue afterwards.
+- Team test org: `33429690-7f4d-47f1-b10a-0bb7dfe37bb5`;
+  event: `c20c2048-0b86-471d-9d3f-13b8b00e6e5d`. One synthetic participant is ready;
+  use Agent runs action `resume` to continue. Credentials are delivered privately.
+- Python's default User-Agent received a public-edge 403; the explicit acceptance
+  User-Agent succeeded. curl and browser requests also passed without edge changes.
+- Calling is simulated; email remains disabled. These results do not close the
+  remaining production and legacy gates listed above.
