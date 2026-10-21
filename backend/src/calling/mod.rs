@@ -26,7 +26,7 @@ pub async fn handle(
             imports::commit(db, org, event, tail[1]).await
         }
         ("participants", "GET") => {
-            let rows=db::rows(db,"SELECT data,lane,state,id FROM participants WHERE org_id=$1 AND event_id=$2 ORDER BY id",vec![org.into(),event.into()]).await?;
+            let rows=db::rows(db,"SELECT data,lane,state,id FROM participants WHERE org_id=$1 AND event_id=$2 ORDER BY enqueue_seq",vec![org.into(),event.into()]).await?;
             let mut values = Vec::new();
             for row in rows {
                 let mut value: Value = db::get(&row, "data")?;

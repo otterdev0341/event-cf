@@ -42,7 +42,7 @@
     "junitFailed": 0,
     "publicDemoSmoke": "passed",
     "latestLocal": {
-      "rustScenarios": 15,
+      "rustScenarios": 16,
       "groovyScenarios": 12,
       "realBrowserScenarios": 3,
       "frontendUnit": 21,

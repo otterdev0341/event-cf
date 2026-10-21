@@ -16,16 +16,16 @@ A higher limit does not silently restart stopped participants.
 
 | Phase | Implemented in this checkout | Still required for completion |
 |---|---|---|
-| P6 | ntex/SeaORM backend, checksum migrations, Argon2 bounded hashing, session cookies, org/event permissions, event/FAQ CRUD and publish, invitation/reset tokens, mail outbox; real browser login/settings/category test | Complete security/load/pool exhaustion/shutdown acceptance; configure and test actual mail adapter; full feature UI acceptance |
-| P7 | Four ticket stages, multi-member assignment, version conflicts; paired hashed credentials, rotation/revocation; scoped Agent published FAQ/participants/run/result/ticket routes; transactional idempotency | Provider-specific callback authentication and full scope matrix; API/worker operational hardening |
+| P6 | ntex/SeaORM backend, checksum migrations, Argon2 bounded hashing, session cookies, org/event permissions, event/FAQ CRUD and publish, invitation/reset tokens, mail outbox; real browser login/settings/category test | Focused pool/shutdown/security tests passed; sustained-load and full feature UI acceptance remain. Email provider deferred by owner |
+| P7 | Four ticket stages, multi-member assignment, version conflicts; paired hashed credentials, rotation/revocation; scoped Agent event/categories/published FAQ/participants/queue/result/ticket routes; transactional idempotency | Provider-specific callback authentication and full scope matrix; API/worker operational hardening |
 | P7a | Validated row import/commit with lang_code, durable X:Y dispatch, max retry/cooldown, uncertain-call reconciliation, late final result handling, active capacity bound | Actual provider adapter and signed callback mapping; rejection/reconciliation operator workflow; provider acceptance with authorized test number |
-| P7b | Pinned Gradle wrapper + Groovy/Spock HTTP acceptance, PostgreSQL Rust integration, real frontend/backend browser test, Jenkins blocking stage and report-before-cleanup ordering; Jenkins #14 passed | Extend suite to every remaining production gate |
-| P8 | Backend/DB/worker/mailer compose budgets, non-root runtime Dockerfile, off-host backup script, isolated restore-rehearsal script | Lightsail host/region, secrets and mail/provider choice, off-host restore evidence, production image/load/monitoring/rollback rehearsal, actual cutover |
-| P9 | Legacy scheduler/recording code preserved; 31 scheduler + 8 audio repair + 11 callback fixture checks passed | Confirm legacy source/export and owner→org mapping; port recurring-run/recording journeys and test parity; migrate/reconcile data before retiring old paths |
+| P7b | Pinned Gradle wrapper + Groovy/Spock HTTP acceptance, PostgreSQL Rust integration, real frontend/backend browser test, Jenkins blocking stage and report-before-cleanup ordering; expanded local HTTP/browser acceptance passed; Jenkins #15 in progress | Extend suite to every remaining production gate |
+| P8 | Persistent integration compose/API/nginx, simulated provider, runtime secrets provisioned, non-root images, resource budgets, rollback tags; Jenkins deployment in progress | Public acceptance evidence; real-provider/production load, off-host restore, monitoring and rollback rehearsal remain separate |
+| P9 | Rust schedule backend ported with Bangkok time/explicit redial/history tests; legacy scheduler/recording code preserved; 50 legacy fixture checks passed | Schedule UI, recording adapter/parity, legacy source/export and owner→org/event mapping; migration before retiring old paths |
 
-**P6–P9 are not declared complete.** The public website is still the authorized
-mock-data demo. No production database migration, real call, real email, AWS resource
-creation or legacy data deletion has occurred.
+**P6–P9 production gates are not declared complete.** Integration deployment is in
+progress on the existing Otter host, with simulated calling and email delivery disabled.
+No real call, real email, AWS resource creation or legacy data deletion has occurred.
 
 ## Validation commands
 
@@ -40,7 +40,7 @@ creation or legacy data deletion has occurred.
 - CI: scripts/ci/backend-container.sh creates named build-owned disposable containers,
   runs Rust, Groovy and real-browser acceptance, and removes only its own test resources.
 
-## Local evidence
+## Historical local evidence before this iteration
 
 - 21 frontend unit checks, 6 demo browser cases and 1 real API/browser flow passed.
 - 6 PostgreSQL integration scenarios and 5 Groovy HTTP workflows passed.
@@ -48,7 +48,7 @@ creation or legacy data deletion has occurred.
   all 21 restored queue policies were paused. Off-host AWS restore is not yet verified.
 - 50 legacy fixture checks passed without live provider calls.
 
-## Jenkins and deployment evidence
+## Historical Jenkins #14 deployment evidence
 
 - Jenkins event-confirm #14 succeeded for commit `55e2295`: 45 published JUnit
   checks passed, zero failures/skips; PostgreSQL Rust scenarios also passed and
@@ -59,7 +59,7 @@ creation or legacy data deletion has occurred.
   event category tabs and Swagger UI. This deployed the demo frontend, not a
   production backend or enabled calling worker.
 
-## Cutover checklist
+## Remaining production cutover checklist
 
 1. Obtain target Lightsail host/region and approved secret store.
 2. Select actual provider and mail adapters; verify their idempotency/reconciliation
@@ -82,7 +82,7 @@ recording playback/download/repair and provider recording association remain req
 until the owner explicitly decides otherwise. Existing fixture tests establish a baseline;
 they do not prove those journeys have been ported to the Rust backend.
 
-## Additional acceptance work (2026-10-21)
+## Earlier hardening acceptance (2026-10-21)
 
 - Rust suite now passes 12 scenarios locally, including role/event authorization,
   membership removal, five-slot pool exhaustion/recovery, bounded hashing,
@@ -100,7 +100,7 @@ they do not prove those journeys have been ported to the Rust backend.
   production cutover and legacy migration remain open. These focused tests do not
   declare P6–P9 complete.
 
-## Owner-directed integration delivery (2026-10-21, in progress)
+## Current owner-directed integration delivery (2026-10-21)
 
 - Owner authorized continuing P2–P5/P7/P7a/P7b/P8/P9 and updating P0–P1 documents.
   Email provider is explicitly deferred; do not treat it as an integration deployment blocker.
@@ -132,3 +132,10 @@ they do not prove those journeys have been ported to the Rust backend.
   and assignments inside Spock polling); fixed before evaluating product behavior.
 
 Deployment revision, final suite totals and public smoke evidence will be recorded after CI.
+
+- FIFO regression added: tied import timestamps previously fell back to UUID sorting.
+  Migration 005 adds a durable enqueue sequence, used by dispatch and participant listing.
+  The test forces opposite ID order and verifies original row order through completed attempts.
+- Owner authorized removal of Tandem Docker resources to unblock shared disk guard.
+  Removed six stopped Tandem containers and three Tandem images; retained named volumes.
+  Root free space rose from approximately 45 to 55 GiB before Jenkins #15 started.

@@ -39,7 +39,7 @@ pub async fn claim(db: &DatabaseConnection) -> Result<Option<Claim>> {
     let cap: i32 = db::get(queue, "max_retries")?;
     db::exec(&tx,"UPDATE participants SET state='stopped' WHERE event_id=$1 AND state IN ('ready','delayed') AND attempt_count-cycle_base >= $2",vec![event.clone().into(),(cap+1).into()]).await?;
     let lane = if turn < new { "new" } else { "fail" };
-    let people=db::rows(&tx,"SELECT * FROM participants WHERE event_id=$1 AND state IN ('ready','delayed') AND eligible_at<=now() AND attempt_count-cycle_base<$2 AND NOT EXISTS(SELECT 1 FROM schedules s WHERE s.event_id=participants.event_id AND s.status='running' AND NOT (s.data->'participantIds' ? participants.id)) ORDER BY (lane=$3) DESC,eligible_at,id FOR UPDATE SKIP LOCKED LIMIT 1",vec![event.clone().into(),(cap+1).into(),lane.into()]).await?;
+    let people=db::rows(&tx,"SELECT * FROM participants WHERE event_id=$1 AND state IN ('ready','delayed') AND eligible_at<=now() AND attempt_count-cycle_base<$2 AND NOT EXISTS(SELECT 1 FROM schedules s WHERE s.event_id=participants.event_id AND s.status='running' AND NOT (s.data->'participantIds' ? participants.id)) ORDER BY (lane=$3) DESC,eligible_at,enqueue_seq FOR UPDATE SKIP LOCKED LIMIT 1",vec![event.clone().into(),(cap+1).into(),lane.into()]).await?;
     let Some(person) = people.first() else {
         tx.commit().await?;
         return Ok(None);

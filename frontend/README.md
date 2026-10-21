@@ -1,4 +1,4 @@
-# Event Confirm workspace — Phase 0–5
+# Event Confirm workspace
 
 React + TypeScript + Vite + Tailwind + Zustand. UI state in Zustand; server state in
 TanStack Query; feature services parse DTOs with Zod. Features expose public index.ts.
@@ -69,14 +69,12 @@ Data persists in PostgreSQL; the configured provider only simulates dispatch acc
 Mail delivery is explicitly deferred by the owner. Default `npm run build` remains
 mock-free. Demo builds remain available for regression tests, not automatic fallbacks.
 
-## Public UI demo
+## Historical public UI demo
 
-The owner requested public mock browsing before backend implementation. Jenkins now
-checks the real-API production build, then packages `npm run build:demo` and tests
-that built artifact. The public entry button opens in-memory sample data without
-credentials. This is not authentication; edits reset on reload, no calls/email are
-sent, and no user data is shared between browsers. `npm run build` remains the
-mock-free real-API build for the eventual backend cutover.
+Before backend integration, the owner authorized public mock browsing. `build:demo`
+remains an explicit regression/preview mode: its data is browser-local and resets on reload.
+The integration deployment now packages `build:integration`, which uses real authentication,
+real API calls and persistent PostgreSQL data. The two modes must not be confused.
 
 ## Operations UI extension
 
