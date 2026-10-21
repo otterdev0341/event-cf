@@ -15,7 +15,9 @@ cleanup() {
   docker network rm "$network" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
-docker network create --label ci.project=event-confirm "$network" >/dev/null
+# Small dedicated CI subnet; Docker rejects overlaps rather than reusing a live network.
+docker network create --subnet "${EVENT_CONFIRM_CI_SUBNET:-10.203.45.0/28}" \
+  --label ci.project=event-confirm "$network" >/dev/null
 docker run -d --name "$db" --network "$network" --network-alias db \
   --label ci.project=event-confirm --label ci.purpose=validation \
   --cpus=.5 --memory=256m --memory-swap=256m --pids-limit=100 \
