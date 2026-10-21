@@ -31,7 +31,7 @@
     },
     {
       "id": "P9",
-      "status": "schedule_backend_ported_recording_ui_migration_pending"
+      "status": "schedule_ui_and_recording_integration_local_passed_deployment_pending"
     }
   ],
   "validation": {
@@ -41,9 +41,9 @@
     "junitPassed": 54,
     "junitFailed": 0,
     "latestLocal": {
-      "rustScenarios": 16,
-      "groovyScenarios": 12,
-      "realBrowserScenarios": 3,
+      "rustScenarios": 20,
+      "groovyScenarios": 14,
+      "realBrowserScenarios": 5,
       "frontendUnit": 21,
       "legacyFixtureChecks": 50
     },

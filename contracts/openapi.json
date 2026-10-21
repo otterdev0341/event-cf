@@ -132,6 +132,18 @@
     },
     "/agent/orgs/{org}/events/{event}/calls/{attempt}/result": {
       "$ref": "./paths/agent-orgs-org-events-event-calls-attempt-result.json"
+    },
+    "/orgs/{org}/events/{event}/calls/{attempt}/recording": {
+      "$ref": "./paths/orgs-org-events-event-calls-attempt-recording.json"
+    },
+    "/orgs/{org}/events/{event}/calls/{attempt}/recording/audio": {
+      "$ref": "./paths/orgs-org-events-event-calls-attempt-recording-audio.json"
+    },
+    "/agent/orgs/{org}/events/{event}/calls/{attempt}/recording": {
+      "$ref": "./paths/agent-orgs-org-events-event-calls-attempt-recording.json"
+    },
+    "/agent/orgs/{org}/events/{event}/calls/{attempt}/recording/audio": {
+      "$ref": "./paths/agent-orgs-org-events-event-calls-attempt-recording-audio.json"
     }
   },
   "components": {

@@ -6,6 +6,8 @@ for path in /event-confirm/ /event-confirm/nested/path; do
   curl -fsS --max-time 15 "$base$path" | grep -q '<title>Event Confirm'
 done
 [[ "$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "$base/event-confirm/api/v1/auth/session")" == 401 ]]
+[[ "$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "$base/event-confirm/api/v1/orgs/smoke/events/smoke/calls/smoke/recording")" == 401 ]]
+[[ "$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "$base/event-confirm/api/v1/agent/orgs/smoke/events/smoke/calls/smoke/recording/audio")" == 401 ]]
 html=$(curl -fsS --max-time 15 "$base/event-confirm/")
 asset=$(sed -n 's/.*src="\([^"]*\.js\)".*/\1/p' <<< "$html" | head -1)
 [[ "$asset" == /event-confirm/assets/* ]]

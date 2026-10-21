@@ -27,7 +27,7 @@ pub async fn claim(db: &DatabaseConnection) -> Result<Option<Claim>> {
         tx.commit().await?;
         return Ok(None);
     }
-    let queues=db::rows(&tx,"SELECT q.* FROM queue_policy q JOIN events e ON e.id=q.event_id WHERE q.status='running' AND e.data->>'status'<>'archived' AND EXISTS(SELECT 1 FROM participants p WHERE p.event_id=q.event_id AND p.state IN ('ready','delayed') AND p.eligible_at<=now() AND p.attempt_count-p.cycle_base<=q.max_retries AND NOT EXISTS(SELECT 1 FROM schedules s WHERE s.event_id=p.event_id AND s.status='running' AND NOT (s.data->'participantIds' ? p.id))) AND NOT EXISTS(SELECT 1 FROM attempts a WHERE a.event_id=q.event_id AND a.status IN ('reserved','uncertain','accepted')) ORDER BY q.event_id FOR UPDATE OF q SKIP LOCKED LIMIT 1",vec![]).await?;
+    let queues=db::rows(&tx,"SELECT q.* FROM queue_policy q JOIN events e ON e.id=q.event_id WHERE q.status='running' AND e.data->>'status'<>'archived' AND EXISTS(SELECT 1 FROM participants p WHERE p.event_id=q.event_id AND p.state IN ('ready','delayed') AND p.eligible_at<=now() AND p.attempt_count-p.cycle_base<=q.max_retries AND NOT EXISTS(SELECT 1 FROM schedules s WHERE s.event_id=p.event_id AND s.status='running' AND NOT (s.active_participant_ids ? p.id))) AND NOT EXISTS(SELECT 1 FROM attempts a WHERE a.event_id=q.event_id AND a.status IN ('reserved','uncertain','accepted')) ORDER BY q.event_id FOR UPDATE OF q SKIP LOCKED LIMIT 1",vec![]).await?;
     let Some(queue) = queues.first() else {
         tx.commit().await?;
         return Ok(None);
@@ -39,7 +39,7 @@ pub async fn claim(db: &DatabaseConnection) -> Result<Option<Claim>> {
     let cap: i32 = db::get(queue, "max_retries")?;
     db::exec(&tx,"UPDATE participants SET state='stopped' WHERE event_id=$1 AND state IN ('ready','delayed') AND attempt_count-cycle_base >= $2",vec![event.clone().into(),(cap+1).into()]).await?;
     let lane = if turn < new { "new" } else { "fail" };
-    let people=db::rows(&tx,"SELECT * FROM participants WHERE event_id=$1 AND state IN ('ready','delayed') AND eligible_at<=now() AND attempt_count-cycle_base<$2 AND NOT EXISTS(SELECT 1 FROM schedules s WHERE s.event_id=participants.event_id AND s.status='running' AND NOT (s.data->'participantIds' ? participants.id)) ORDER BY (lane=$3) DESC,eligible_at,enqueue_seq FOR UPDATE SKIP LOCKED LIMIT 1",vec![event.clone().into(),(cap+1).into(),lane.into()]).await?;
+    let people=db::rows(&tx,"SELECT * FROM participants WHERE event_id=$1 AND state IN ('ready','delayed') AND eligible_at<=now() AND attempt_count-cycle_base<$2 AND NOT EXISTS(SELECT 1 FROM schedules s WHERE s.event_id=participants.event_id AND s.status='running' AND NOT (s.active_participant_ids ? participants.id)) ORDER BY (lane=$3) DESC,eligible_at,enqueue_seq FOR UPDATE SKIP LOCKED LIMIT 1",vec![event.clone().into(),(cap+1).into(),lane.into()]).await?;
     let Some(person) = people.first() else {
         tx.commit().await?;
         return Ok(None);

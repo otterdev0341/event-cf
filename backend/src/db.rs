@@ -44,6 +44,7 @@ pub async fn migrate(db: &sea_orm::DatabaseConnection) -> Result<()> {
         (3, include_str!("../migrations/003_schedules.sql")),
         (4, include_str!("../migrations/004_dispatch_lane.sql")),
         (5, include_str!("../migrations/005_enqueue_order.sql")),
+        (6, include_str!("../migrations/006_schedule_recipients.sql")),
     ] {
         let digest = crate::auth::password::digest(source);
         let applied = rows(

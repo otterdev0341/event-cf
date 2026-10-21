@@ -10,6 +10,7 @@ const schemas = {
   events: ['eventInputSchema', 'eventSchema', 'faqInputSchema', 'faqSchema', 'knowledgeSchema', 'eventPatchSchema', 'faqUpdateSchema', 'knowledgeImportSchema'],
   calling: ['outcomeSchema', 'participantSchema', 'queueSchema', 'importRowSchema', 'importPreviewSchema'],
   tickets: ['ticketInputSchema', 'ticketSchema'],
+  schedules: ['scheduleRuleSchema', 'scheduleSchema'],
   credentials: ['credentialSchema', 'credentialInputSchema', 'issuedSchema'],
 };
 {

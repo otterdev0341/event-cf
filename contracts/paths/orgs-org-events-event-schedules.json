@@ -28,7 +28,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "object"
+                "$ref": "../schemas/scheduleSchema.json"
               }
             }
           }
@@ -91,56 +91,7 @@
       "content": {
         "application/json": {
           "schema": {
-            "type": "object",
-            "properties": {
-              "date": {
-                "type": "string",
-                "format": "date"
-              },
-              "time": {
-                "type": "string"
-              },
-              "recurrence": {
-                "enum": [
-                  "once",
-                  "daily",
-                  "weekly"
-                ]
-              },
-              "weekdays": {
-                "type": "array",
-                "items": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 6
-                }
-              },
-              "redial": {
-                "type": "boolean"
-              },
-              "participantIds": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "expectedEventVersion": {
-                "type": "integer"
-              },
-              "consent": {
-                "const": true
-              }
-            },
-            "required": [
-              "date",
-              "time",
-              "recurrence",
-              "weekdays",
-              "redial",
-              "participantIds",
-              "expectedEventVersion",
-              "consent"
-            ]
+            "$ref": "../schemas/scheduleRuleSchema.json"
           }
         }
       }
@@ -151,7 +102,7 @@
         "content": {
           "application/json": {
             "schema": {
-              "type": "object"
+              "$ref": "../schemas/scheduleSchema.json"
             }
           }
         }

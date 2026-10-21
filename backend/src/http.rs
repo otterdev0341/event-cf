@@ -20,6 +20,15 @@ pub async fn health(req: HttpRequest) -> HttpResponse {
 }
 pub async fn handle(req: HttpRequest, bytes: ntex::util::Bytes) -> HttpResponse {
     let app = req.app_state::<App>().expect("configured application");
+    if let Some(result) = crate::recordings::route(&req, app).await {
+        return match result {
+            Ok(response) => response,
+            Err(Error(code, message)) => HttpResponse::builder(
+                StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            )
+            .json(&json!({"message":message})),
+        };
+    }
     match dispatch(&req, &bytes, app).await {
         Ok((body, cookie)) => {
             let mut response = HttpResponse::Ok();

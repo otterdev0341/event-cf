@@ -14,6 +14,7 @@ import { AuthPage, TokenPage } from '../features/auth';
 import { EventsPage, EventOverview } from '../features/events';
 import { KnowledgePage } from '../features/knowledge';
 import { ParticipantsPage } from '../features/participants';
+import { SchedulesPage } from '../features/schedules';
 import { CallingPage } from '../features/calling';
 import { TicketsPage } from '../features/tickets';
 import { AgentAccessPage } from '../features/agent-access';
@@ -75,6 +76,7 @@ const router = createBrowserRouter(
                 { path: 'knowledge', element: <KnowledgePage /> },
                 { path: 'participants', element: <ParticipantsPage /> },
                 { path: 'calls', element: <CallingPage /> },
+                { path: 'schedules', element: <SchedulesPage /> },
                 { path: 'tickets', element: <TicketsPage /> },
                 { path: 'settings/credentials', element: <AgentAccessPage /> },
                 { path: 'settings', element: <SettingsPage /> },
@@ -85,6 +87,7 @@ const router = createBrowserRouter(
         { path: 'knowledge', element: <KnowledgePage /> },
         { path: 'participants', element: <ParticipantsPage /> },
         { path: 'calling', element: <CallingPage /> },
+        { path: 'schedules', element: <SchedulesPage /> },
         { path: 'tickets', element: <TicketsPage /> },
         { path: 'agent-access', element: <AgentAccessPage /> },
         { path: 'organization', element: <OrganizationPage /> },

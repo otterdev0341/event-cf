@@ -85,7 +85,7 @@ export function QueueVisual({
         })}
       </div>
       <p className="muted text-xs mt-3">
-        N = สายใหม่ · R = โทรซ้ำ · เส้นประ = รอเวลา · สูงสุด {queue.maxAttempts} attempts · retry ทุก{' '}
+        N = สายใหม่ · R = โทรซ้ำ · เส้นประ = รอเวลา · สูงสุด {queue.maxAttempts} attempts ต่อรอบ · retry ทุก{' '}
         {queue.delayMinutes} นาที
       </p>
     </section>

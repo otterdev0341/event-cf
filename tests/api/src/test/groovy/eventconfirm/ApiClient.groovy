@@ -34,6 +34,14 @@ class ApiClient implements AutoCloseable {
         response
     }
 
+    Map binary(String path, Map headers = [:]) {
+        def builder = HttpRequest.newBuilder(URI.create(base + '/event-confirm/api/v1' + path))
+            .timeout(Duration.ofSeconds(15)).GET()
+        headers.each { key, value -> builder.header(key.toString(), value.toString()) }
+        def response = client.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray())
+        [status: response.statusCode(), bytes: response.body(), headers: response.headers()]
+    }
+
     @Override
     void close() { client.close() }
 

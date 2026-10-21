@@ -41,11 +41,8 @@ const rows = [
   [`${event}/queue-state`, 'get', null, ref('queueSchema')],
   [`${event}/queue-policy`, 'patch', object({ ratio: { type: 'integer', minimum: 1, maximum: 100 }, retryRatio: { type: 'integer', minimum: 1, maximum: 100 }, maxRetries: { type: 'integer', minimum: 0, maximum: 10 }, expectedVersion: integer }), ref('queueSchema')],
   [`${event}/runs`, 'post', object({ action: { enum: ['start', 'pause', 'resume', 'cancel'] } }), ref('queueSchema')],
-  [`${event}/schedules`, 'get', null, { type: 'array', items: { type: 'object' } }],
-  [`${event}/schedules`, 'post', object({ date: { type: 'string', format: 'date' }, time: string,
-    recurrence: { enum: ['once', 'daily', 'weekly'] }, weekdays: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 6 } },
-    redial: { type: 'boolean' }, participantIds: { type: 'array', items: string }, expectedEventVersion: integer,
-    consent: { const: true } }), { type: 'object' }],
+  [`${event}/schedules`, 'get', null, list('scheduleSchema')],
+  [`${event}/schedules`, 'post', ref('scheduleRuleSchema'), ref('scheduleSchema')],
   [`${event}/schedules/{schedule}`, 'patch', object({ action: { const: 'cancel' }, expectedVersion: integer }), ok],
   [`${event}/tickets`, 'get', null, list('ticketSchema')],
   [`${event}/tickets`, 'post', ref('ticketInputSchema'), ref('ticketSchema')],
@@ -72,6 +69,12 @@ rows.push(
     ticket: ref('ticketInputSchema'),
   }, ['result', 'reason']), ok, agentSecurity],
 );
+const recording = { oneOf: [object({ state: { enum: ['pending', 'not_available'] } }),
+  object({ state: { const: 'available' }, playbackPath: string, simulated: { type: 'boolean' } })] };
+for (const [base, security] of [[event, undefined], [agent, agentSecurity]]) {
+  rows.push([base + '/calls/{attempt}/recording', 'get', null, recording, security]);
+  rows.push([base + '/calls/{attempt}/recording/audio', 'get', null, { type: 'string', format: 'binary' }, security]);
+}
 const paths = {};
 for (const [route, method, input, output, security] of rows) {
   const name = route.replace(/[{}]/g, '').split('/').filter(Boolean).join('-');
@@ -87,6 +90,11 @@ for (const [route, method, input, output, security] of rows) {
       default: { description: '401/403/404/409/422/429/503 error', content: { 'application/json': { schema: object({ message: string, code: string }, ['message']) } } },
     },
   };
+  if (route.includes('/recording')) {
+    operation.description = 'Exact attempt/provider/file identity required; completed calls only. Reads refresh provider association. Agent requires calls:read. Two concurrent reads, 15 second deadline, 8 MiB audio limit; no redirects or manual file linking. 502 means invalid upstream, 504 means deadline exceeded.';
+    if (route.endsWith('/audio')) operation.responses[200].content = Object.fromEntries(
+      ['audio/wav', 'audio/mpeg', 'audio/ogg', 'audio/webm', 'audio/mp4'].map(type => [type, { schema: output }]));
+  }
   if ((route.startsWith('/agent/') && method === 'post') || route.endsWith('/schedules') && method === 'post' || route.endsWith('/knowledge-import') || route.endsWith('/commit') || route.endsWith('/runs') || (route.endsWith('/tickets') && method === 'post')) {
     operation.parameters.push({ name: 'Idempotency-Key', in: 'header', required: true, schema: string });
   }

@@ -30,12 +30,20 @@ pub async fn handle(
         if body["action"] != "cancel" {
             return Err(bad("Only cancellation is supported"));
         }
+        let previous = db::one(
+            db,
+            "SELECT status FROM schedules WHERE org_id=$1 AND event_id=$2 AND id=$3 FOR UPDATE",
+            vec![org.into(), event.into(), id.into()],
+        )
+        .await?;
         let changed = db::exec(db, "UPDATE schedules SET status='cancelled',version=version+1 WHERE org_id=$1 AND event_id=$2 AND id=$3 AND version=$4 AND status IN ('scheduled','running','failed')",
             vec![org.into(),event.into(),id.into(),body["expectedVersion"].as_i64().ok_or_else(||bad("Version required"))?.into()]).await?;
         if changed != 1 {
             return Err(conflict());
         }
-        db::exec(db,"UPDATE queue_policy SET status='paused',version=version+1 WHERE event_id=$1 AND status='running'",vec![event.into()]).await?;
+        if db::get::<String>(&previous, "status")? == "running" {
+            db::exec(db,"UPDATE queue_policy SET status='paused',version=version+1 WHERE event_id=$1 AND status='running'",vec![event.into()]).await?;
+        }
         return Ok(json!({"ok":true}));
     }
     if method != "POST" || id.is_some() {
@@ -62,6 +70,16 @@ pub async fn handle(
     .await?;
     let state = crate::calling::policy::state(db, org, event).await?;
     if state["status"] == "running" || state["pendingTurn"] == true {
+        return Err(conflict());
+    }
+    if !db::rows(
+        db,
+        "SELECT id FROM schedules WHERE event_id=$1 AND status IN ('scheduled','running')",
+        vec![event.into()],
+    )
+    .await?
+    .is_empty()
+    {
         return Err(conflict());
     }
     for person in &rule.participant_ids {

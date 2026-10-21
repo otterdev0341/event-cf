@@ -39,6 +39,7 @@ docker run -d --name "$api" --network "$network" --network-alias api \
   --cpus=1 --memory=1536m --memory-swap=1536m --pids-limit=256 \
   --user "$(id -u):$(id -g)" --mount "type=bind,source=$host_workspace,target=/work" -w /work \
   -e HOME=/tmp -e DATABASE_URL=postgres://event_test:disposable-test-only@db:5432/event_test \
+  -e RECORDING_PROVIDER_URL=http://provider:8080 \
   -e CALLING_ENABLED=true -e PROVIDER_URL=http://provider:8080 -e PROVIDER_TOKEN=acceptance-simulation-token-only \
   -e COOKIE_SECURE=false -e PUBLIC_ORIGIN=http://127.0.0.1:18446 -e BIND_ADDRESS=0.0.0.0:18460 \
   -e SEED_ADMIN_EMAIL=admin@example.test -e SEED_ADMIN_PASSWORD=acceptance-test-password \

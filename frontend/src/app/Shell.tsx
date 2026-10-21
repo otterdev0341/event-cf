@@ -13,6 +13,7 @@ const eventLinks: Record<string, string> = {
   knowledge: 'knowledge',
   participants: 'participants',
   calling: 'calls',
+  schedules: 'schedules',
   tickets: 'tickets',
   settings: 'settings',
 };
@@ -22,6 +23,7 @@ const links = [
   ['knowledge', 'Knowledge & FAQ', BookOpen],
   ['participants', 'Participants', Users],
   ['calling', 'Call queues', Phone],
+  ['schedules', 'Schedules', CalendarDays],
   ['tickets', 'Follow-up board', Columns3],
   ['settings', 'Settings', Settings2],
 ] as const;

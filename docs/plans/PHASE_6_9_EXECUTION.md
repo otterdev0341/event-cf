@@ -21,7 +21,7 @@ A higher limit does not silently restart stopped participants.
 | P7a | Validated row import/commit with lang_code, durable X:Y dispatch, max retry/cooldown, uncertain-call reconciliation, late final result handling, active capacity bound | Actual provider adapter and signed callback mapping; rejection/reconciliation operator workflow; provider acceptance with authorized test number |
 | P7b | Pinned Gradle wrapper + Groovy/Spock HTTP acceptance, PostgreSQL Rust integration, real frontend/backend browser test, Jenkins blocking stage and report-before-cleanup ordering; expanded HTTP/browser acceptance passed in Jenkins #17 | Extend suite to every remaining production gate |
 | P8 | Persistent integration compose/API/nginx, simulated provider, runtime secrets provisioned, non-root images, resource budgets, rollback tags; Jenkins #17 deployed and public API/browser acceptance passed | real-provider/production load, off-host restore, monitoring and rollback rehearsal remain separate |
-| P9 | Rust schedule backend ported with Bangkok time/explicit redial/history tests; legacy scheduler/recording code preserved; 50 legacy fixture checks passed | Schedule UI, recording adapter/parity, legacy source/export and owner→org/event mapping; migration before retiring old paths |
+| P9 | Schedule UI + Rust scheduler; authenticated recording playback/download with exact-provider adapter and simulated audio; 50 legacy fixture checks passed | Real provider recording bridge/callback/manual-repair parity, legacy source/export and owner→org/event mapping; migration before retiring old paths |
 
 **P6–P9 production gates are not declared complete.** Integration deployment is live on the existing Otter host, with simulated calling and email delivery disabled.
 No real call, real email, AWS resource creation or legacy data deletion has occurred.
@@ -161,3 +161,27 @@ Deployment evidence is recorded below.
   User-Agent succeeded. curl and browser requests also passed without edge changes.
 - Calling is simulated; email remains disabled. These results do not close the
   remaining production and legacy gates listed above.
+
+## P9 continuation — local acceptance before next deployment
+
+- Added event-scoped Schedules UI: once/daily/weekly Bangkok schedules, participant
+  snapshot selection, explicit automation consent and opt-in redial, persisted list,
+  cancellation/version conflicts and read-only permission states. Preview explicitly
+  has no time-driven worker. One active schedule is allowed per event.
+- Regression tests reproduced and fixed two scheduler defects: cancelling a future
+  schedule no longer pauses an unrelated manual queue; non-redial occurrences snapshot
+  only never-called recipients at execution time. Migration 006 persists that selection.
+  Existing running occurrences retain their prior selection when applying the migration.
+- Recording API supports browser sessions and paired Agent keys with calls:read.
+  Exact attempt/provider/file correlation is mandatory. Metadata refresh and audio
+  retrieval happen outside DB transactions, with no redirects, at most two concurrent
+  reads, an 8 MiB audio limit and a 15-second overall deadline. UI plays/downloads via
+  authenticated same-origin endpoints; no provider tokens or arbitrary URLs are exposed.
+- Integration provider returns one second of synthetic silent WAV for acceptance tests.
+  This adapter contract is NOT a claim that the legacy Voice Bot recording provider,
+  signed callbacks or manual association/repair have been ported. Those need its actual
+  contract and authorized access. No real recordings are copied or linked by guessing.
+- Local evidence: 20 Rust scenarios, 14 Groovy HTTP cases, 21 frontend unit cases,
+  5 real-backend browser scenarios (including schedule persistence and audio playback/
+  download), contracts, formatting, typecheck and full-tree line gate passed.
+- Deployment evidence for this continuation will be recorded after Jenkins completes.

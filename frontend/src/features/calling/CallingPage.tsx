@@ -1,3 +1,4 @@
+import { RecordingPlayer } from '../recordings';
 import { QueueSettings } from './QueueSettings';
 import { QueueVisual } from './QueueVisual';
 import { useState } from 'react';
@@ -142,9 +143,7 @@ export function CallingPage() {
                     </p>
                   )}
                 </td>
-                <td>
-                  {p.attempts.length} / {queue?.maxAttempts}
-                </td>
+                <td>{p.attempts.length} ครั้งทั้งหมด</td>
                 <td>{p.state}</td>
                 <td>
                   <Button variant="ghost" onClick={() => setDetail(p)}>
@@ -191,6 +190,7 @@ export function CallingPage() {
                   {a.transport} → {a.outcome.result}
                   {a.outcome.result === 'unknown' ? ` · ${reasons[a.outcome.reason]}` : ''}
                 </p>
+                {a.id && <RecordingPlayer attempt={a.id} />}
               </div>
             ))}
             {!detail.attempts.length && <p>ยังไม่มีการโทร</p>}

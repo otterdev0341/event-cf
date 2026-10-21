@@ -43,12 +43,14 @@ pub async fn tick(db: &DatabaseConnection) -> Result<()> {
             vec![id.into()],
         )
         .await?;
-        db::exec(
-            &tx,
-            "UPDATE queue_policy SET status='paused',version=version+1 WHERE event_id=$1",
-            vec![event.into()],
-        )
-        .await?;
+        if db::get::<String>(row, "status")? == "running" {
+            db::exec(
+                &tx,
+                "UPDATE queue_policy SET status='paused',version=version+1 WHERE event_id=$1",
+                vec![event.into()],
+            )
+            .await?;
+        }
         tx.commit().await?;
         return Ok(());
     }
@@ -69,7 +71,7 @@ pub async fn tick(db: &DatabaseConnection) -> Result<()> {
             tx.commit().await?;
             return Ok(());
         }
-        let pending = db::rows(&tx,"SELECT p.id FROM participants p JOIN schedules s ON s.event_id=p.event_id WHERE s.id=$1 AND s.data->'participantIds' ? p.id AND p.state IN ('ready','delayed','awaiting_result') LIMIT 1",vec![id.clone().into()]).await?;
+        let pending = db::rows(&tx,"SELECT p.id FROM participants p JOIN schedules s ON s.event_id=p.event_id WHERE s.id=$1 AND s.active_participant_ids ? p.id AND p.state IN ('ready','delayed','awaiting_result') LIMIT 1",vec![id.clone().into()]).await?;
         if !pending.is_empty() {
             tx.commit().await?;
             return Ok(());
@@ -100,7 +102,18 @@ pub async fn tick(db: &DatabaseConnection) -> Result<()> {
             vec![occurrence.into(), id.clone().into(), due.into()],
         )
         .await?;
+        let mut active = Vec::new();
         for person in &rule.participant_ids {
+            let participant = db::one(
+                &tx,
+                "SELECT attempt_count FROM participants WHERE event_id=$1 AND id=$2",
+                vec![event.clone().into(), person.clone().into()],
+            )
+            .await?;
+            if !rule.redial && db::get::<i32>(&participant, "attempt_count")? > 0 {
+                continue;
+            }
+            active.push(person.clone());
             if rule.redial {
                 db::exec(&tx,"UPDATE participants SET cycle_base=attempt_count,lane='new',state='ready',eligible_at=now(),data=jsonb_set(data,'{outcome}','{\"result\":null,\"reason\":null}') WHERE event_id=$1 AND id=$2",vec![event.clone().into(),person.clone().into()]).await?;
             } else {
@@ -115,8 +128,8 @@ pub async fn tick(db: &DatabaseConnection) -> Result<()> {
         .await?;
         db::exec(
             &tx,
-            "UPDATE schedules SET status='running',version=version+1 WHERE id=$1",
-            vec![id.into()],
+            "UPDATE schedules SET status='running',active_participant_ids=$2,version=version+1 WHERE id=$1",
+            vec![id.into(),serde_json::json!(active).into()],
         )
         .await?;
     }

@@ -10,6 +10,7 @@ pub mod http;
 pub mod idempotency;
 pub mod knowledge;
 pub mod organizations;
+pub mod recordings;
 pub mod routes;
 pub mod schedules;
 pub mod shutdown;

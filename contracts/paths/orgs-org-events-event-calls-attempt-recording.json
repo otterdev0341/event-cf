@@ -1,0 +1,100 @@
+{
+  "get": {
+    "operationId": "get-orgs-org-events-event-calls-attempt-recording",
+    "summary": "GET /orgs/{org}/events/{event}/calls/{attempt}/recording",
+    "parameters": [
+      {
+        "name": "org",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "event",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "attempt",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Success",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "enum": [
+                        "pending",
+                        "not_available"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "state"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "playbackPath": {
+                      "type": "string"
+                    },
+                    "simulated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "playbackPath",
+                    "simulated"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "default": {
+        "description": "401/403/404/409/422/429/503 error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "description": "Exact attempt/provider/file identity required; completed calls only. Reads refresh provider association. Agent requires calls:read. Two concurrent reads, 15 second deadline, 8 MiB audio limit; no redirects or manual file linking. 502 means invalid upstream, 504 means deadline exceeded."
+  }
+}

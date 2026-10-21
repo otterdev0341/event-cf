@@ -65,6 +65,7 @@ class AgentJourneySpec extends Specification {
             assert polled[0].attempts[0].id
         }
         attempt = api.success('GET', agent + '/participants', null, headers).body[0].attempts[0].id
+        assert api.success('GET', agent + '/calls/' + attempt + '/recording', null, headers).body.state == 'pending'
         when:
         def result = [result: 'confirm', reason: null, ticket: [title: 'Need transport details',
             description: 'Agent could not answer', type: 'unanswered', assigneeIds: [], dueDate: '']]
@@ -80,6 +81,17 @@ class AgentJourneySpec extends Specification {
         saved.attempts.size() == 1
         saved.lang_code == 'en'
         api.success('GET', browser + '/tickets').body.size() == 1
+        def recording = api.success('GET', agent + '/calls/' + attempt + '/recording', null, headers).body
+        recording.state == 'available'
+        recording.simulated == true
+        def audio = api.binary(agent + '/calls/' + attempt + '/recording/audio', headers)
+        audio.status == 200
+        audio.headers.firstValue('Content-Type').orElse('') == 'audio/wav'
+        new String(audio.bytes, 0, 4, 'US-ASCII') == 'RIFF'
+        api.request('GET', agent + '/calls/' + attempt + '/recording').status == 401
+        api.request('GET', agent + '/calls/not-owned/recording', null, headers).status == 404
+        api.success('GET', browser + '/calls/' + attempt + '/recording').body.state == 'available'
+        api.request('GET', "/orgs/${org}/events/wrong-event/calls/${attempt}/recording").status in [403, 404]
         api.request('GET', agent + '/participants', null,
             ['X-Org-Credential': headers['X-Event-Credential'],
              'X-Event-Credential': headers['X-Org-Credential']]).status == 403

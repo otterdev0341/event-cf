@@ -75,9 +75,10 @@ mean unknown: reconciliation is required and speculative redial is forbidden.
 
 ## Remaining scope
 
-Real provider authentication/callback mapping, recording adapter and legacy data migration
-are not enabled. Schedule backend is available through the browser API/Swagger, but its
-frontend UI has not yet been ported. Historical run pagination and FAQ search are not exposed.
+Real provider authentication/callback mapping and legacy data migration are not enabled.
+The P9 continuation adds Schedules UI and a recording adapter tested against synthetic
+audio; consult execution status for its deployed revision. Legacy provider recording
+bridge and manual repair parity remain pending. Historical run pagination and FAQ search are not exposed.
 Production load, off-host restore and real provider acceptance remain separate release gates.
 
 ## Provisioned team test workspace
@@ -89,3 +90,16 @@ The queue is paused, with one completed smoke participant and one ready syntheti
 participant. Use action `resume`, poll for an accepted attempt, submit its final result,
 then pause. The private credential pair expires on 2027-01-31; it is not in Git.
 Use an explicit application User-Agent for scripted requests through the public edge.
+
+## Recording reads (P9 continuation)
+
+With the same paired headers and calls:read scope, GET
+`/agent/orgs/{org}/events/{event}/calls/{attempt}/recording` returns pending,
+not_available, or available with playbackPath and simulated. Finalize the accepted
+attempt before checking audio. Repeat GET to refresh the exact provider association.
+GET the returned same-origin playbackPath using both headers to download audio bytes.
+Browser users can open Call queues → participant history → ตรวจไฟล์เสียง.
+Integration WAV is one second of silence and is explicitly labeled synthetic.
+No Idempotency-Key is required for these GET requests. Missing keys return 401,
+invalid scope/pair returns 403, unavailable audio returns 404; provider identity errors
+return 502. Audio is bounded to 8 MiB, two concurrent requests and 15 seconds total.

@@ -6,6 +6,7 @@ import { authorize, findEvent } from './guards';
 import { eventRoutes } from './events';
 import { ticketRoutes } from './tickets';
 import { credentialRoutes, checkPair } from './credentials';
+import { scheduleRoutes } from './schedules';
 import { callingRoutes } from './calling';
 async function delay(signal?: AbortSignal) {
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -93,7 +94,8 @@ export async function mockRequest(path: string, request: Request = {}): Promise<
   const key = request.key ? `${org}:${path}:${request.key}` : undefined;
   if (key && state.idempotency.has(key)) return structuredClone(state.idempotency.get(key));
   let result: unknown;
-  if (tail[0] === 'tickets') result = ticketRoutes(org, eventId, tail[1], method, body);
+  if (tail[0] === 'schedules') result = scheduleRoutes(org, eventId, tail[1], method, body);
+  else if (tail[0] === 'tickets') result = ticketRoutes(org, eventId, tail[1], method, body);
   else if (['participants', 'imports', 'queue-state', 'queue-policy', 'runs'].includes(tail[0])) {
     result = callingRoutes(org, eventId, tail, method, body);
   } else result = eventRoutes(org, eventId, tail, method, body);

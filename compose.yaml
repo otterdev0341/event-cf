@@ -56,6 +56,8 @@ services:
     image: event-confirm/api:${IMAGE_TAG:?Immutable build tag required}
     restart: unless-stopped
     env_file: ${EVENT_CONFIRM_ENV_FILE:?Runtime environment file required}
+    environment:
+      RECORDING_PROVIDER_URL: http://simulated-provider:8080
     read_only: true
     tmpfs: ["/tmp:size=8m"]
     cpus: 0.5
