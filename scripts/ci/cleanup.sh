@@ -14,8 +14,8 @@ mounts=
 if [[ -n "$containers" ]]; then
   mounts=$(docker inspect --format '{{range .Mounts}}{{println .Source}}{{end}}' $containers)
 fi
-# Only this project's regenerable Node outputs. No tracked lib/libs or shared caches.
-for relative in node_modules dist coverage .npm   frontend/node_modules frontend/dist frontend/test-results frontend/playwright-report frontend/coverage frontend/reports; do
+# Only this project's regenerable build outputs. No tracked lib/libs or shared caches.
+for relative in node_modules dist coverage .npm   frontend/node_modules frontend/dist frontend/test-results frontend/playwright-report frontend/coverage frontend/reports backend/target backend/reports tests/api/build tests/api/.gradle .cargo-ci .gradle-ci; do
   target="$root/$relative"
   [[ -e "$target" || -L "$target" ]] || continue
   if [[ -L "$target" || "$(realpath "$target")" != "$target" ||

@@ -1,3 +1,4 @@
+import { QueueSettings } from './QueueSettings';
 import { QueueVisual } from './QueueVisual';
 import { useState } from 'react';
 import { Play, Pause } from 'lucide-react';
@@ -10,7 +11,7 @@ import { usePermissions } from '../../shared/api/usePermissions';
 import { callingService } from './service';
 import type { Participant } from '../../shared/contracts/calling';
 import { Dialog } from '../../components/Dialog';
-import { Badge, Button, Empty, Feedback, Field, formText, PageHeader, QueryState } from '../../components/ui';
+import { Badge, Button, Empty, Feedback, PageHeader, QueryState } from '../../components/ui';
 const reasons = { no_answer: 'ไม่รับสาย', noisy_audio: 'เสียงรบกวน', ai_cannot_infer: 'AI สรุปไม่ได้' };
 export function CallingPage() {
   const { event } = useEvent();
@@ -27,10 +28,6 @@ export function CallingPage() {
   const run = useAction(async (action: string) => {
     await callingService.run(orgId, eventId, action, crypto.randomUUID());
     setStartOpen(false);
-  }, keys);
-  const policy = useAction(async (input: { ratio: number; maxRetries: number }) => {
-    await callingService.policy(orgId, eventId, input.ratio, queue!.version, input.maxRetries);
-    setPolicyOpen(false);
   }, keys);
   if (!event) return <Empty title="เลือก Event เพื่อจัดการคิวโทร" />;
   const rows = people.data?.filter((p) => p.lane === lane) ?? [];
@@ -81,7 +78,7 @@ export function CallingPage() {
           )
         }
       />
-      <Feedback error={run.error} notice={run.notice || policy.notice} />
+      <Feedback error={run.error} notice={run.notice} />
       <QueryState
         pending={query.isPending || people.isPending}
         error={query.error || people.error}
@@ -166,8 +163,8 @@ export function CallingPage() {
             {event.name} · {people.data?.filter((p) => p.lane === 'new').length} รายชื่อใหม่
           </p>
           <p className="muted mt-3">
-            สัดส่วน {queue?.ratio}:1 · สูงสุด {queue?.maxAttempts} attempts รวมสายแรก · retry{' '}
-            {queue?.delayMinutes} นาที
+            สัดส่วน {queue?.ratio}:{queue?.retryRatio} · สูงสุด {queue?.maxAttempts} attempts รวมสายแรก ·
+            retry {queue?.delayMinutes} นาที
           </p>
           <Feedback error={run.error} />
           <div className="form-actions">
@@ -179,40 +176,7 @@ export function CallingPage() {
       )}
       {policyOpen && (
         <Dialog title="ปรับสัดส่วน NEW : FAIL" onClose={() => setPolicyOpen(false)}>
-          <form
-            className="form-grid"
-            onSubmit={(e) => {
-              e.preventDefault();
-              policy.mutate({
-                ratio: Number(formText(e.currentTarget, 'ratio')),
-                maxRetries: Number(formText(e.currentTarget, 'maxRetries')),
-              });
-            }}
-          >
-            <Field
-              label="โทร NEW กี่ครั้ง ก่อน FAIL 1 ครั้ง"
-              hint="เช่น 2:1 หรือ 5:1 · บันทึกแล้ว reset progress เป็น 0"
-            >
-              <input name="ratio" type="number" min={1} max={100} required defaultValue={queue?.ratio} />
-            </Field>
-            <Field label="Maximum retries" hint="จำนวนครั้งโทรซ้ำ ไม่รวมสายแรก · 0 = ไม่โทรซ้ำ">
-              <input
-                name="maxRetries"
-                type="number"
-                min={0}
-                max={10}
-                required
-                defaultValue={(queue?.maxAttempts ?? 1) - 1}
-              />
-            </Field>
-            <p className="muted text-xs">
-              ไม่รับสายครบจำนวนจะหยุดโทร โดยเก็บประวัติและเหตุผล retry exhausted ไว้
-            </p>
-            <Feedback error={policy.error} />
-            <Button variant="brand" pending={policy.isPending}>
-              ยืนยันเปลี่ยนสัดส่วน
-            </Button>
-          </form>
+          <QueueSettings onSaved={() => setPolicyOpen(false)} />
         </Dialog>
       )}
       {detail && (

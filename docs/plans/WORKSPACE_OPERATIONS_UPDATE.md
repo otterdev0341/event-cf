@@ -134,3 +134,8 @@ not imply a configured voice provider supports those languages.
 5. P7b: complete Groovy/Spock API acceptance and CI gates.
 6. P8: production cutover, no mock adapter, backups/restore/resource evidence.
 7. P9: legacy parity/disposition as previously planned.
+
+## P6–P9 execution update
+
+See [execution status](PHASE_6_9_EXECUTION.md) and [JSON](PHASE_6_9_EXECUTION.json).
+Queue settings now support X:Y and maxRetries excluding the initial call.

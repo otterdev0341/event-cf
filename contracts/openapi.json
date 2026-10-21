@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Event Confirm API — implementation contract",
-    "version": "0.2.0",
-    "description": "Planned backend contract. Public UI currently uses browser-local demo data; these backend endpoints are not deployed yet."
+    "version": "0.3.0",
+    "description": "Backend implementation under acceptance testing. Public website remains an explicit browser-local demo until cutover gates pass. Agent endpoints require both org and event credentials."
   },
   "servers": [
     {
@@ -105,6 +105,21 @@
     },
     "/orgs/{org}/check-pair": {
       "$ref": "./paths/orgs-org-check-pair.json"
+    },
+    "/agent/orgs/{org}/events/{event}/knowledge": {
+      "$ref": "./paths/agent-orgs-org-events-event-knowledge.json"
+    },
+    "/agent/orgs/{org}/events/{event}/participants": {
+      "$ref": "./paths/agent-orgs-org-events-event-participants.json"
+    },
+    "/agent/orgs/{org}/events/{event}/runs": {
+      "$ref": "./paths/agent-orgs-org-events-event-runs.json"
+    },
+    "/agent/orgs/{org}/events/{event}/tickets": {
+      "$ref": "./paths/agent-orgs-org-events-event-tickets.json"
+    },
+    "/agent/orgs/{org}/events/{event}/calls/{attempt}/result": {
+      "$ref": "./paths/agent-orgs-org-events-event-calls-attempt-result.json"
     }
   },
   "components": {
@@ -113,6 +128,16 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "event_confirm_session"
+      },
+      "OrgCredential": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Org-Credential"
+      },
+      "EventCredential": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Event-Credential"
       }
     }
   }

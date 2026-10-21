@@ -77,6 +77,7 @@ const router = createBrowserRouter(
                 { path: 'calls', element: <CallingPage /> },
                 { path: 'tickets', element: <TicketsPage /> },
                 { path: 'settings/credentials', element: <AgentAccessPage /> },
+                { path: 'settings', element: <SettingsPage /> },
               ],
             },
           ],

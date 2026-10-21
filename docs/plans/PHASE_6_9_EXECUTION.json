@@ -1,0 +1,42 @@
+{
+  "updated": "2026-10-21",
+  "publicMode": "demo",
+  "queue": {
+    "newWeight": "1..100",
+    "retryWeight": "1..100",
+    "maxRetries": "0..10",
+    "totalAttempts": "1 + maxRetries",
+    "activeCallCapacity": 1
+  },
+  "phases": [
+    {
+      "id": "P6",
+      "status": "implemented_core_acceptance_in_progress"
+    },
+    {
+      "id": "P7",
+      "status": "implemented_core_acceptance_in_progress"
+    },
+    {
+      "id": "P7a",
+      "status": "provider_adapter_pending"
+    },
+    {
+      "id": "P7b",
+      "status": "ci_verification_pending"
+    },
+    {
+      "id": "P8",
+      "status": "awaiting_target_and_cutover_gates"
+    },
+    {
+      "id": "P9",
+      "status": "legacy_baseline_verified_port_and_migration_pending"
+    }
+  ],
+  "requiredInput": [
+    "Lightsail host/region",
+    "Provider and mail service configuration",
+    "Legacy database/export and owner-to-organization mapping"
+  ]
+}

@@ -15,6 +15,18 @@ export default defineConfig(({ command, mode }) => {
       __MOCK__: JSON.stringify(mode === 'demo' || (command === 'serve' && mode === 'mock')),
       __DEMO__: JSON.stringify(mode === 'demo'),
     },
-    server: { host: '127.0.0.1', port: 18446, strictPort: true },
+    server: {
+      host: '127.0.0.1',
+      port: 18446,
+      strictPort: true,
+      proxy:
+        mode === 'mock' || mode === 'demo'
+          ? undefined
+          : {
+              '/event-confirm/api': {
+                target: process.env.EVENT_CONFIRM_API_TARGET ?? 'http://127.0.0.1:18460',
+              },
+            },
+    },
   };
 });

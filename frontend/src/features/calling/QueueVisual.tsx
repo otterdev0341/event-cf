@@ -23,7 +23,9 @@ export function QueueVisual({
       <div className="queue-heading">
         <div>
           <p className="eyebrow">DISPATCH MIX</p>
-          <span className="ratio-label">{queue.ratio} new calls : 1 retry</span>
+          <span className="ratio-label">
+            {queue.ratio} new calls : {queue.retryRatio} retry
+          </span>
         </div>
         <Badge tone={queue.status}>{queue.status}</Badge>
         {canEdit && (
@@ -32,14 +34,22 @@ export function QueueVisual({
           </Button>
         )}
       </div>
-      <div className="dispatch-strip" aria-label={`Example dispatch ${queue.ratio} new calls then one retry`}>
+      <div
+        className="dispatch-strip"
+        aria-label={`Example dispatch ${queue.ratio} new calls then ${queue.retryRatio} retries`}
+      >
         {Array.from({ length: Math.min(queue.ratio, 12) }, (_, i) => (
           <span key={i} className={`dispatch-cell new ${i < queue.newSinceFail ? 'consumed' : ''}`}>
             N
           </span>
         ))}
         {queue.ratio > 12 && <span>+{queue.ratio - 12}</span>}
-        <span className="dispatch-cell fail">R</span>
+        {Array.from({ length: Math.min(queue.retryRatio, 12) }, (_, i) => (
+          <span key={i} className="dispatch-cell fail">
+            R
+          </span>
+        ))}
+        {queue.retryRatio > 12 && <span>+{queue.retryRatio - 12}</span>}
         <span className="muted text-xs">
           ตัวอย่างลำดับเมื่อทั้งสองคิวพร้อม · {queue.newSinceFail}/{queue.ratio}
         </span>

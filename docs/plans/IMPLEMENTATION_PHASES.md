@@ -90,3 +90,8 @@ See [Workspace operations update](WORKSPACE_OPERATIONS_UPDATE.md) and its
 [JSON plan](WORKSPACE_OPERATIONS_UPDATE.json). This supersedes the earlier role names,
 single assignee/three-stage board, template columns, dashboard and retry-policy UI.
 The remaining backend phases must implement these contracts and Swagger route parity.
+
+## P6–P9 execution update
+
+See [execution status](PHASE_6_9_EXECUTION.md) and [JSON](PHASE_6_9_EXECUTION.json).
+Queue settings now support X:Y and maxRetries excluding the initial call.

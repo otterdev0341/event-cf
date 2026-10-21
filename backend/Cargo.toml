@@ -1,0 +1,25 @@
+[package]
+name = "event-confirm-api"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+ntex = { version = "=4.3.0", features = ["tokio", "cookie"] }
+sea-orm = { version = "=1.1.20", default-features = false, features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-json", "with-chrono", "with-uuid"] }
+tokio = { version = "=1.54.0", features = ["macros", "time", "sync", "signal", "fs", "net", "io-util"] }
+reqwest = { version = "=0.12.28", default-features = false, features = ["rustls-tls", "json"] }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.150"
+uuid = { version = "=1.23.1", features = ["v4", "serde"] }
+chrono = { version = "=0.4.44", features = ["serde"] }
+argon2 = "=0.5.3"
+sha2 = "=0.10.9"
+percent-encoding = "=2.3.2"
+rand = "=0.8.6"
+
+[profile.dev]
+debug = 0
+incremental = false
+[profile.release]
+strip = true

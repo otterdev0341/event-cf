@@ -1,0 +1,16 @@
+plugins { id 'groovy' }
+repositories { mavenCentral() }
+dependencies {
+    testImplementation 'org.apache.groovy:groovy:4.0.29'
+    testImplementation 'org.apache.groovy:groovy-json:4.0.29'
+    testImplementation 'org.spockframework:spock-core:2.4-groovy-4.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+test {
+    useJUnitPlatform()
+    maxParallelForks = 1
+    maxHeapSize = '192m'
+    systemProperty 'event.baseUrl', System.getProperty('event.baseUrl', 'http://127.0.0.1:18460')
+    reports { junitXml.required = true; html.required = true }
+}

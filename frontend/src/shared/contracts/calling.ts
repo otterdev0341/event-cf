@@ -40,6 +40,7 @@ export const participantSchema = z.object({
 });
 export const queueSchema = z.object({
   ratio: z.number().int().positive(),
+  retryRatio: z.number().int().min(1).max(100).default(1),
   version: z.number().int(),
   newSinceFail: z.number().int(),
   status: z.enum(['idle', 'running', 'paused', 'cancelled']),

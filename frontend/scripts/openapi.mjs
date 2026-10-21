@@ -39,7 +39,7 @@ const rows = [
   [`${event}/imports`, 'post', object({ rows: list('importRowSchema') }), ref('importPreviewSchema')],
   [`${event}/imports/{import}/commit`, 'post', null, ok],
   [`${event}/queue-state`, 'get', null, ref('queueSchema')],
-  [`${event}/queue-policy`, 'patch', object({ ratio: { type: 'integer', minimum: 1, maximum: 100 }, maxRetries: { type: 'integer', minimum: 0, maximum: 10 }, expectedVersion: integer }), ref('queueSchema')],
+  [`${event}/queue-policy`, 'patch', object({ ratio: { type: 'integer', minimum: 1, maximum: 100 }, retryRatio: { type: 'integer', minimum: 1, maximum: 100 }, maxRetries: { type: 'integer', minimum: 0, maximum: 10 }, expectedVersion: integer }), ref('queueSchema')],
   [`${event}/runs`, 'post', object({ action: { enum: ['start', 'pause', 'resume', 'cancel'] } }), ref('queueSchema')],
   [`${event}/tickets`, 'get', null, list('ticketSchema')],
   [`${event}/tickets`, 'post', ref('ticketInputSchema'), ref('ticketSchema')],
@@ -50,6 +50,19 @@ const rows = [
   ['/orgs/{org}/credentials/{credential}/revoke', 'post', null, ok],
   ['/orgs/{org}/check-pair', 'post', object({ orgKeyId: string, eventKeyId: string, eventId: string }), ok],
 ];
+const agent = '/agent/orgs/{org}/events/{event}';
+const agentSecurity = [{ OrgCredential: [], EventCredential: [] }];
+rows.push(
+  [agent + '/knowledge', 'get', null, list('faqSchema'), agentSecurity],
+  [agent + '/participants', 'get', null, list('participantSchema'), agentSecurity],
+  [agent + '/runs', 'post', object({ action: { enum: ['start', 'pause', 'resume', 'cancel'] } }), ref('queueSchema'), agentSecurity],
+  [agent + '/tickets', 'post', ref('ticketInputSchema'), ref('ticketSchema'), agentSecurity],
+  [agent + '/calls/{attempt}/result', 'post', object({
+    result: { enum: ['confirm', 'decline', 'unknown'] },
+    reason: { enum: [null, 'no_answer', 'noisy_audio', 'ai_cannot_infer'] },
+    ticket: ref('ticketInputSchema'),
+  }, ['result', 'reason']), ok, agentSecurity],
+);
 const paths = {};
 for (const [route, method, input, output, security] of rows) {
   const name = route.replace(/[{}]/g, '').split('/').filter(Boolean).join('-');
@@ -65,7 +78,7 @@ for (const [route, method, input, output, security] of rows) {
       default: { description: '401/403/404/409/422/429/503 error', content: { 'application/json': { schema: object({ message: string, code: string }, ['message']) } } },
     },
   };
-  if (route.endsWith('/knowledge-import') || route.endsWith('/commit') || route.endsWith('/runs') || (route.endsWith('/tickets') && method === 'post')) {
+  if ((route.startsWith('/agent/') && method === 'post') || route.endsWith('/knowledge-import') || route.endsWith('/commit') || route.endsWith('/runs') || (route.endsWith('/tickets') && method === 'post')) {
     operation.parameters.push({ name: 'Idempotency-Key', in: 'header', required: true, schema: string });
   }
   item.operations[method] = operation;
@@ -79,9 +92,9 @@ async function emit(file, value) {
 }
 for (const item of Object.values(paths)) await emit(`paths/${item.name}.json`, item.operations);
 await emit('openapi.json', {
-  openapi: '3.1.0', info: { title: 'Event Confirm API — implementation contract', version: '0.2.0', description: 'Planned backend contract. Public UI currently uses browser-local demo data; these backend endpoints are not deployed yet.' },
+  openapi: '3.1.0', info: { title: 'Event Confirm API — implementation contract', version: '0.3.0', description: 'Backend implementation under acceptance testing. Public website remains an explicit browser-local demo until cutover gates pass. Agent endpoints require both org and event credentials.' },
   servers: [{ url: '/event-confirm/api/v1' }], security: [{ SessionCookie: [] }],
   paths: Object.fromEntries(Object.entries(paths).map(([route, item]) => [route, { $ref: `./paths/${item.name}.json` }])),
-  components: { securitySchemes: { SessionCookie: { type: 'apiKey', in: 'cookie', name: 'event_confirm_session' } } },
+  components: { securitySchemes: { SessionCookie: { type: 'apiKey', in: 'cookie', name: 'event_confirm_session' }, OrgCredential: { type: 'apiKey', in: 'header', name: 'X-Org-Credential' }, EventCredential: { type: 'apiKey', in: 'header', name: 'X-Event-Credential' } } },
 });
 console.log(write ? 'Wrote OpenAPI 3.1 paths' : 'PASS: OpenAPI contracts match');

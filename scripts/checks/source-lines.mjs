@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-const ignored = new Set(['.git', '.agents', '.codex', '.aws', 'node_modules', 'target', 'dist', 'coverage', 'test-results', 'playwright-report']);
+const ignored = new Set(['.cargo-ci', '.gradle-ci', '.gradle', '.git', '.agents', '.codex', '.aws', 'node_modules', 'target', 'dist', 'coverage', 'test-results', 'playwright-report']);
 const code = /\.(?:[cm]?[jt]sx?|css|scss|sql|sh|bash|groovy|gradle|rs|py|html|toml|ya?ml|json)$/;
 const failures = [];
 let checked = 0;
@@ -8,7 +8,10 @@ async function walk(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (ignored.has(entry.name) || entry.isSymbolicLink()) continue;
     const file = path.join(directory, entry.name);
-    if (entry.isDirectory()) { await walk(file); continue; }
+    if (entry.isDirectory()) {
+      if (path.relative(process.cwd(), file) === 'tests/api/build') continue;
+      await walk(file); continue;
+    }
     if ((!code.test(entry.name) && !/^(Dockerfile|Jenkinsfile|Makefile)$/.test(entry.name)) || /(?:package-lock\.json|Cargo\.lock)$/.test(entry.name)) continue;
     const content = await readFile(file, 'utf8');
     const lines = content.split('\n').length - (content.endsWith('\n') ? 1 : 0);

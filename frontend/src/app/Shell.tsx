@@ -14,6 +14,7 @@ const eventLinks: Record<string, string> = {
   participants: 'participants',
   calling: 'calls',
   tickets: 'tickets',
+  settings: 'settings',
 };
 const links = [
   ['dashboard', 'Dashboard', CalendarDays],

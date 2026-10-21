@@ -153,6 +153,7 @@ export const state = {
 export function queueFor(id: string): Queue {
   return (state.queues[id] ??= {
     ratio: 2,
+    retryRatio: 1,
     version: 1,
     newSinceFail: 0,
     status: 'idle',

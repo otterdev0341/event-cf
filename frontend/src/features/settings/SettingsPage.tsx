@@ -1,3 +1,4 @@
+import { QueueSettings } from '../calling';
 import { Link } from 'react-router-dom';
 import { useTheme, type Theme } from '../../stores/theme';
 import { PageHeader } from '../../components/ui';
@@ -26,6 +27,9 @@ export function SettingsPage() {
             </button>
           ))}
         </div>
+      </section>
+      <section className="panel p-6 mt-6">
+        <QueueSettings />
       </section>
       <nav aria-label="Settings sections" className="settings-grid mt-6">
         <Link className="panel p-6" to="/organizations">

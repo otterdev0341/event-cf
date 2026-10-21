@@ -107,10 +107,13 @@ test('knowledge category tab and latest-template import remain event-scoped draf
 });
 test('retry limit stops exhausted mock rows and swagger renders local JSON', async ({ page }) => {
   await enter(page);
-  await page.getByRole('link', { name: 'Call queues', exact: true }).click();
-  await page.getByRole('button', { name: 'ปรับสัดส่วน' }).click();
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('สายใหม่ต่อรอบ', { exact: true }).fill('5');
+  await page.getByLabel('สายโทรซ้ำต่อรอบ', { exact: true }).fill('2');
   await page.getByLabel('Maximum retries', { exact: true }).fill('0');
   await page.getByRole('button', { name: 'ยืนยันเปลี่ยนสัดส่วน' }).click();
+  await page.getByRole('link', { name: 'Call queues', exact: true }).click();
+  await expect(page.getByText('5 new calls : 2 retry', { exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Fail / retry queue' }).click();
   await expect(page.getByRole('row').filter({ hasText: 'นนท์' })).toContainText('stopped');
   await page.goto('swagger-ui/');

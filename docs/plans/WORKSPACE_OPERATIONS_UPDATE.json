@@ -1,6 +1,6 @@
 {
   "version": "0.2.0",
-  "status": "frontend_demo_implemented_backend_pending",
+  "status": "frontend_demo_with_backend_core_under_acceptance",
   "backendImplemented": false,
   "navigation": {
     "organization": "searchable_topbar_combobox",
@@ -166,5 +166,8 @@
     "daily_weekly_counts",
     "swagger_local_refs",
     "mobile_and_theme"
-  ]
+  ],
+  "backendDeployed": false,
+  "backendLocalImplementation": "partial; see PHASE_6_9_EXECUTION.json",
+  "executionPlan": "PHASE_6_9_EXECUTION.json"
 }

@@ -4,7 +4,7 @@ pipeline {
         timestamps()
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '10'))
-        timeout(time: 20, unit: 'MINUTES')
+        timeout(time: 40, unit: 'MINUTES')
     }
     triggers { pollSCM('H/5 * * * *') }
     environment {
@@ -35,6 +35,17 @@ pipeline {
                 always {
                     junit testResults: 'frontend/reports/*.xml', allowEmptyResults: currentBuild.currentResult == 'ABORTED'
                     archiveArtifacts artifacts: 'frontend/test-results/**/*,frontend/reports/*.xml', allowEmptyArchive: true
+                }
+            }
+        }
+        stage('Backend and Groovy acceptance') {
+            steps {
+                sh 'flock -x "$DOCKER_LOCK_FILE" bash scripts/ci/backend-container.sh'
+            }
+            post {
+                always {
+                    junit testResults: 'tests/api/build/test-results/test/*.xml,frontend/reports/backend-browser.xml', allowEmptyResults: currentBuild.currentResult == 'ABORTED'
+                    archiveArtifacts artifacts: 'backend/reports/**/*,tests/api/build/reports/tests/**/*', allowEmptyArchive: true
                 }
             }
         }

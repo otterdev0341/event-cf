@@ -59,6 +59,7 @@ export function callingRoutes(org: string, eventId: string, tail: string[], meth
     const input = z
       .object({
         ratio: z.number().int().min(1).max(100),
+        retryRatio: z.number().int().min(1).max(100).default(1),
         expectedVersion: z.number(),
         maxRetries: z.number().int().min(0).max(10),
       })
@@ -67,6 +68,7 @@ export function callingRoutes(org: string, eventId: string, tail: string[], meth
     if (queue.status === 'running' || queue.pendingTurn)
       throw new ApiError(409, 'หยุดคิวและรอ pending turn ก่อนเปลี่ยนอัตรา');
     queue.ratio = input.ratio;
+    queue.retryRatio = input.retryRatio;
     queue.maxAttempts = input.maxRetries + 1;
     for (const person of participants) {
       if (
