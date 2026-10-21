@@ -11,6 +11,7 @@ test {
     useJUnitPlatform()
     maxParallelForks = 1
     maxHeapSize = '192m'
+    jvmArgs '-XX:ActiveProcessorCount=1', '-XX:+UseSerialGC'
     systemProperty 'event.baseUrl', System.getProperty('event.baseUrl', 'http://127.0.0.1:18460')
     reports { junitXml.required = true; html.required = true }
 }

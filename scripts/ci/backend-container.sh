@@ -53,6 +53,7 @@ done
 docker run --rm --network "$network" --cpus=1 --memory=768m --memory-swap=768m --pids-limit=128 \
   --label ci.project=event-confirm --label ci.purpose=validation --user "$(id -u):$(id -g)" \
   --mount "type=bind,source=$host_workspace,target=/work" -w /work/tests/api \
+  -e JAVA_TOOL_OPTIONS="-XX:ActiveProcessorCount=1 -XX:+UseSerialGC" \
   -e GRADLE_USER_HOME=/work/.gradle-ci -e TEST_ADMIN_EMAIL=admin@example.test \
   -e TEST_ADMIN_PASSWORD=acceptance-test-password eclipse-temurin:21-jdk \
   ./gradlew test --no-daemon --max-workers=1 -Devent.baseUrl=http://api:18460

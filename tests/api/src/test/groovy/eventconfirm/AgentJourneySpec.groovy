@@ -4,6 +4,7 @@ import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
 class AgentJourneySpec extends Specification {
+    @spock.lang.AutoCleanup
     ApiClient api = new ApiClient()
     String org
     String event

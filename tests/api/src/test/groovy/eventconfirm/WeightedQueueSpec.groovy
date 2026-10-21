@@ -5,6 +5,7 @@ import spock.lang.Unroll
 import spock.util.concurrent.PollingConditions
 
 class WeightedQueueSpec extends Specification {
+    @spock.lang.AutoCleanup
     ApiClient api = new ApiClient()
     String path
     String agent

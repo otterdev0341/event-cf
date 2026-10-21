@@ -7,7 +7,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 
-class ApiClient {
+class ApiClient implements AutoCloseable {
     final String base = System.getProperty('event.baseUrl')
     final CookieManager cookies = new CookieManager(null, CookiePolicy.ACCEPT_ALL)
     final HttpClient client = HttpClient.newBuilder()
@@ -33,6 +33,9 @@ class ApiClient {
         assert response.status == 200: "Expected success for ${method} ${path}, got ${response.status}: ${response.body}"
         response
     }
+
+    @Override
+    void close() { client.close() }
 
     void login() {
         success('POST', '/auth/login', [

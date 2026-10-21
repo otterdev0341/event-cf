@@ -8,7 +8,11 @@ import java.time.Duration
 import spock.lang.Specification
 
 class SecuritySpec extends Specification {
+    @spock.lang.AutoCleanup
     ApiClient api = new ApiClient()
+
+    @spock.lang.AutoCleanup
+    HttpClient raw = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
 
     def 'browser writes reject missing CSRF header and foreign origin'() {
         given:
@@ -17,12 +21,11 @@ class SecuritySpec extends Specification {
             email: System.getenv('TEST_ADMIN_EMAIL'),
             password: System.getenv('TEST_ADMIN_PASSWORD')
         ])
-        def client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
         def request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10))
             .header('Content-Type', 'application/json')
             .POST(HttpRequest.BodyPublishers.ofString(body)).build()
         expect:
-        client.send(request, HttpResponse.BodyHandlers.ofString()).statusCode() == 403
+        raw.send(request, HttpResponse.BodyHandlers.ofString()).statusCode() == 403
         api.request('POST', '/auth/login', [:], ['Origin': 'https://foreign.example']).status == 403
     }
 
@@ -43,7 +46,7 @@ class SecuritySpec extends Specification {
             .timeout(Duration.ofSeconds(10))
             .header('Cookie', 'event_confirm_session=' + stolen).GET().build()
         then:
-        HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build().send(request, HttpResponse.BodyHandlers.ofString()).statusCode() == 401
+        raw.send(request, HttpResponse.BodyHandlers.ofString()).statusCode() == 401
         api.request('GET', '/auth/session').status == 401
     }
 

@@ -3,6 +3,7 @@ package eventconfirm
 import spock.lang.Specification
 
 class WorkspaceSpec extends Specification {
+    @spock.lang.AutoCleanup
     ApiClient api = new ApiClient()
     String org
     String event
