@@ -76,14 +76,14 @@ mean unknown: reconciliation is required and speculative redial is forbidden.
 ## Remaining scope
 
 Real provider authentication/callback mapping and legacy data migration are not enabled.
-The P9 continuation adds Schedules UI and a recording adapter tested against synthetic
-audio; consult execution status for its deployed revision. Legacy provider recording
+Jenkins #18 deployed Schedules UI and a recording adapter verified publicly against
+synthetic audio. Legacy provider recording
 bridge and manual repair parity remain pending. Historical run pagination and FAQ search are not exposed.
 Production load, off-host restore and real provider acceptance remain separate release gates.
 
 ## Provisioned team test workspace
 
-Verified on the public deployment from Jenkins #17 (`e7dd1fe`).
+Provisioned in Jenkins #17; reverified with Schedules and recording on Jenkins #18 (`e387b49`).
 Org: `33429690-7f4d-47f1-b10a-0bb7dfe37bb5`.
 Event: `c20c2048-0b86-471d-9d3f-13b8b00e6e5d`.
 The queue is paused, with one completed smoke participant and one ready synthetic
@@ -103,3 +103,7 @@ Integration WAV is one second of silence and is explicitly labeled synthetic.
 No Idempotency-Key is required for these GET requests. Missing keys return 401,
 invalid scope/pair returns 403, unavailable audio returns 404; provider identity errors
 return 502. Audio is bounded to 8 MiB, two concurrent requests and 15 seconds total.
+
+Schedules UI: `/event-confirm/orgs/33429690-7f4d-47f1-b10a-0bb7dfe37bb5/events/c20c2048-0b86-471d-9d3f-13b8b00e6e5d/schedules`.
+Public P9 acceptance left one cancelled future schedule; queue remains paused and
+team credentials are unchanged. Provider bridge details: [adapter contract](../contracts/README.md#recording-provider-adapter-p9-integration).

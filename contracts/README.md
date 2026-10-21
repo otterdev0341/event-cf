@@ -61,3 +61,38 @@ Groovy HTTP acceptance and browser integration tests supply behavioral evidence.
 Deployment target in this iteration: persistent integration workspace, simulated provider,
 no real telephone calls and no email provider. Production provider callbacks, pagination,
 recording adapter and legacy migration are separate remaining work. See the execution plan.
+
+## Recording provider adapter (P9 integration)
+
+The application accepts a server-configured `RECORDING_PROVIDER_URL` and uses
+`PROVIDER_TOKEN` only for outbound provider authentication. If either is absent,
+recording state is not_available. The integration compose explicitly selects the
+simulated provider. No browser/Agent caller can provide an upstream URL.
+
+The adapter performs `GET {base}/recordings/{attemptId}` with `Authorization: Bearer`.
+An unavailable exact association returns 404; a successful response must be bounded
+JSON with these fields:
+
+```json
+{
+  "attempt_id": "application-attempt-id",
+  "provider_id": "provider-call-id-persisted-on-this-attempt",
+  "recording_id": "exact-provider-recording-identity",
+  "content_type": "audio/wav",
+  "simulated": false
+}
+```
+
+Audio is `GET {base}/recordings/{attemptId}/audio`, with the same authorization.
+It must return 200 and matching `X-Attempt-Id`, `X-Provider-Id`, `X-Recording-Id` and
+`Content-Type` headers. Supported MIME types: audio/wav, audio/mpeg, audio/ogg,
+audio/webm, audio/mp4. Audio is limited to 8 MiB; metadata to 16 KiB. No redirects
+are followed, requests have a total 15-second deadline and two concurrent read slots.
+Browser playback uses an authorized same-origin URL and never receives the provider token.
+
+This is an internal adapter contract, **not the legacy Voice Bot provider contract**.
+A real provider bridge must validate the original provider account, agent and exact
+call/recording association before implementing these endpoints. Existing legacy
+recording callback/manual-repair code remains in place; its migration and signature
+mapping require verified provider details. Refresh rereads exact association; it
+never guesses an audio file from a timestamp or modifies call attendance.

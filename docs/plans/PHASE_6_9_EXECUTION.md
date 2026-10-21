@@ -99,7 +99,7 @@ they do not prove those journeys have been ported to the Rust backend.
   production cutover and legacy migration remain open. These focused tests do not
   declare P6–P9 complete.
 
-## Current owner-directed integration delivery (2026-10-21)
+## Earlier owner-directed integration delivery (2026-10-21)
 
 - Owner authorized continuing P2–P5/P7/P7a/P7b/P8/P9 and updating P0–P1 documents.
   Email provider is explicitly deferred; do not treat it as an integration deployment blocker.
@@ -162,7 +162,7 @@ Deployment evidence is recorded below.
 - Calling is simulated; email remains disabled. These results do not close the
   remaining production and legacy gates listed above.
 
-## P9 continuation — local acceptance before next deployment
+## P9 continuation — implemented and deployed
 
 - Added event-scoped Schedules UI: once/daily/weekly Bangkok schedules, participant
   snapshot selection, explicit automation consent and opt-in redial, persisted list,
@@ -184,4 +184,13 @@ Deployment evidence is recorded below.
 - Local evidence: 20 Rust scenarios, 14 Groovy HTTP cases, 21 frontend unit cases,
   5 real-backend browser scenarios (including schedule persistence and audio playback/
   download), contracts, formatting, typecheck and full-tree line gate passed.
-- Deployment evidence for this continuation will be recorded after Jenkins completes.
+- Jenkins event-confirm #18 SUCCESS deployed `e387b49` on 2026-10-21 UTC.
+  Published JUnit: 58 passed, zero failures/skips; Rust: 20 scenarios passed.
+  Web, API, worker and simulated provider all report the matching revision.
+- Public acceptance passed: Schedules deep link/login, weekly Bangkok create/reload/
+  cancel, paired-Agent recording metadata/WAV bytes and browser audio playback.
+  The old completed synthetic attempt remains readable across deployment; its provider
+  journal persisted. Test schedule was cancelled, queue remains paused, zero real calls/emails.
+- Still required: verified real-provider bridge/callback/manual-repair parity and
+  legacy database/export with explicit owner→org/event mapping. The owner has been asked
+  for these inputs; no legacy records were migrated or deleted.
