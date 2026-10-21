@@ -21,7 +21,7 @@ export const faqInputSchema = z.object({
 export const faqSchema = faqInputSchema.extend({
   id: z.string(),
   version: z.number(),
-  updatedAt: z.iso.datetime().nullable().default(null),
+  updatedAt: z.iso.datetime({ offset: true }).nullable().default(null),
 });
 export const knowledgeSchema = z.object({
   draft: z.array(faqSchema),
