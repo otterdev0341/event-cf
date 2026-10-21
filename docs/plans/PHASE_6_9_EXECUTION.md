@@ -19,7 +19,7 @@ A higher limit does not silently restart stopped participants.
 | P6 | ntex/SeaORM backend, checksum migrations, Argon2 bounded hashing, session cookies, org/event permissions, event/FAQ CRUD and publish, invitation/reset tokens, mail outbox; real browser login/settings/category test | Complete security/load/pool exhaustion/shutdown acceptance; configure and test actual mail adapter; full feature UI acceptance |
 | P7 | Four ticket stages, multi-member assignment, version conflicts; paired hashed credentials, rotation/revocation; scoped Agent published FAQ/participants/run/result/ticket routes; transactional idempotency | Provider-specific callback authentication and full scope matrix; API/worker operational hardening |
 | P7a | Validated row import/commit with lang_code, durable X:Y dispatch, max retry/cooldown, uncertain-call reconciliation, late final result handling, active capacity bound | Actual provider adapter and signed callback mapping; rejection/reconciliation operator workflow; provider acceptance with authorized test number |
-| P7b | Pinned Gradle wrapper + Groovy/Spock HTTP acceptance, PostgreSQL Rust integration, real frontend/backend browser test, Jenkins blocking stage and report-before-cleanup ordering | Verify on Jenkins; extend suite to every remaining production gate |
+| P7b | Pinned Gradle wrapper + Groovy/Spock HTTP acceptance, PostgreSQL Rust integration, real frontend/backend browser test, Jenkins blocking stage and report-before-cleanup ordering; Jenkins #14 passed | Extend suite to every remaining production gate |
 | P8 | Backend/DB/worker/mailer compose budgets, non-root runtime Dockerfile, off-host backup script, isolated restore-rehearsal script | Lightsail host/region, secrets and mail/provider choice, off-host restore evidence, production image/load/monitoring/rollback rehearsal, actual cutover |
 | P9 | Legacy scheduler/recording code preserved; 31 scheduler + 8 audio repair + 11 callback fixture checks passed | Confirm legacy source/export and owner→org mapping; port recurring-run/recording journeys and test parity; migrate/reconcile data before retiring old paths |
 
@@ -47,6 +47,17 @@ creation or legacy data deletion has occurred.
 - Local dump/restore rehearsal restored 21 synthetic events and 37 completed attempts;
   all 21 restored queue policies were paused. Off-host AWS restore is not yet verified.
 - 50 legacy fixture checks passed without live provider calls.
+
+## Jenkins and deployment evidence
+
+- Jenkins event-confirm #14 succeeded for commit `55e2295`: 45 published JUnit
+  checks passed, zero failures/skips; PostgreSQL Rust scenarios also passed and
+  their log was archived. Build-owned test containers/network were cleaned up.
+- CI uses a dedicated configurable `/28` subnet because the shared host's Docker
+  default address pools are exhausted; no unrelated networks were removed.
+- Public demo smoke and browser checks passed for Settings ratio/retry controls,
+  event category tabs and Swagger UI. This deployed the demo frontend, not a
+  production backend or enabled calling worker.
 
 ## Cutover checklist
 

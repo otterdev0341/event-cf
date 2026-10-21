@@ -23,7 +23,7 @@
     },
     {
       "id": "P7b",
-      "status": "ci_verification_pending"
+      "status": "ci_verified_remaining_production_gates_pending"
     },
     {
       "id": "P8",
@@ -34,6 +34,14 @@
       "status": "legacy_baseline_verified_port_and_migration_pending"
     }
   ],
+  "validation": {
+    "jenkinsBuild": 14,
+    "commit": "55e2295",
+    "result": "SUCCESS",
+    "junitPassed": 45,
+    "junitFailed": 0,
+    "publicDemoSmoke": "passed"
+  },
   "requiredInput": [
     "Lightsail host/region",
     "Provider and mail service configuration",
