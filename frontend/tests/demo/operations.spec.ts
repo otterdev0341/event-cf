@@ -8,6 +8,7 @@ async function enter(page: Page) {
 }
 test('dashboard charts, searchable navigation, theme and team policy settings', async ({ page }) => {
   await enter(page);
+  await page.getByRole('button', { name: 'เลือก Event', exact: true }).click();
   await page.getByLabel('Search organization events').fill('DESIGN26');
   await page.getByRole('navigation', { name: 'Organization events', exact: true }).getByRole('link').click();
   await expect(page.getByRole('img', { name: 'Outbound call attempts', exact: true })).toBeVisible();
@@ -18,10 +19,14 @@ test('dashboard charts, searchable navigation, theme and team policy settings', 
   const nav = page.getByRole('navigation', { name: 'Main navigation', exact: true });
   await expect(nav.getByRole('link', { name: 'Organization', exact: true })).toHaveCount(0);
   await nav.getByRole('link', { name: 'Settings', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Dark', exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Maximum retries', { exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: /^Appearance/ }).click();
   await page.getByRole('button', { name: 'Dark', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.screenshot({ path: 'test-results/settings-dark.png', fullPage: true });
   await page.getByRole('button', { name: 'Light', exact: true }).click();
+  await page.getByRole('link', { name: '← กลับไป Settings', exact: true }).click();
   await page.getByRole('link', { name: /^Team management/ }).click();
   const member = page.getByRole('row').filter({ hasText: 'operations@example.test' });
   await member.getByRole('button', { name: 'Edit role' }).click();
@@ -108,6 +113,7 @@ test('knowledge category tab and latest-template import remain event-scoped draf
 test('retry limit stops exhausted mock rows and swagger renders local JSON', async ({ page }) => {
   await enter(page);
   await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('link', { name: /^Calling policy/ }).click();
   await page.getByLabel('สายใหม่ต่อรอบ', { exact: true }).fill('5');
   await page.getByLabel('สายโทรซ้ำต่อรอบ', { exact: true }).fill('2');
   await page.getByLabel('Maximum retries', { exact: true }).fill('0');

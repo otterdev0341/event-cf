@@ -1,0 +1,43 @@
+.event-picker {
+  position: relative;
+}
+.event-picker-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  text-align: left;
+  background: var(--color-canvas);
+}
+.event-picker-trigger span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.event-picker-trigger[aria-expanded='true'] > svg:last-child {
+  transform: rotate(180deg);
+}
+.event-picker-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  background: var(--color-canvas);
+  box-shadow: 0 8px 24px #18181520;
+}
+.event-picker-dropdown .event-search {
+  width: 100%;
+  margin: 0 0 8px;
+}
+.event-picker-list {
+  max-height: min(320px, 50dvh);
+  overflow-y: auto;
+}

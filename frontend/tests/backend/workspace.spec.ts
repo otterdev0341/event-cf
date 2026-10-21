@@ -24,6 +24,8 @@ test('real login and event settings persist through reload without mock fallback
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'เข้าสู่ workspace', exact: true }).click();
   await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await expect(page.getByLabel('สายใหม่ต่อรอบ', { exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: /^Calling policy/ }).click();
   await page.getByLabel('สายใหม่ต่อรอบ', { exact: true }).fill('3');
   await page.getByLabel('สายโทรซ้ำต่อรอบ', { exact: true }).fill('2');
   await page.getByLabel('Maximum retries', { exact: true }).fill('0');
