@@ -79,6 +79,7 @@ export function callingRoutes(org: string, eventId: string, tail: string[], meth
         person.state = 'stopped';
     }
     queue.newSinceFail = 0;
+    queue.dispatchPosition = 0;
     queue.version++;
   } else {
     const { action } = z.object({ action: z.enum(['start', 'pause', 'resume', 'cancel']) }).parse(body);

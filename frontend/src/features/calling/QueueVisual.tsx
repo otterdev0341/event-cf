@@ -39,19 +39,22 @@ export function QueueVisual({
         aria-label={`Example dispatch ${queue.ratio} new calls then ${queue.retryRatio} retries`}
       >
         {Array.from({ length: Math.min(queue.ratio, 12) }, (_, i) => (
-          <span key={i} className={`dispatch-cell new ${i < queue.newSinceFail ? 'consumed' : ''}`}>
+          <span key={i} className={`dispatch-cell new ${i < queue.dispatchPosition ? 'consumed' : ''}`}>
             N
           </span>
         ))}
         {queue.ratio > 12 && <span>+{queue.ratio - 12}</span>}
         {Array.from({ length: Math.min(queue.retryRatio, 12) }, (_, i) => (
-          <span key={i} className="dispatch-cell fail">
+          <span
+            key={i}
+            className={`dispatch-cell fail ${queue.dispatchPosition > queue.ratio + i ? 'consumed' : ''}`}
+          >
             R
           </span>
         ))}
         {queue.retryRatio > 12 && <span>+{queue.retryRatio - 12}</span>}
         <span className="muted text-xs">
-          ตัวอย่างลำดับเมื่อทั้งสองคิวพร้อม · {queue.newSinceFail}/{queue.ratio}
+          ตัวอย่างลำดับเมื่อทั้งสองคิวพร้อม · {queue.dispatchPosition}/{queue.ratio + queue.retryRatio}
         </span>
       </div>
       <div className="queue-lanes">

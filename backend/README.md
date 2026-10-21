@@ -36,7 +36,8 @@ participant_id, phone and lang_code, and Idempotency-Key=attempt_id. A successfu
 response must contain provider_id. GET /calls/{attempt_id} must authoritatively
 resolve an ambiguous submission without creating a new call. Failed/unknown
 responses remain blocked for reconciliation, not automatically redialed.
-Results enter the scoped Agent API only after acceptance is journaled.
+Results enter the scoped Agent API only after acceptance is journaled. A result
+carrying a ticket additionally requires tickets:create on both credentials.
 
 Mail is off by default. The "mailer" command needs MAIL_ENABLED=true and
 MAIL_API_URL/TOKEN. POST /messages receives to/message and a stable outbox

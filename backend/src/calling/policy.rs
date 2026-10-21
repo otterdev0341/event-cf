@@ -16,7 +16,7 @@ pub async fn state(db: &impl ConnectionTrait, org: &str, event: &str) -> Result<
     let r=db::one(db,"SELECT q.*,EXISTS(SELECT 1 FROM attempts a WHERE a.event_id=q.event_id AND a.status IN ('reserved','uncertain','accepted')) AS pending FROM queue_policy q WHERE org_id=$1 AND event_id=$2",vec![org.into(),event.into()]).await?;
     Ok(
         json!({"ratio":db::get::<i32>(&r,"new_weight")?,"retryRatio":db::get::<i32>(&r,"retry_weight")?,
-  "maxAttempts":db::get::<i32>(&r,"max_retries")?+1,"newSinceFail":db::get::<i32>(&r,"turn")?,
+  "maxAttempts":db::get::<i32>(&r,"max_retries")?+1,"newSinceFail":db::get::<i32>(&r,"turn")?.min(db::get::<i32>(&r,"new_weight")?),"dispatchPosition":db::get::<i32>(&r,"turn")?,
   "delayMinutes":db::get::<i32>(&r,"delay_seconds")?/60,"version":db::get::<i32>(&r,"version")?,
   "status":db::get::<String>(&r,"status")?,"pendingTurn":db::get::<bool>(&r,"pending")?}),
     )

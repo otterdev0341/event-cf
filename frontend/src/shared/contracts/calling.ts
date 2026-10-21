@@ -43,6 +43,7 @@ export const queueSchema = z.object({
   retryRatio: z.number().int().min(1).max(100).default(1),
   version: z.number().int(),
   newSinceFail: z.number().int(),
+  dispatchPosition: z.number().int().nonnegative().default(0),
   status: z.enum(['idle', 'running', 'paused', 'cancelled']),
   maxAttempts: z.number().int(),
   delayMinutes: z.number().int(),

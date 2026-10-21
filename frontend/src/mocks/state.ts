@@ -156,6 +156,7 @@ export function queueFor(id: string): Queue {
     retryRatio: 1,
     version: 1,
     newSinceFail: 0,
+    dispatchPosition: 0,
     status: 'idle',
     maxAttempts: 3,
     delayMinutes: 15,

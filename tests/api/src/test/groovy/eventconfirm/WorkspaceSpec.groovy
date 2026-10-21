@@ -92,17 +92,21 @@ class WorkspaceSpec extends Specification {
         given:
         def parent = api.success('POST', "/orgs/${org}/credentials", [
             name: 'Org agent', kind: 'org', eventId: null, parentId: null,
-            scopes: ['knowledge:read'], expiresAt: '2027-12-31'
+            scopes: ['knowledge:read', 'calls:result'], expiresAt: '2027-12-31'
         ]).body
         def child = api.success('POST', "/orgs/${org}/credentials", [
             name: 'Event agent', kind: 'event', eventId: event, parentId: parent.credential.id,
-            scopes: ['knowledge:read'], expiresAt: '2027-12-31'
+            scopes: ['knowledge:read', 'calls:result'], expiresAt: '2027-12-31'
         ]).body
         def headers = ['X-Org-Credential': parent.secret, 'X-Event-Credential': child.secret]
         def endpoint = "/agent/orgs/${org}/events/${event}/knowledge"
         expect:
         api.success('GET', endpoint, null, headers).body == []
         api.request('GET', endpoint).status == 401
+        api.request('POST', "/agent/orgs/${org}/events/${event}/calls/missing/result",
+            [result: 'confirm', reason: null, ticket: [
+                title: 'Needs ticket scope', description: 'Question', type: 'unanswered', assigneeIds: [], dueDate: ''
+            ]], headers + ['Idempotency-Key': UUID.randomUUID().toString()]).status == 403
         when:
         api.success('POST', "/orgs/${org}/credentials/${parent.credential.id}/revoke")
         then:

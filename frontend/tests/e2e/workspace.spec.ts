@@ -52,7 +52,7 @@ test('CSV import does not call; explicit start, pause and 5:1 policy', async ({ 
   await page.getByRole('button', { name: 'ยืนยันเริ่มโทร' }).click();
   await page.getByRole('button', { name: 'Pause queue' }).click();
   await page.getByRole('button', { name: 'ปรับสัดส่วน' }).click();
-  await page.getByLabel('โทร NEW กี่ครั้ง ก่อน FAIL 1 ครั้ง', { exact: true }).fill('5');
+  await page.getByLabel('สายใหม่ต่อรอบ', { exact: true }).fill('5');
   await page.getByRole('button', { name: 'ยืนยันเปลี่ยนสัดส่วน' }).click();
   await expect(page.getByText('5 new calls : 1 retry', { exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Fail / retry queue' }).click();

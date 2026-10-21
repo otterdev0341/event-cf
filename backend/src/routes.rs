@@ -143,7 +143,13 @@ pub async fn agent(
             crate::calling::handle(db, org, event, &p[5..], method, body).await
         }
         "tickets" => crate::tickets::handle(db, org, event, None, method, body).await,
-        "calls" => crate::calling::results::apply(db, org, event, p[6], body).await,
+        "calls" => {
+            if body.get("ticket").is_some() {
+                crate::credentials::pair(db, org, event, org_key, event_key, "tickets:create")
+                    .await?;
+            }
+            crate::calling::results::apply(db, org, event, p[6], body).await
+        }
         _ => Err(missing()),
     }
 }
