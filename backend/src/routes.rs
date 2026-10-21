@@ -1,3 +1,4 @@
+pub use crate::agent::handle as agent;
 use crate::{
     auth::{self, User},
     db,
@@ -67,6 +68,18 @@ pub async fn browser(
         crate::events::handle(db, org, event, method, body).await?
     } else {
         match p[4] {
+            "schedules" => {
+                crate::schedules::handle(
+                    db,
+                    user,
+                    org,
+                    event.unwrap(),
+                    p.get(5).copied(),
+                    method,
+                    body,
+                )
+                .await?
+            }
             "participants" | "imports" | "queue-state" | "queue-policy" | "runs" => {
                 crate::calling::handle(db, org, event.unwrap(), &p[4..], method, body).await?
             }
@@ -98,60 +111,6 @@ pub async fn browser(
         }
     }
     Ok(value)
-}
-pub async fn agent(
-    db: &impl ConnectionTrait,
-    path: &str,
-    method: &str,
-    body: Value,
-    org_key: &str,
-    event_key: &str,
-) -> Result<Value> {
-    let owned = segments(path)?;
-    let p: Vec<&str> = owned.iter().map(String::as_str).collect();
-    if p.len() < 6 || p[0] != "agent" || p[1] != "orgs" || p[3] != "events" {
-        return Err(missing());
-    }
-    let org = p[2];
-    let event = p[4];
-    db::one(
-        db,
-        "SELECT id FROM organizations WHERE id=$1 FOR UPDATE",
-        vec![org.into()],
-    )
-    .await?;
-    let scope = match (p[5], method) {
-        ("knowledge", "GET") => "knowledge:read",
-        ("tickets", "POST") => "tickets:create",
-        ("participants", "GET") => "calls:read",
-        ("runs", "POST") => "calls:create",
-        ("calls", "POST") if p.len() == 8 && p[7] == "result" => "calls:result",
-        _ => return Err(missing()),
-    };
-    crate::credentials::pair(db, org, event, org_key, event_key, scope).await?;
-    match p[5] {
-        "knowledge" => {
-            let row = db::one(
-                db,
-                "SELECT data FROM knowledge WHERE org_id=$1 AND event_id=$2",
-                vec![org.into(), event.into()],
-            )
-            .await?;
-            Ok(db::get::<Value>(&row, "data")?["published"].clone())
-        }
-        "participants" | "runs" => {
-            crate::calling::handle(db, org, event, &p[5..], method, body).await
-        }
-        "tickets" => crate::tickets::handle(db, org, event, None, method, body).await,
-        "calls" => {
-            if body.get("ticket").is_some() {
-                crate::credentials::pair(db, org, event, org_key, event_key, "tickets:create")
-                    .await?;
-            }
-            crate::calling::results::apply(db, org, event, p[6], body).await
-        }
-        _ => Err(missing()),
-    }
 }
 
 pub fn segments(path: &str) -> Result<Vec<String>> {

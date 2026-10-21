@@ -40,6 +40,9 @@ export function AuthPage() {
             ? 'กรอกอีเมลเพื่อขอลิงก์ตั้งรหัสผ่านใหม่'
             : 'เข้าสู่ระบบเพื่อเตรียมประสบการณ์ที่ดีให้ผู้เข้าร่วม'}
         </p>
+        {__INTEGRATION__ && (
+          <div className="notice">INTEGRATION TEST · บันทึกข้อมูลจริง · โทรจำลอง · ยังไม่ส่งอีเมล</div>
+        )}
         {__MOCK__ && !__DEMO__ && (
           <div className="notice">
             Development preview · ไม่มีการโทรหรือส่งเมลจริง

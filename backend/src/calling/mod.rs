@@ -32,8 +32,8 @@ pub async fn handle(
                 let mut value: Value = db::get(&row, "data")?;
                 value["lane"] = json!(db::get::<String>(&row, "lane")?);
                 value["state"] = json!(db::get::<String>(&row, "state")?);
-                let attempts=db::rows(db,"SELECT number,status,result,created_at FROM attempts WHERE participant_id=$1 ORDER BY number",vec![db::get::<String>(&row,"id")?.into()]).await?;
-                value["attempts"]=Value::Array(attempts.iter().map(|a|Ok(json!({"number":db::get::<i32>(a,"number")?,"transport":db::get::<String>(a,"status")?,
+                let attempts=db::rows(db,"SELECT id,number,status,result,created_at FROM attempts WHERE participant_id=$1 ORDER BY number",vec![db::get::<String>(&row,"id")?.into()]).await?;
+                value["attempts"]=Value::Array(attempts.iter().map(|a|Ok(json!({"id":db::get::<String>(a,"id")?,"number":db::get::<i32>(a,"number")?,"transport":db::get::<String>(a,"status")?,
      "outcome":db::get::<Option<Value>>(a,"result")?.unwrap_or(json!({"result":null,"reason":null})),
      "at":db::get::<chrono::DateTime<chrono::Utc>>(a,"created_at")?.to_rfc3339()}))).collect::<Result<_>>()?);
                 values.push(value);

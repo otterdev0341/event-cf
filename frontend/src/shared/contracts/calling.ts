@@ -20,6 +20,7 @@ export const outcomeSchema = z.discriminatedUnion('result', [
   z.object({ result: z.null(), reason: z.null() }),
 ]);
 export const attemptSchema = z.object({
+  id: z.string().optional(),
   number: z.number().int(),
   transport: z.string(),
   outcome: outcomeSchema,

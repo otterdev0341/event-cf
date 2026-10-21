@@ -3,7 +3,7 @@
   "info": {
     "title": "Event Confirm API — implementation contract",
     "version": "0.3.0",
-    "description": "Backend implementation under acceptance testing. Public website remains an explicit browser-local demo until cutover gates pass. Agent endpoints require both org and event credentials."
+    "description": "Backend implementation under acceptance testing. Integration deployment uses persistent data and a simulated provider; real calling and email delivery are not enabled. Agent endpoints require both org and event credentials."
   },
   "servers": [
     {
@@ -88,6 +88,12 @@
     "/orgs/{org}/events/{event}/runs": {
       "$ref": "./paths/orgs-org-events-event-runs.json"
     },
+    "/orgs/{org}/events/{event}/schedules": {
+      "$ref": "./paths/orgs-org-events-event-schedules.json"
+    },
+    "/orgs/{org}/events/{event}/schedules/{schedule}": {
+      "$ref": "./paths/orgs-org-events-event-schedules-schedule.json"
+    },
     "/orgs/{org}/events/{event}/tickets": {
       "$ref": "./paths/orgs-org-events-event-tickets.json"
     },
@@ -106,14 +112,20 @@
     "/orgs/{org}/check-pair": {
       "$ref": "./paths/orgs-org-check-pair.json"
     },
+    "/agent/orgs/{org}/events/{event}/event": {
+      "$ref": "./paths/agent-orgs-org-events-event-event.json"
+    },
+    "/agent/orgs/{org}/events/{event}/categories": {
+      "$ref": "./paths/agent-orgs-org-events-event-categories.json"
+    },
+    "/agent/orgs/{org}/events/{event}/runs": {
+      "$ref": "./paths/agent-orgs-org-events-event-runs.json"
+    },
     "/agent/orgs/{org}/events/{event}/knowledge": {
       "$ref": "./paths/agent-orgs-org-events-event-knowledge.json"
     },
     "/agent/orgs/{org}/events/{event}/participants": {
       "$ref": "./paths/agent-orgs-org-events-event-participants.json"
-    },
-    "/agent/orgs/{org}/events/{event}/runs": {
-      "$ref": "./paths/agent-orgs-org-events-event-runs.json"
     },
     "/agent/orgs/{org}/events/{event}/tickets": {
       "$ref": "./paths/agent-orgs-org-events-event-tickets.json"

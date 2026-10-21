@@ -13,6 +13,7 @@ export default defineConfig(({ command, mode }) => {
     plugins: [react(), tailwind()],
     define: {
       __MOCK__: JSON.stringify(mode === 'demo' || (command === 'serve' && mode === 'mock')),
+      __INTEGRATION__: JSON.stringify(mode === 'integration'),
       __DEMO__: JSON.stringify(mode === 'demo'),
     },
     server: {

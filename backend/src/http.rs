@@ -122,6 +122,7 @@ async fn dispatch(req: &HttpRequest, bytes: &[u8], app: &App) -> Result<(Value, 
         && (path.ends_with("/commit")
             || path.ends_with("/runs")
             || path.ends_with("/tickets")
+            || path.ends_with("/schedules")
             || path.ends_with("/knowledge-import"));
     if needs_key && key.is_none() {
         return Err(bad("Idempotency-Key required"));
@@ -181,6 +182,7 @@ async fn agent_dispatch(
     let event_key = header("X-Event-Credential")?;
     let tx = app.db.begin().await?;
     db::exec(&tx, "SET LOCAL statement_timeout='5s'", vec![]).await?;
+    db::exec(&tx, "SET LOCAL lock_timeout='3s'", vec![]).await?;
     let scope = format!("agent:{}:{}", auth::password::digest(event_key), path);
     // Authorization must precede replay; route mutations and response are one transaction.
     let key = req
@@ -199,17 +201,22 @@ async fn agent_dispatch(
         "tickets" => "tickets:create",
         "calls" => "calls:result",
         "participants" => "calls:read",
+        "runs" if method == "GET" => "calls:read",
         "runs" => "calls:create",
+        "event" => "events:read",
         _ => "knowledge:read",
     };
     crate::credentials::pair(&tx, p[2], p[4], org_key, event_key, permission).await?;
+    if p[5] == "calls" && body.get("ticket").is_some() {
+        crate::credentials::pair(&tx, p[2], p[4], org_key, event_key, "tickets:create").await?;
+    }
     if let Some(key) = key {
         if let Some(saved) = crate::idempotency::lookup(&tx, &scope, key, &body).await? {
             tx.commit().await?;
             return Ok((saved, None));
         }
     }
-    let result = crate::routes::agent(&tx, path, method, body.clone(), org_key, event_key).await?;
+    let result = crate::agent::handle(&tx, path, method, body.clone(), org_key, event_key).await?;
     if let Some(key) = key {
         crate::idempotency::save(&tx, &scope, key, &body, &result).await?;
     }

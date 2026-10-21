@@ -68,8 +68,12 @@ pub async fn handle(
         .await?;
         db::exec(
             db,
-            "INSERT INTO queue_policy(org_id,event_id) VALUES($1,$2)",
-            vec![org.into(), id.into()],
+            "INSERT INTO queue_policy(org_id,event_id,delay_seconds) VALUES($1,$2,$3)",
+            vec![
+                org.into(),
+                id.into(),
+                crate::config::retry_delay_seconds()?.into(),
+            ],
         )
         .await?;
         return Ok(data);

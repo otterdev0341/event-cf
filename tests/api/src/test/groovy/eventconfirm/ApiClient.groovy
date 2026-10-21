@@ -11,6 +11,7 @@ class ApiClient {
     final String base = System.getProperty('event.baseUrl')
     final CookieManager cookies = new CookieManager(null, CookiePolicy.ACCEPT_ALL)
     final HttpClient client = HttpClient.newBuilder()
+        .version(HttpClient.Version.HTTP_1_1)
         .cookieHandler(cookies)
         .connectTimeout(Duration.ofSeconds(5)).build()
 

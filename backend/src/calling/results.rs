@@ -48,10 +48,14 @@ pub async fn apply(
     let person: String = db::get(&attempt, "participant_id")?;
     let row = db::one(
         db,
-        "SELECT data,attempt_count FROM participants WHERE id=$1 FOR UPDATE",
+        "SELECT data,attempt_count,cycle_base FROM participants WHERE id=$1 FOR UPDATE",
         vec![person.clone().into()],
     )
     .await?;
+    let base: i32 = db::get(&row, "cycle_base")?;
+    if db::get::<i32>(&attempt, "number")? <= base {
+        return Err(conflict());
+    }
     let mut data: Value = db::get(&row, "data")?;
     let policy = db::one(
         db,
@@ -59,7 +63,7 @@ pub async fn apply(
         vec![event.into()],
     )
     .await?;
-    let attempts: i32 = db::get(&row, "attempt_count")?;
+    let attempts: i32 = db::get::<i32>(&row, "attempt_count")? - base;
     let definitive = data["outcome"]["result"]
         .as_str()
         .is_some_and(|r| ["confirm", "decline"].contains(&r));

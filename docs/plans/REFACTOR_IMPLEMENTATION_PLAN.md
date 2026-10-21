@@ -1,5 +1,13 @@
 # Event Confirm — Frontend-first refactor และ implementation plan
 
+> Implementation update (2026-10-21): this is the original target plan. Use
+> [current contract](../../contracts/README.md), [OpenAPI](../../contracts/openapi.json)
+> and [execution status](PHASE_6_9_EXECUTION.md) for implemented routes and evidence.
+> Current Agent headers are X-Org-Credential + X-Event-Credential under
+> /event-confirm/api/v1/agent/orgs/{org}/events/{event}; old Bearer examples below
+> are design history. Email provider is deferred by explicit owner instruction.
+> Integration deployment uses a simulated telephone provider, with persistent data.
+
 > **อัปเดตผลการโทร:** ใช้ [CALL_OUTCOME_MODEL.md](CALL_OUTCOME_MODEL.md) เป็นข้อกำหนดล่าสุด: `confirm` / `decline` / `unknown` พร้อมเหตุผล แทน `not_confirmed` ในเอกสารนี้; confirm อาจมี ticket และ decline ไม่โทรซ้ำ
 
 วันที่: 21 ตุลาคม 2026 · สถานะ: แผนสำหรับ implementation รอบถัดไป

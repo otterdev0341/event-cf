@@ -81,3 +81,54 @@ Recurring schedules (once/daily/weekly in Asia/Bangkok), explicit per-occurrence
 recording playback/download/repair and provider recording association remain required
 until the owner explicitly decides otherwise. Existing fixture tests establish a baseline;
 they do not prove those journeys have been ported to the Rust backend.
+
+## Additional acceptance work (2026-10-21)
+
+- Rust suite now passes 12 scenarios locally, including role/event authorization,
+  membership removal, five-slot pool exhaustion/recovery, bounded hashing,
+  mail transport replay with stable identity, and in-flight shutdown draining.
+- Actual worker and mailer processes exit successfully on SIGTERM. Docker gives
+  them 45 seconds to drain; they stop claiming new work after shutdown is observed.
+- Groovy suite now passes 8 HTTP scenarios locally, including CSRF/origin rejection,
+  anonymous access denial, cookie flags/path, and captured-session replay after logout.
+- HTTP acceptance explicitly uses HTTP/1.1, matching the intended nginx upstream.
+  A raw Java h2c-upgrade request timed out against the direct API; h2c is not a
+  validated upstream protocol and must not be enabled for cutover without resolution.
+- Agent result replay rechecks ticket creation scope when the payload contains a
+  ticket. Agent transactions now have the same bounded lock wait as browser writes.
+- Full sustained-load acceptance, real provider/mail integration, full UI acceptance,
+  production cutover and legacy migration remain open. These focused tests do not
+  declare P6–P9 complete.
+
+## Owner-directed integration delivery (2026-10-21, in progress)
+
+- Owner authorized continuing P2–P5/P7/P7a/P7b/P8/P9 and updating P0–P1 documents.
+  Email provider is explicitly deferred; do not treat it as an integration deployment blocker.
+- Root compose now describes a persistent real-API integration workspace with project
+  PostgreSQL, Rust API/worker and a durable simulated provider journal. No mailer is started.
+  This is separate from a production Lightsail/provider cutover.
+- Agent Access examples now match runtime headers/routes; Swagger executes same-origin
+  requests without saving credentials. Agent event/categories/queue-state reads and attempt
+  IDs are available. Full history pagination/search remains outstanding.
+- Browser acceptance expanded to CSV import without dispatch, ticket persistence/stages/
+  comments and issuing/revoking a real credential pair.
+- Groovy adds worker→provider acceptance→Agent confirmation/ticket/replay and weighted
+  2:1/5:1 HTTP flows, using zero cooldown only in the isolated CI environment.
+- P9 scheduler backend now supports once/daily/weekly Bangkok rules, selected participants,
+  explicit redial, durable occurrence identity, cancellation, permission/version checks and
+  retained attempt history. New scheduler UI and recording adapter remain outstanding.
+- Legacy source/export and owner→org/event mapping are still required before data migration.
+  Existing legacy files are retained. No existing production records are modified.
+
+### Regression evidence during implementation
+
+- A repeated scheduler tick before dispatch exposed an incorrect event-ID parameter in the
+  selected-participant query. Corrected to schedule ID; the regression now proves a round
+  remains running before acceptance and only selected participants dispatch.
+- Weighted dispatch now snapshots the selected lane in the attempt. An empty fail lane
+  leaves its pending turn saturated instead of wrapping after more new calls. Acceptance
+  replay finalizes the turn once; the database test exercises late fail eligibility.
+- Initial browser/Groovy failures were test harness issues (ambiguous parent-label selector
+  and assignments inside Spock polling); fixed before evaluating product behavior.
+
+Deployment revision, final suite totals and public smoke evidence will be recorded after CI.

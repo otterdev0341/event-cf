@@ -1,5 +1,6 @@
 import { z } from 'zod';
 export const scopes = [
+  'events:read',
   'knowledge:read',
   'tickets:create',
   'calls:read',

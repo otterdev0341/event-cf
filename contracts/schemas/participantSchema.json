@@ -137,6 +137,9 @@
       "items": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string"
+          },
           "number": {
             "type": "integer",
             "minimum": -9007199254740991,

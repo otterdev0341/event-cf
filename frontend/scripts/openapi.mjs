@@ -41,6 +41,12 @@ const rows = [
   [`${event}/queue-state`, 'get', null, ref('queueSchema')],
   [`${event}/queue-policy`, 'patch', object({ ratio: { type: 'integer', minimum: 1, maximum: 100 }, retryRatio: { type: 'integer', minimum: 1, maximum: 100 }, maxRetries: { type: 'integer', minimum: 0, maximum: 10 }, expectedVersion: integer }), ref('queueSchema')],
   [`${event}/runs`, 'post', object({ action: { enum: ['start', 'pause', 'resume', 'cancel'] } }), ref('queueSchema')],
+  [`${event}/schedules`, 'get', null, { type: 'array', items: { type: 'object' } }],
+  [`${event}/schedules`, 'post', object({ date: { type: 'string', format: 'date' }, time: string,
+    recurrence: { enum: ['once', 'daily', 'weekly'] }, weekdays: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 6 } },
+    redial: { type: 'boolean' }, participantIds: { type: 'array', items: string }, expectedEventVersion: integer,
+    consent: { const: true } }), { type: 'object' }],
+  [`${event}/schedules/{schedule}`, 'patch', object({ action: { const: 'cancel' }, expectedVersion: integer }), ok],
   [`${event}/tickets`, 'get', null, list('ticketSchema')],
   [`${event}/tickets`, 'post', ref('ticketInputSchema'), ref('ticketSchema')],
   [`${event}/tickets/{ticket}`, 'patch', object({ expectedVersion: integer, status: { enum: ['open', 'in_progress', 'waiting', 'resolved'] }, assigneeIds: { type: 'array', items: string }, dueDate: string, comment: string }, ['expectedVersion']), ref('ticketSchema')],
@@ -53,6 +59,9 @@ const rows = [
 const agent = '/agent/orgs/{org}/events/{event}';
 const agentSecurity = [{ OrgCredential: [], EventCredential: [] }];
 rows.push(
+  [agent + '/event', 'get', null, ref('eventSchema'), agentSecurity],
+  [agent + '/categories', 'get', null, { type: 'array', items: string }, agentSecurity],
+  [agent + '/runs', 'get', null, ref('queueSchema'), agentSecurity],
   [agent + '/knowledge', 'get', null, list('faqSchema'), agentSecurity],
   [agent + '/participants', 'get', null, list('participantSchema'), agentSecurity],
   [agent + '/runs', 'post', object({ action: { enum: ['start', 'pause', 'resume', 'cancel'] } }), ref('queueSchema'), agentSecurity],
@@ -78,7 +87,7 @@ for (const [route, method, input, output, security] of rows) {
       default: { description: '401/403/404/409/422/429/503 error', content: { 'application/json': { schema: object({ message: string, code: string }, ['message']) } } },
     },
   };
-  if ((route.startsWith('/agent/') && method === 'post') || route.endsWith('/knowledge-import') || route.endsWith('/commit') || route.endsWith('/runs') || (route.endsWith('/tickets') && method === 'post')) {
+  if ((route.startsWith('/agent/') && method === 'post') || route.endsWith('/schedules') && method === 'post' || route.endsWith('/knowledge-import') || route.endsWith('/commit') || route.endsWith('/runs') || (route.endsWith('/tickets') && method === 'post')) {
     operation.parameters.push({ name: 'Idempotency-Key', in: 'header', required: true, schema: string });
   }
   item.operations[method] = operation;
@@ -92,7 +101,7 @@ async function emit(file, value) {
 }
 for (const item of Object.values(paths)) await emit(`paths/${item.name}.json`, item.operations);
 await emit('openapi.json', {
-  openapi: '3.1.0', info: { title: 'Event Confirm API — implementation contract', version: '0.3.0', description: 'Backend implementation under acceptance testing. Public website remains an explicit browser-local demo until cutover gates pass. Agent endpoints require both org and event credentials.' },
+  openapi: '3.1.0', info: { title: 'Event Confirm API — implementation contract', version: '0.3.0', description: 'Backend implementation under acceptance testing. Integration deployment uses persistent data and a simulated provider; real calling and email delivery are not enabled. Agent endpoints require both org and event credentials.' },
   servers: [{ url: '/event-confirm/api/v1' }], security: [{ SessionCookie: [] }],
   paths: Object.fromEntries(Object.entries(paths).map(([route, item]) => [route, { $ref: `./paths/${item.name}.json` }])),
   components: { securitySchemes: { SessionCookie: { type: 'apiKey', in: 'cookie', name: 'event_confirm_session' }, OrgCredential: { type: 'apiKey', in: 'header', name: 'X-Org-Credential' }, EventCredential: { type: 'apiKey', in: 'header', name: 'X-Event-Credential' } } },

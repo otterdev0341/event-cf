@@ -17,8 +17,8 @@ exercise expired/invalid states. These strings are omitted from production bundl
 `npm run dev` uses real HTTP endpoints with no fallback. `npm run build` emits a
 production build that expects the P6+ API. `vite build --mode mock` is rejected.
 Jenkins packages the checked production build into the project nginx image.
-Public routes serve the frontend; API requests return JSON 503 until the P6+ backend
-is deployed. Development credentials do not authenticate against that public API.
+Integration deployment proxies API requests to Rust through the project nginx.
+Development mock credentials do not authenticate against the real API.
 
 ## Checks
 
@@ -58,13 +58,16 @@ Canonical routes use /event-confirm/orgs/:orgId/events/:eventId/...; convenience
 workspace tabs use /events, /knowledge, /participants, /calling, /tickets, /agent-access.
 All canonical routes verify membership/event context before displaying data.
 
-## Remaining production dependencies
+## Current integration status
 
-P6–P8 supply real auth/session/CSRF, persistence, SMTP, credential hashing, async
-worker/provider callbacks, backend import validation, rate limits, pagination and
-Groovy API acceptance tests. Frontend permissions/validation are UX, not backend
-security. Preview defaults (2:1, 3 attempts, 15 minutes) need product confirmation
-before real outbound dispatch. See docs/plans/IMPLEMENTATION_PHASES.md.
+P6+ Rust backend is implemented and real API browser tests cover settings, categories,
+participant CSV preview/commit, tickets and paired credentials. See
+`docs/plans/PHASE_6_9_EXECUTION.md` for deployed revision and evidence.
+
+`npm run build:integration` uses the real HTTP service and adds a test-environment notice.
+Data persists in PostgreSQL; the configured provider only simulates dispatch acceptance.
+Mail delivery is explicitly deferred by the owner. Default `npm run build` remains
+mock-free. Demo builds remain available for regression tests, not automatic fallbacks.
 
 ## Public UI demo
 
@@ -83,7 +86,7 @@ mock-free real-API build for the eventual backend cutover.
 - Follow-up supports four columns, drag/drop, table view and multiple active org assignees.
 - Knowledge/category master and XLSX templates are event-scoped; imports remain drafts.
 - Participant templates require lang_code; Queue settings include maxRetries, excluding the initial call.
-- Swagger UI is served at /event-confirm/swagger-ui/ with local OpenAPI JSON. Backend execution is disabled.
+- Swagger UI is served at /event-confirm/swagger-ui/ with local OpenAPI JSON. Same-origin API execution is enabled; credentials are not persisted.
 - See docs/plans/WORKSPACE_OPERATIONS_UPDATE.md and .json for the remaining backend work.
 
 Libraries follow official integration guides: [Chart.js](https://www.chartjs.org/docs/latest/getting-started/integration)

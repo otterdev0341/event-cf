@@ -14,7 +14,8 @@
     "test:e2e": "playwright test",
     "preview": "vite preview --host 127.0.0.1",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\" \"*.ts\"",
-    "test:backend": "playwright test --config playwright.backend.config.ts"
+    "test:backend": "playwright test --config playwright.backend.config.ts",
+    "build:integration": "tsc --noEmit && vite build --mode integration && node scripts/swagger.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "5.3.0",

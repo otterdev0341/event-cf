@@ -1,5 +1,10 @@
 # Event Confirm documentation
 
+เอกสารปัจจุบัน:
+
+- [AI Agent integration handoff](AGENT_API_HANDOFF.md)
+- [P6–P9 execution status](plans/PHASE_6_9_EXECUTION.md)
+
 เริ่มอ่านก่อน refactor:
 
 - [ผลส่งมอบ Phase 0–5](PHASE_0_5_DELIVERY.md) · [วิธีรัน frontend preview](../frontend/README.md)

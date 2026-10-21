@@ -1,6 +1,6 @@
 use event_confirm_api::{auth, config::App, db, http};
 use ntex::{SharedCfg, web};
-#[ntex::main(name = "event-confirm", signals = true)]
+#[ntex::main(name = "event-confirm", signals = false)]
 async fn main() -> std::io::Result<()> {
     let app = App::connect()
         .await
@@ -21,6 +21,7 @@ async fn main() -> std::io::Result<()> {
             .await
             .map_err(|e| std::io::Error::other(e.1));
     }
+    ntex::rt::System::current().enable_signals();
     let bind = std::env::var("BIND_ADDRESS").unwrap_or("127.0.0.1:18460".into());
     web::HttpServer::new(async move |_| {
         web::App::new()

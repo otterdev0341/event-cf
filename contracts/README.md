@@ -1,97 +1,63 @@
-# Phase 0 contract baseline
+# Event Confirm implementation contract
 
-Version 0.1.0; proposed HTTP surface for P6+. Phase 1–5 implements a development-only
-transport with these request/response shapes. Production never falls back to it.
+Updated 2026-10-21. Use [OpenAPI 3.1](openapi.json) and backend routes as the
+implementation contract. Earlier design documents describe targets, not deployed APIs.
 
-`schemas/*.json` are generated from the Zod wire DTOs in `frontend/src/shared/contracts`.
-Run `node frontend/scripts/contracts.mjs --write` after reviewed changes; without
-`--write`, it fails on drift. All source/schema files obey the 300-line gate.
+Browser and Agent APIs both use `/event-confirm/api/v1`.
+The browser uses the `event_confirm_session` cookie, scoped to `/event-confirm/`,
+HttpOnly/SameSite and Secure on HTTPS. Writes require `X-Requested-With: EventConfirm`;
+when supplied, Origin must match PUBLIC_ORIGIN. That header is not authentication.
 
-Machine-readable browser API: [OpenAPI 3.1](openapi.json), split path items under `paths/`.
-Run `node frontend/scripts/openapi.mjs` to verify path drift.
+Agent base: `/event-confirm/api/v1/agent/orgs/{org}/events/{event}`.
+Both `X-Org-Credential` and `X-Event-Credential` are mandatory; parent, org, event,
+expiry, revocation and scope intersection are checked on each request, including replays.
+`Authorization: Bearer` and `/api/agent/v1` in the original proposal are obsolete.
 
-## HTTP conventions
-
-- Browser base `/event-confirm/api/v1`; session cookie HttpOnly/Secure/SameSite,
-  same-origin credentials, Origin/CSRF validation required in P6. Frontend sends
-  `X-Requested-With: EventConfirm`; this header alone is not authentication.
-- Agent base `/event-confirm/api/agent/v1`; BOTH Authorization Bearer org key and
-  X-Event-Credential required, with matching org/event and intersecting scopes.
-- JSON errors `{ "message": "...", "code": "..." }`; 401 unauthenticated,
-  403 permission/pair mismatch, 404 tenant-scoped missing, 409 version/conflict,
-  422 validation, 429 bounded admission, 503 unavailable. No HTML success fallback.
-- Collection responses in this frontend slice are arrays. Backend must cap result
-  sets and introduce versioned cursor DTOs before serving large datasets (P6/P7).
-- PATCH requires `expectedVersion`; stale writes return 409 and reload current data.
-- Import commit/run start/result writes use Idempotency-Key. Persist request hash and
-  reject same key with different body in P7; never derive a second call from retry.
-- `attendance_result` is the domain name; wire DTO uses nested `outcome.result`:
-  confirm/decline/unknown, with `outcome.reason` required only for unknown.
-  Pending is null; provider ambiguity is processing state, never inferred unknown.
-
-## Browser endpoints
-
-| Method / relative path | Input | Output |
+| Agent operation | Scope | Response |
 |---|---|---|
-| POST /auth/reset/complete | token, password | ok/message; expired token error |
-| POST /organizations | name | updated sessionSchema |
-| POST /invitations/accept | token | updated sessionSchema |
-| PATCH /orgs/{org}/members/{member} | role | ok; owner transfer separate |
-| DELETE /orgs/{org}/members/{member} | admin membership | ok; owner protected |
-| GET /auth/session | session cookie | sessionSchema |
-| POST /auth/login | email, password | sessionSchema |
-| POST /auth/logout | — | ok |
-| POST /auth/reset | email | ok/message; never disclose account existence |
-| GET /orgs/{org}/members | admin membership | memberSchema[] |
-| POST /orgs/{org}/members | email, role (admin/editor/viewer) | ok; invitation |
-| GET /orgs/{org}/events | membership | eventSchema[] |
-| POST /orgs/{org}/events | eventInputSchema | eventSchema |
-| GET /orgs/{org}/events/{event} | membership | eventSchema |
-| PATCH /orgs/{org}/events/{event} | eventInputSchema or status + expectedVersion | eventSchema |
-| GET /orgs/{org}/events/{event}/knowledge | membership | knowledgeSchema |
-| POST /orgs/{org}/events/{event}/categories | name | ok |
-| POST /orgs/{org}/events/{event}/faqs | faqInputSchema | ok |
-| PATCH /orgs/{org}/events/{event}/faqs/{faq} | faqInputSchema + expectedVersion | ok |
-| DELETE /orgs/{org}/events/{event}/faqs/{faq} | editor membership | ok; draft only |
-| POST /orgs/{org}/events/{event}/publish | editor membership | ok; atomic knowledge snapshot |
-| GET /orgs/{org}/events/{event}/participants | membership | participantSchema[] |
-| POST /orgs/{org}/events/{event}/imports | rows: importRowSchema[] | importPreviewSchema |
-| POST /orgs/{org}/events/{event}/imports/{id}/commit | idempotency key | ok; no calls |
-| GET /orgs/{org}/events/{event}/queue-state | membership | queueSchema |
-| PATCH /orgs/{org}/events/{event}/queue-policy | ratio + expectedVersion | queueSchema |
-| POST /orgs/{org}/events/{event}/runs | action: start/pause/resume/cancel + idempotency | queueSchema |
-| GET /orgs/{org}/events/{event}/tickets | membership | ticketSchema[] |
-| POST /orgs/{org}/events/{event}/tickets | ticketInputSchema + idempotency | ticketSchema |
-| PATCH /orgs/{org}/events/{event}/tickets/{id} | expectedVersion + status/assignee/dueDate/comment | ticketSchema |
-| GET /orgs/{org}/credentials | owner/admin | credentialSchema[]; no secrets |
-| POST /orgs/{org}/credentials | credentialInputSchema | issuedSchema; show once |
-| POST /orgs/{org}/credentials/{id}/rotate | owner/admin | issuedSchema; revoke old & children |
-| POST /orgs/{org}/credentials/{id}/revoke | owner/admin | ok; revoke children |
-| POST /orgs/{org}/check-pair | orgKeyId,eventKeyId,eventId | ok/message; metadata validation only |
+| GET /event | events:read | Event DTO |
+| GET /knowledge | knowledge:read | Published FAQ array; draft excluded |
+| GET /categories | knowledge:read | Sorted categories present in published FAQ |
+| GET /participants | calls:read | Participants with attempt IDs and history |
+| GET /runs | calls:read | Current event queue state (not historical run list) |
+| POST /runs | calls:create | action=start/pause/resume/cancel |
+| POST /tickets | tickets:create | Created ticket |
+| POST /calls/{attempt}/result | calls:result | `{ "ok": true }` |
 
-## Agent endpoints (P7, not implemented by frontend preview)
+All Agent POSTs require `Idempotency-Key`. Browser import commit, run start/actions,
+ticket creation, knowledge import and schedule creation also require it. Retry the same
+payload with the same key; different payload returns 409. PATCH uses expectedVersion
+(or expectedRevision for category master). Idempotency does not grant authorization.
 
-GET /events/{event}/faqs: published snapshot only, knowledge:read.
-POST /events/{event}/tickets: tickets:create, event-scoped ticket input + source reference.
-POST /events/{event}/call-attempts/{attempt}/results: calls:result, outcome/revision +
-ticket intent, idempotency. Provider transport evidence is accepted only through
-separately authenticated provider callbacks, never from Agent business result DTO.
+Result input is `{ "result": "confirm", "reason": null }`, optionally with `ticket`.
+`decline` also uses null reason; `unknown` requires no_answer/noisy_audio/ai_cannot_infer.
+A ticket additionally requires tickets:create on BOTH credentials. Confirm plus ticket
+never requests retry. A new result requires an accepted attempt; obtain its ID from
+worker dispatch or GET participants, never invent an ID. Old-occurrence results cannot
+change attendance after explicit scheduled redial starts a new occurrence.
 
-## Defaults and decisions
+Collections currently return arrays; pagination/search is not implemented. GET runs
+is queue state, not the historical run/attempt cursor API proposed in the original plan.
+Errors return `{ "message": "..." }` with 401/403/404/409/422/429/503 as appropriate.
 
-Accepted: ntex/Tokio + SeaORM, two logical queue lanes, X:1 ratio counts accepted
-provider dispatch, confirm may coexist with ticket, decline stops automatic retry.
-Proposed preview defaults: per-event ratio 2:1; 3 attempts including initial; 15-minute
-delay; one phone per event; required last name. These must be reviewed before outbound
-P7a/P8, not silently treated as production policy. Event timezone: Asia/Bangkok initially.
-No-answer count is per authoritative attempt, not duplicate callback count.
+Browser features: auth/session/logout/reset, organizations/members/invitations,
+events, categories, FAQs/publish, knowledge import, participant row import/commit,
+queue settings/runs, tickets, credentials and schedules. Consult OpenAPI for exact
+request schemas. CSV/XLSX is parsed by the frontend worker; backend imports accept
+validated JSON rows and independently validate them. Upload/commit never starts calls.
 
-## Migration and repository inventory
+Schedules are browser-authenticated event operations under `/orgs/{org}/events/{event}/schedules`.
+They require explicit participant IDs, consent, event version and redial choice. Time is
+Asia/Bangkok; weekdays use Sunday=0. Recurrence is once/daily/weekly. Cancellation is
+versioned. Scheduler rechecks owner permissions and event version; stale configurations
+stop. Explicit redial starts a fresh attempt budget while retaining old attempts.
+These endpoints do not migrate legacy data and have no new schedule UI yet.
 
-Legacy React/Vite/Supabase entry remains at root. New frontend is under `frontend/`;
-root build/dev behavior remains available until cutover. Existing scheduler, voice
-connection encryption, inbound, recordings, recurring campaigns and SQL history are
-preserved. New org/membership/event IDs need explicit mapping from legacy user/campaign
-ownership; no automatic ownership merge, password transfer or production migration in P0–5.
-GitHub public-fork/private conversion is a separate owner operation: see refactor plan.
-No repository visibility, remote, existing data, or live routing changes in this phase.
+`schemas/*.json` derive from frontend Zod DTOs. Run `node frontend/scripts/contracts.mjs`
+and `node frontend/scripts/openapi.mjs` to check drift; `--write` regenerates artifacts.
+These checks detect generator/artifact drift, not proof that every live handler matches.
+Groovy HTTP acceptance and browser integration tests supply behavioral evidence.
+
+Deployment target in this iteration: persistent integration workspace, simulated provider,
+no real telephone calls and no email provider. Production provider callbacks, pagination,
+recording adapter and legacy migration are separate remaining work. See the execution plan.

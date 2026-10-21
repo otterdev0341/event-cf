@@ -38,14 +38,16 @@ pub async fn run(app: App) -> Result<()> {
         .timeout(Duration::from_secs(10))
         .build()
         .map_err(|_| Error(503, "Mail client unavailable".into()))?;
-    let mut stop = Box::pin(tokio::signal::ctrl_c());
-    loop {
-        tokio::select! {
-         _=&mut stop=>break,
-         _=tokio::time::sleep(Duration::from_secs(2))=>{
-          if let Err(e)=tick(&app,&client,&url,&key).await {eprintln!("mail delivery: {}",e.1);}
-         }
+    let stop = async {
+        if let Err(error) = crate::shutdown::signal().await {
+            eprintln!("shutdown listener: {error}");
         }
-    }
+    };
+    crate::shutdown::drain_loop(stop, Duration::from_secs(2), || async {
+        if let Err(error) = tick(&app, &client, &url, &key).await {
+            eprintln!("mail delivery: {}", error.1);
+        }
+    })
+    .await;
     Ok(())
 }

@@ -105,6 +105,9 @@ export function Shell() {
         </div>
       </aside>
       <div className="min-w-0">
+        {__INTEGRATION__ && (
+          <div className="notice">INTEGRATION TEST · บันทึกข้อมูลจริง · โทรจำลอง · ยังไม่ส่งอีเมล</div>
+        )}
         {__MOCK__ && (
           <div className="preview-bar">
             {__DEMO__ ? 'UI DEMO' : 'DEVELOPMENT PREVIEW'} — ข้อมูลจำลอง · ไม่มีการโทรจริง · ข้อมูลรีเซ็ตเมื่อ

@@ -6,6 +6,7 @@ use crate::{
 };
 use std::time::Duration;
 pub async fn tick(app: &App, client: &reqwest::Client, base: &str, key: &str) -> Result<()> {
+    crate::schedules::worker::tick(&app.db).await?;
     // Reconcile ambiguous submissions before claiming new work. Never guess from a timeout.
     let pending=db::rows(&app.db,"SELECT id FROM attempts WHERE status IN ('reserved','uncertain') AND lease_until<now() ORDER BY created_at LIMIT 1",vec![]).await?;
     if let Some(row) = pending.first() {
@@ -67,14 +68,16 @@ pub async fn run(app: App) -> Result<()> {
         .timeout(Duration::from_secs(10))
         .build()
         .map_err(|_| Error(503, "Provider client unavailable".into()))?;
-    let mut stop = Box::pin(tokio::signal::ctrl_c());
-    loop {
-        tokio::select! {
-         _=&mut stop=>break,
-         _=tokio::time::sleep(Duration::from_secs(1))=>{
-          if let Err(error)=tick(&app,&client,&base,&key).await {eprintln!("worker: {}",error.1);}
-         }
+    let stop = async {
+        if let Err(error) = crate::shutdown::signal().await {
+            eprintln!("shutdown listener: {error}");
         }
-    }
+    };
+    crate::shutdown::drain_loop(stop, Duration::from_secs(1), || async {
+        if let Err(error) = tick(&app, &client, &base, &key).await {
+            eprintln!("worker: {}", error.1);
+        }
+    })
+    .await;
     Ok(())
 }

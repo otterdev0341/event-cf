@@ -4,7 +4,11 @@ window.addEventListener('load', () => {
     dom_id: '#swagger-ui',
     deepLinking: true,
     validatorUrl: null,
-    supportedSubmitMethods: [],
+    supportedSubmitMethods: ['get', 'post', 'patch', 'delete'],
+    requestInterceptor: request => {
+      request.headers['X-Requested-With'] = 'EventConfirm';
+      return request;
+    },
     persistAuthorization: false,
   });
 });

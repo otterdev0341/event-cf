@@ -1,4 +1,73 @@
 {
+  "get": {
+    "operationId": "get-agent-orgs-org-events-event-runs",
+    "summary": "GET /agent/orgs/{org}/events/{event}/runs",
+    "security": [
+      {
+        "OrgCredential": [],
+        "EventCredential": []
+      }
+    ],
+    "parameters": [
+      {
+        "name": "org",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "event",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Success",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "../schemas/queueSchema.json"
+            }
+          }
+        }
+      },
+      "default": {
+        "description": "401/403/404/409/422/429/503 error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
   "post": {
     "operationId": "post-agent-orgs-org-events-event-runs",
     "summary": "POST /agent/orgs/{org}/events/{event}/runs",

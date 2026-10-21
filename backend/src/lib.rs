@@ -1,3 +1,4 @@
+pub mod agent;
 pub mod auth;
 pub mod calling;
 pub mod config;
@@ -10,4 +11,6 @@ pub mod idempotency;
 pub mod knowledge;
 pub mod organizations;
 pub mod routes;
+pub mod schedules;
+pub mod shutdown;
 pub mod tickets;

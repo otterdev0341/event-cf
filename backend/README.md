@@ -51,4 +51,30 @@ Do not enable live delivery until provider-specific acceptance passes.
 
 See execution status for actual provider callbacks, retention, comprehensive security/load
 gates, legacy recurring schedules/recordings and migration mapping.
-The public frontend deployment remains demo mode independently of backend CI success.
+Public integration deployment uses root compose.yaml; check execution status for live revision.
+Email provider is intentionally deferred. The simulated provider never places calls.
+
+## Shutdown and capacity acceptance
+
+Worker and mailer handle SIGTERM/SIGINT and finish the current bounded tick before
+exiting. No new tick starts after shutdown is observed. Compose allows 45 seconds
+before SIGKILL; API keeps its separate 15-second graceful shutdown setting.
+`scripts/ci/worker-shutdown.sh` verifies actual process SIGTERM exits against the
+disposable test database. Rust tests separately prove an in-flight tick is drained.
+
+Capacity tests occupy all five production-configured DB slots, verify a bounded
+503 after acquisition timeout, and verify recovery after release. Hashing overload
+returns 429 without queuing unbounded CPU work. These are focused overload tests,
+not a benchmark or proof of full production load capacity.
+
+## Integration handoff
+
+See `contracts/README.md` for current headers, routes and scopes. Attempt history now
+includes an ID for Agent result submission. DEFAULT_RETRY_DELAY_SECONDS defaults to
+900; HTTP CI uses 0 to exercise weighted retries without wall-clock waits. It is an
+instance bootstrap setting for newly created events, not a way to restart exhausted calls.
+
+Schedule APIs persist once/daily/weekly rules in Asia/Bangkok. Explicit redial starts
+a new attempt budget and preserves old attempt numbers/results. No legacy import is
+implicit. Recordings still use the preserved legacy implementation until its adapter
+and owner/event mapping are verified; schedule UI is not yet ported.

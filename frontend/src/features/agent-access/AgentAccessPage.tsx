@@ -132,7 +132,7 @@ export function AgentAccessPage() {
       <section className="dark-panel mt-6">
         <p className="eyebrow text-white/60">AGENT API / PUBLISHED KNOWLEDGE</p>
         <h2 className="my-3">Two credentials. One event.</h2>
-        <pre>{`GET /event-confirm/api/agent/v1/events/${eventId || '{event_id}'}/faqs\nAuthorization: Bearer <ORG_CREDENTIAL>\nX-Event-Credential: <EVENT_CREDENTIAL>\n\nPOST /events/{event_id}/tickets\nPOST /events/{event_id}/call-attempts/{attempt_id}/results\nIdempotency-Key: <unique-request-id>`}</pre>
+        <pre>{`GET /event-confirm/api/v1/agent/orgs/${orgId || '{org}'}/events/${eventId || '{event}'}/knowledge\nX-Org-Credential: <ORG_CREDENTIAL>\nX-Event-Credential: <EVENT_CREDENTIAL>\n\nPOST /event-confirm/api/v1/agent/orgs/{org}/events/{event}/tickets\nPOST /event-confirm/api/v1/agent/orgs/{org}/events/{event}/calls/{attempt}/result\nIdempotency-Key: <unique-request-id>`}</pre>
         <p className="muted mt-4 text-xs">
           FAQ อ่านเฉพาะ published · calls:result ต้อง opt-in · Provider callback ใช้ signature แยก
         </p>

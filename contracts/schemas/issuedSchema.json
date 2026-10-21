@@ -38,6 +38,7 @@
           "items": {
             "type": "string",
             "enum": [
+              "events:read",
               "knowledge:read",
               "tickets:create",
               "calls:read",

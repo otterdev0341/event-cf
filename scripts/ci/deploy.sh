@@ -1,12 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
+: "${EVENT_CONFIRM_ENV_FILE:?Runtime environment file required}"
 previous=$(docker image ls -q event-confirm/web:deployed)
-if [[ -n "$previous" ]]; then docker tag event-confirm/web:deployed event-confirm/web:rollback; fi
-if ! docker compose up -d --no-build --wait --wait-timeout 60 || ! bash scripts/ci/smoke.sh; then
-  if [[ -n "$previous" ]]; then
-    echo "Smoke failed; restoring previous deployment" >&2
-    IMAGE_TAG=rollback docker compose up -d --no-build --wait --wait-timeout 60
+previous_api=$(docker image ls -q event-confirm/api:deployed)
+for component in web api provider; do
+  image=$(docker image ls -q "event-confirm/$component:deployed")
+  if [[ -n "$image" ]]; then docker tag "$image" "event-confirm/$component:rollback"; fi
+done
+compose=(docker compose --env-file "$EVENT_CONFIRM_ENV_FILE")
+if ! "${compose[@]}" up -d --no-build --wait --wait-timeout 120 || ! bash scripts/ci/smoke.sh; then
+  if [[ -n "$previous_api" ]]; then
+    echo "Smoke failed; restoring previous application images" >&2
+    IMAGE_TAG=rollback "${compose[@]}" up -d --no-build --wait --wait-timeout 120
+  elif [[ -n "$previous" ]]; then
+    echo "First backend cutover failed; restoring prior frontend and stopping dispatch" >&2
+    "${compose[@]}" stop worker
+    IMAGE_TAG=rollback "${compose[@]}" up -d --no-deps --no-build web
   fi
   exit 1
 fi
-docker tag "event-confirm/web:$IMAGE_TAG" event-confirm/web:deployed
+for component in web api provider; do
+  docker tag "event-confirm/$component:$IMAGE_TAG" "event-confirm/$component:deployed"
+done

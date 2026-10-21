@@ -1,6 +1,6 @@
 # Implementation phases — ntex + async end-to-end
 
-สถานะล่าสุด: Phase 0–5 ส่งมอบ development frontend และ runtime spike แล้ว ดู [delivery report](../PHASE_0_5_DELIVERY.md); Rust production backend และ production cutover ยังไม่ทำ
+สถานะล่าสุด (2026-10-21): P0–P5 ส่งมอบ frontend แล้ว; P6–P7a มี Rust backend และ integration acceptance อยู่ใน checkout. ดู [execution status](PHASE_6_9_EXECUTION.md) สำหรับหลักฐานล่าสุดและสถานะ deployment; ห้ามใช้ delivery report P0–P5 เป็นสถานะปัจจุบันของ backend.
 ข้อกำหนด: React/Vite/Tailwind/Zustand frontend ก่อน; Rust **ntex** + SeaORM/PostgreSQL
 ใช้ phase IDs เดิมของ REFACTOR_IMPLEMENTATION_PLAN.md เพื่อไม่ทำให้ references ขัดกัน
 ผลการโทรยึด CALL_OUTCOME_MODEL.md: confirm / decline / unknown พร้อม reason

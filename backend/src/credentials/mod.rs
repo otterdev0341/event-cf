@@ -5,7 +5,8 @@ use crate::{
 };
 use sea_orm::ConnectionTrait;
 use serde_json::{Value, json};
-const SCOPES: [&str; 5] = [
+const SCOPES: [&str; 6] = [
+    "events:read",
     "knowledge:read",
     "tickets:create",
     "calls:read",

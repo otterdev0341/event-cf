@@ -11,7 +11,10 @@ pub struct App {
 }
 impl App {
     pub async fn connect() -> Result<Self, Box<dyn std::error::Error>> {
-        let mut url = reqwest::Url::parse(&env::var("DATABASE_URL")?)?;
+        Self::connect_url(&env::var("DATABASE_URL")?).await
+    }
+    pub async fn connect_url(database_url: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut url = reqwest::Url::parse(database_url)?;
         let existing: Vec<(String, String)> = url
             .query_pairs()
             .map(|(k, v)| (k.into_owned(), v.into_owned()))
@@ -43,4 +46,13 @@ impl App {
             secure_cookie: env::var("COOKIE_SECURE").as_deref() != Ok("false"),
         })
     }
+}
+
+pub fn retry_delay_seconds() -> crate::error::Result<i32> {
+    let value = env::var("DEFAULT_RETRY_DELAY_SECONDS").unwrap_or_else(|_| "900".into());
+    value
+        .parse::<i32>()
+        .ok()
+        .filter(|delay| (0..=86400).contains(delay))
+        .ok_or_else(|| crate::error::bad("DEFAULT_RETRY_DELAY_SECONDS must be 0..86400"))
 }

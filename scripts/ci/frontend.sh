@@ -18,3 +18,7 @@ npm run test:e2e --prefix frontend
 # Explicit public UI demo requested by the owner; real-API build is checked above.
 npm run build:demo --prefix frontend
 npm run test:demo --prefix frontend
+
+# Publish real API transport with an explicit integration-environment notice.
+npm run build:integration --prefix frontend
+node scripts/checks/production-bundle.mjs

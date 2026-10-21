@@ -5,6 +5,10 @@ export CARGO_HOME=/work/.cargo-ci
 export TEST_DATABASE_URL="$DATABASE_URL"
 mkdir -p backend/reports
 cargo test --locked --manifest-path backend/Cargo.toml -- --test-threads=1 > backend/reports/rust-tests.log 2>&1
+cargo build --release --locked --manifest-path backend/Cargo.toml
 cargo build --locked --manifest-path backend/Cargo.toml
+bash scripts/ci/worker-shutdown.sh
 touch backend/reports/rust-passed
+export DEFAULT_RETRY_DELAY_SECONDS=0
+backend/target/debug/event-confirm-api worker > backend/reports/simulation-worker.log 2>&1 &
 exec backend/target/debug/event-confirm-api

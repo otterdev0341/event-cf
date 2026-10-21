@@ -2,6 +2,7 @@ name: event-confirm-backend
 x-app: &app
   image: ${BACKEND_IMAGE:?Immutable backend image required}
   restart: unless-stopped
+  stop_grace_period: 45s
   env_file: ${BACKEND_ENV_FILE:?Absolute environment file path required}
   read_only: true
   tmpfs: ["/tmp:size=8m"]

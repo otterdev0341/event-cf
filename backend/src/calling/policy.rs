@@ -48,7 +48,7 @@ pub async fn update(
         return Err(conflict());
     }
     db::exec(db,"UPDATE queue_policy SET new_weight=$1,retry_weight=$2,max_retries=$3,turn=0,version=version+1 WHERE org_id=$4 AND event_id=$5",vec![input.ratio.into(),input.retry_ratio.into(),input.max_retries.into(),org.into(),event.into()]).await?;
-    db::exec(db,"UPDATE participants SET state='stopped' WHERE org_id=$1 AND event_id=$2 AND lane='fail' AND state IN ('ready','delayed') AND attempt_count >= $3",vec![org.into(),event.into(),(input.max_retries+1).into()]).await?;
+    db::exec(db,"UPDATE participants SET state='stopped' WHERE org_id=$1 AND event_id=$2 AND lane='fail' AND state IN ('ready','delayed') AND attempt_count-cycle_base >= $3",vec![org.into(),event.into(),(input.max_retries+1).into()]).await?;
     state(db, org, event).await
 }
 pub async fn run(db: &impl ConnectionTrait, org: &str, event: &str, body: Value) -> Result<Value> {

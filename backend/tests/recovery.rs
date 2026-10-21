@@ -161,3 +161,62 @@ async fn late_confirmation_prevents_an_inflight_retry_from_reopening_attendance(
     assert!(dispatch::claim(&db).await?.is_none());
     Ok(())
 }
+
+#[ntex::test]
+async fn empty_fail_lane_keeps_a_pending_fail_turn() -> Result<()> {
+    let (db, org, event) = fixture().await?;
+    ingest(
+        &db,
+        &org,
+        &event,
+        &[
+            "+66822222001",
+            "+66822222002",
+            "+66822222003",
+            "+66822222004",
+        ],
+    )
+    .await?;
+    policy::run(&db, &org, &event, json!({"action":"start"})).await?;
+    for _ in 0..3 {
+        let call = dispatch::claim(&db).await?.unwrap();
+        dispatch::accepted(&db, &call.id, "saturation").await?;
+        let tx = db.begin().await?;
+        results::apply(
+            &tx,
+            &org,
+            &event,
+            &call.id,
+            json!({"result":"confirm","reason":null}),
+        )
+        .await?;
+        tx.commit().await?;
+    }
+    assert_eq!(
+        policy::state(&db, &org, &event).await?["dispatchPosition"],
+        2
+    );
+    db::exec(
+        &db,
+        "UPDATE participants SET lane='fail' WHERE event_id=$1 AND state='ready'",
+        vec![event.clone().into()],
+    )
+    .await?;
+    let call = dispatch::claim(&db).await?.unwrap();
+    dispatch::accepted(&db, &call.id, "due-fail").await?;
+    assert_eq!(
+        policy::state(&db, &org, &event).await?["dispatchPosition"],
+        0
+    );
+    let tx = db.begin().await?;
+    results::apply(
+        &tx,
+        &org,
+        &event,
+        &call.id,
+        json!({"result":"decline","reason":null}),
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}
