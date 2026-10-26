@@ -32,7 +32,7 @@ pipeline {
         stage('Build foundation') {
             steps {
                 sh '''
-                    vite_arg() { printf -- '--build-arg %s=%s ' "$1" "$(sed -n "s/^$1=//p" "$EVENT_CONFIRM_ENV_FILE" | tail -1)"; }
+                    vite_arg() { printf -- '--build-arg %s=%s ' "$1" "$(sed -n "s/^$1=//p" "$EVENT_CONFIRM_ENV_FILE" | tail -1 | tr -d "\\r\\"'")"; }
                     args="$(vite_arg VITE_SUPABASE_URL)$(vite_arg VITE_SUPABASE_PUBLISHABLE_KEY)$(vite_arg VITE_AGENT_WEDDING_ID)$(vite_arg VITE_AGENT_CONFIRM_ID)$(vite_arg VITE_AGENT_EVENT_CONFIRM_ID)"
                     flock -x "$DOCKER_LOCK_FILE" docker buildx build --builder otter-shared-ci \
                       --load --build-arg BUILD_REVISION="$GIT_COMMIT" $args \

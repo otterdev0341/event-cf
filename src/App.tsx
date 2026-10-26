@@ -65,10 +65,10 @@ function AppRoutes() {
     return <ContactListPage />;
   }
 
-  const contactMatch = path.match(/^\/contacts\/([^/]+)$/);
-  if (contactMatch) {
+  const contactSegment = path.startsWith(`${routes.contacts}/`) ? path.slice(routes.contacts.length + 1) : "";
+  if (contactSegment && !contactSegment.includes("/")) {
     let contactId: string;
-    try { contactId = decodeURIComponent(contactMatch[1]); } catch { return <ContactDetailPage />; }
+    try { contactId = decodeURIComponent(contactSegment); } catch { return <ContactDetailPage />; }
     return <ContactDetailPage contactId={contactId} />;
   }
 
