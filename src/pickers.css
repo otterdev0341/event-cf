@@ -51,9 +51,9 @@
 .pk-col button[aria-selected="true"] { background: var(--ov-grad); color: #fff; font-weight: 600; }
 
 /* inside forms the trigger fills the field */
-.campaign-form__field .ov-dd { width: 100%; align-self: stretch; }
-.campaign-form__field .ov-dd__trigger { width: 100%; max-width: none; min-height: 46px; border-radius: 9px; }
-.campaign-form__field .ov-dd__list { right: auto; left: 0; width: 100%; transform-origin: top left; }
+:is(.campaign-form__field, .preview-field) .ov-dd { width: 100%; align-self: stretch; }
+:is(.campaign-form__field, .preview-field) .ov-dd__trigger { width: 100%; max-width: none; min-height: 46px; border-radius: 9px; }
+:is(.campaign-form__field, .preview-field) .ov-dd__list { right: auto; left: 0; width: 100%; transform-origin: top left; }
 
 @keyframes pk-swap { from { opacity: 0; transform: translateX(8px); } }
 @media (prefers-reduced-motion: reduce) { .ov-dd *, .pk-pop { transition: none !important; animation: none !important; } }

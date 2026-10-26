@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
+import { Dropdown } from '../components/Dropdown';
 import { ConversationLog } from '../components/ConversationLog';
 import { BotTestRoom } from '../components/BotTestRoom';
 import { AgentResultSetup } from '../components/AgentResultSetup';
@@ -21,7 +22,7 @@ export function LiveAgentPage() {
     <div hidden={Boolean(preview)}>
       <ol className="preview-steps" aria-label="ขั้นตอนทดสอบ"><li className={!agentId ? 'current' : 'done'}><b>1</b> เลือกบอท</li><li className={agentId ? 'current' : ''}><b>2</b> เตรียมข้อมูล</li><li><b>3</b> ทดสอบบทสนทนา</li></ol>
       <section className="preview-card"><div className="preview-section-head"><div><span className="ui-kicker">YOUR AGENT</span><h2>เลือกบอทที่จะทดสอบ</h2></div><Button size="compact" variant="secondary" onClick={refetch} disabled={loading}>รีเฟรช Agent</Button></div>
-        <label className="preview-field">Agent<select value={agentId} disabled={loading} onChange={event => setSelected(event.target.value)}><option value="">เลือก Agent ของคุณ</option>{agents.map(agent => <option key={agent.agent_id} value={agent.agent_id}>{agent.name}</option>)}</select></label>
+        <div className="preview-field">Agent<Dropdown label="Agent" value={agentId} disabled={loading} onChange={setSelected} options={[{ value: '', label: 'เลือก Agent ของคุณ' }, ...agents.map(agent => ({ value: agent.agent_id, label: agent.name }))]} /></div>
         {loading && <p role="status">กำลังโหลด Agent…</p>}{error && <p role="alert" className="workspace-alert">{error}</p>}
         {!loading && !error && !agents.length && <p>ยังไม่มี Agent ในบัญชีที่เชื่อมไว้ <a href="/settings">ตรวจการเชื่อมต่อบัญชี</a></p>}
       </section>
@@ -68,7 +69,7 @@ function AgentPreparation({ agentId, onTest }: { agentId: string; onTest: (data:
       {loading ? <p role="status">กำลังดึงตัวแปรจาก Agent…</p> : error ? <p className="workspace-alert" role="alert">{error}</p> : agent && <>
         <div className="preview-import"><div><strong>ใช้ข้อมูลจากไฟล์ CSV</strong><p>{fileName || 'ไม่บังคับอัปโหลด คุณกรอกค่าทดสอบเองได้'}</p></div><label className="button button--secondary button--compact preview-upload">{reading ? 'กำลังอ่าน…' : csv ? 'เปลี่ยนไฟล์ CSV' : 'เลือกไฟล์ CSV'}<input type="file" accept=".csv,text/csv" disabled={reading} onChange={event => { void loadCsv(event.target.files?.[0]); event.target.value = ''; }} /></label></div>
         {fileError && <p role="alert" className="workspace-alert">{fileError}</p>}
-        {csv && <label className="preview-field">แถวข้อมูลที่ใช้ทดสอบ<select value={row} onChange={event => setRow(Number(event.target.value))}>{csv.rows.map((cells, index) => <option key={index} value={index}>แถว {index + 1} · {cells.slice(0, 3).join(' · ').slice(0, 110)}</option>)}</select></label>}
+        {csv && <div className="preview-field">แถวข้อมูลที่ใช้ทดสอบ<Dropdown label="แถวข้อมูลที่ใช้ทดสอบ" value={String(row)} onChange={v => setRow(Number(v))} options={csv.rows.map((cells, index) => ({ value: String(index), label: `แถว ${index + 1} · ${cells.slice(0, 3).join(' · ').slice(0, 110)}` }))} /></div>}
         {variables.length ? <div className="preview-bindings"><div className="preview-binding-labels"><span>ตัวแปรของบอท</span><span>แหล่งข้อมูล</span><span>ค่าที่ใช้ทดสอบ</span></div>{variables.map(key => <div key={key} className="preview-binding"><code>{`{{${key}}}`}</code><select aria-label={`แหล่งข้อมูล ${key}`} value={sourceOf(key)} onChange={event => setSources(previous => ({ ...previous, [key]: event.target.value }))}><option value="manual">กรอกค่าทดสอบ</option>{csv?.headers.map((header, index) => <option key={index} value={`csv:${index}`}>{header}</option>)}<option value="output">ผลลัพธ์หลังสนทนา</option></select>{sourceOf(key) === 'output' ? <span className="preview-output">รอคำตอบจากบทสนทนา</span> : sourceOf(key) === 'manual' ? <input aria-label={`ค่าทดสอบ ${key}`} maxLength={2000} placeholder={`ใส่ค่า ${key}`} value={manual[key] || ''} onChange={event => setManual(previous => ({ ...previous, [key]: event.target.value }))} /> : <span className={valueOf(key).trim() ? 'preview-csv-value' : 'preview-missing'}>{valueOf(key) || 'แถวนี้ไม่มีข้อมูล'}</span>}</div>)}</div> : <p className="preview-info">Agent นี้ไม่มีตัวแปรใน Prompt สามารถเปิดห้องทดสอบได้เลย</p>}
         <p className="workspace-note">ตัวแปรที่บอทใช้เก็บคำตอบ เช่น call_result ให้เลือก “ผลลัพธ์หลังสนทนา”</p>
         <AgentResultSetup agentId={agentId} onConnected={refetch} onBusy={setConnecting} />
