@@ -115,15 +115,16 @@ function CampaignOverview({campaignId,days}:{campaignId:string;days:number}) {
     <div className="ov-status" role="status"><span className={`ov-live${loading?' ov-live--busy':''}`} aria-hidden="true"/><span>{loading&&!ready?'กำลังโหลดข้อมูล…':ready?`อัปเดต ${displayDate(updatedAt)} · ตรวจใหม่ทุก 15 วินาที`:''}</span><button type="button" className="ov-refresh" disabled={loading} onClick={()=>{setLoading(true);setRevision(v=>v+1);}} aria-label="รีเฟรชข้อมูล"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button></div>
     {error&&<p className="ov-alert" role="alert">{error}{ready?' · กำลังแสดงข้อมูลเดิมที่โหลดสำเร็จล่าสุด':''}</p>}
 
+    <dl className="ov-stats">
+      <Stat label="คำขอโทรทั้งหมด" value={items.length} ready={ready} tone="ALL"/>
+      <Stat label="ตอบตกลง" value={counts.CONFIRMED} ready={ready} tone="CONFIRMED"/>
+      <Stat label="ปฏิเสธ" value={counts.DECLINED} ready={ready} tone="DECLINED"/>
+      <Stat label="ต้องการเจ้าหน้าที่" value={needingAgent} ready={ready} tone="REQUEST_AGENT"/>
+    </dl>
+
     <section className="ov-panel ov-voice" aria-label="ผลตอบรับแคมเปญ" aria-busy={loading}>
       <div className="ov-voice__top">
         <p className="ov-voice__lead"><strong>{ready?`${rate}%`:'—'}</strong><span>ของสายทั้งหมดตอบรับเข้าร่วมงาน</span></p>
-        <dl className="ov-stats">
-          <Stat label="คำขอโทรทั้งหมด" value={items.length} ready={ready}/>
-          <Stat label="ตอบตกลง" value={counts.CONFIRMED} ready={ready} tone="CONFIRMED"/>
-          <Stat label="ปฏิเสธ" value={counts.DECLINED} ready={ready} tone="DECLINED"/>
-          <Stat label="ต้องการเจ้าหน้าที่" value={needingAgent} ready={ready} tone="REQUEST_AGENT"/>
-        </dl>
       </div>
       <div className="ov-spectrum" role="img" aria-label={ready?Object.entries(counts).map(([key,count])=>`${outcomeLabels[key as keyof typeof outcomeLabels]} ${count}`).join(', '):'ยังไม่มีข้อมูล'} data-empty={!bars.length}>
         {(bars.length?bars:Array.from({length:BARS},()=>'EMPTY')).map((key,i)=><i key={`${items.length}-${i}`} className="ov-bar" data-result={key} style={{'--h':`${28+72*Math.abs(Math.sin(i*1.9)*Math.cos(i*.63))}%`,'--i':i,opacity:hot&&hot!==key?.22:1} as CSSProperties}/>)}
