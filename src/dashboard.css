@@ -35,7 +35,23 @@
 .ov-range button { min-height: 36px; padding: 0 16px; border: 0; border-radius: 9px; background: transparent; color: var(--ov-sub); font: inherit; font-size: 13px; cursor: pointer; transition: background .2s, color .2s; }
 .ov-range button:hover { color: var(--ov-ink); }
 .ov-range button[aria-pressed="true"] { background: linear-gradient(135deg, #7451e8, #4b6fe0); color: #fff; font-weight: 600; }
-.ov-select select { min-height: 44px; padding: 0 38px 0 14px; border: 1px solid var(--ov-line); border-radius: 12px; background: var(--ov-surface); color: var(--ov-ink); font: inherit; font-size: 13px; cursor: pointer; max-width: 260px; }
+
+/* dropdown */
+.ov-dd { position: relative; align-self: center; }
+.ov-dd__trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; min-width: 200px; max-width: 280px; padding: 0 14px; border: 1px solid var(--ov-line); border-radius: 10px; background: var(--ov-surface); color: var(--ov-ink); font: inherit; font-size: 13px; cursor: pointer; transition: border-color .2s, box-shadow .2s; }
+.ov-dd__trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-dd__trigger svg { flex: none; color: var(--ov-faint); transition: transform .35s var(--ov-ease); }
+.ov-dd__trigger:hover, .ov-dd[data-open="true"] .ov-dd__trigger { border-color: #9c86e6; }
+.ov-dd[data-open="true"] .ov-dd__trigger { box-shadow: 0 0 0 3px #6544cf1f; }
+.ov-dd[data-open="true"] .ov-dd__trigger svg { transform: rotate(180deg); }
+.ov-dd__list { position: absolute; z-index: 20; top: calc(100% + 8px); right: 0; width: max(100%, 260px); max-height: 336px; margin: 0; padding: 8px; list-style: none; overflow-y: auto; scrollbar-width: thin; background: var(--ov-surface); border: 1px solid var(--ov-line); border-radius: 12px; box-shadow: 0 18px 40px -16px #1c1a2e40, 0 2px 6px #1c1a2e0d; transform-origin: top right; clip-path: inset(0 0 100% 0 round 12px); opacity: 0; transform: scale(.96); visibility: hidden; transition: clip-path .4s var(--ov-ease), opacity .2s, transform .4s var(--ov-ease), visibility 0s .4s; }
+.ov-dd[data-open="true"] .ov-dd__list { clip-path: inset(0 0 0 0 round 12px); opacity: 1; transform: none; visibility: visible; transition-delay: 0s; }
+.ov-dd__list li[role="option"] { position: relative; z-index: 1; height: 40px; margin-bottom: 2px; padding: 0 14px; display: flex; align-items: center; border-radius: 8px; color: var(--ov-sub); font-size: 13px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: translateX(8px); transition: color .2s, opacity .2s, transform .3s var(--ov-ease); }
+.ov-dd[data-open="true"] li[role="option"] { opacity: 1; transform: none; transition-delay: 0s, calc(40ms + var(--i) * 20ms), calc(40ms + var(--i) * 20ms); }
+.ov-dd__list li[data-current="true"] { color: var(--ov-ink); }
+.ov-dd__list li[aria-selected="true"] { font-weight: 600; }
+.ov-dd__glide { position: absolute; left: 8px; right: 8px; top: 8px; height: 40px; border-radius: 8px; background: var(--ov-wash); transition: transform .35s var(--ov-ease); }
+.ov-dd__glide::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--ov-brand); }
 
 /* status line */
 .ov-status { display: flex; align-items: center; gap: 10px; color: var(--ov-faint); font-size: 13px; }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
+import { Dropdown } from '../components/Dropdown';
 import { getCampaigns } from '../lib/campaigns';
 import { supabase } from '../lib/supabase';
 import { routes } from '../routes';
@@ -62,7 +63,7 @@ export function DashboardOverviewPage() {
       <div><h1>ภาพรวมการโทร</h1><p>ใครตอบรับเข้าร่วมงานแล้วบ้าง และใครที่ต้องติดตามต่อ</p></div>
       <div className="ov-controls">
         <div className="ov-range" role="group" aria-label="ช่วงเวลา">{RANGES.map(r=><button key={r.days} type="button" aria-pressed={days===r.days} onClick={()=>setDays(r.days)}>{r.label}</button>)}</div>
-        <label className="ov-select"><span className="ov-visually-hidden">แคมเปญ</span><select value={campaignId} onChange={e=>setCampaignId(e.target.value)}><option value="all">ทุกแคมเปญ</option>{campaigns.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        <Dropdown label="แคมเปญ" value={campaignId} onChange={setCampaignId} options={[{value:'all',label:'ทุกแคมเปญ'},...campaigns.map(c=>({value:c.id,label:c.name}))]}/>
       </div>
     </header>
     <CampaignOverview key={`${campaignId}:${days}`} campaignId={campaignId} days={days}/>
