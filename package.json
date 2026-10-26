@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
     "preview": "vite preview",
     "test": "node scripts/test-local.mjs && node scripts/test-database.mjs && node scripts/test-campaign-queue.mjs && node scripts/test-call-results.mjs && node scripts/test-scheduler.mjs && node scripts/test-recording-repair.mjs && npm run test:go",
     "test:integration": "node scripts/run-all-tests.mjs",
