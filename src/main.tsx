@@ -12,6 +12,7 @@ import "./ui-refinement.css";
 import "./workspace-design.css";
 import "./minimal-workspace.css";
 import "./dashboard.css";
+import "./sidebar.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import { InterfaceMotion } from './components/InterfaceMotion';

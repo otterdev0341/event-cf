@@ -1,0 +1,35 @@
+/* Sidebar refresh: matches the dashboard palette; loaded last so it wins over workspace-design.css. */
+.app-header { --sb-ease: cubic-bezier(.16,1,.3,1); background: linear-gradient(180deg, #fff 0%, #faf9fe 100%); border-right-color: #e8e5f1; }
+.app-header .app-header__inner { gap: 28px; }
+.app-header .brand__mark { background: linear-gradient(145deg, #7a5be0, #5634be); box-shadow: 0 6px 14px -6px #6544cf99; }
+.app-header .brand__name { font-weight: 700; letter-spacing: -.01em; color: #1c1a2e; }
+.app-header__subtitle { color: #716c86; font-size: 11px; }
+.app-nav__caption { color: #716c86; font-size: 11px; letter-spacing: .04em; }
+.app-header .app-nav { gap: 4px; }
+.app-header .app-nav__link { position: relative; min-height: 44px; color: #5a5670; font-size: 14px; border-radius: 12px; transition: background .2s, color .2s; }
+.app-header .app-nav__link:hover { background: #f1eefb; color: #1c1a2e; }
+.app-header .app-nav__link--active { background: #ece7fb; color: #4b2db0; }
+.app-header .app-nav__link--active::before { content: ""; position: absolute; left: -18px; top: 11px; bottom: 11px; width: 4px; border-radius: 0 4px 4px 0; background: #6544cf; transform-origin: center; animation: sb-grow .5s var(--sb-ease) both; }
+.app-header .app-nav__active-mark { width: 6px; height: 6px; animation: sb-pop .5s var(--sb-ease) both; }
+.app-header .app-nav__settings { margin-top: 14px; padding-top: 14px; border-radius: 12px; }
+.app-header__footer { color: #5a5670; }
+.workspace-soundmark { color: #6544cf; }
+.workspace-soundmark i { width: 3px; border-radius: 3px; background: currentColor; animation: sb-wave 1.6s ease-in-out infinite; }
+.workspace-soundmark i:nth-child(2) { animation-delay: .15s; }
+.workspace-soundmark i:nth-child(3) { animation-delay: .3s; }
+.workspace-soundmark i:nth-child(4) { animation-delay: .45s; }
+.workspace-soundmark i:nth-child(5) { animation-delay: .6s; }
+@media (prefers-reduced-motion: no-preference) {
+  .app-header .app-nav__link { animation: sb-in .55s var(--sb-ease) both; }
+  .app-header .app-nav__link:nth-of-type(2) { animation-delay: .05s; }
+  .app-header .app-nav__link:nth-of-type(3) { animation-delay: .1s; }
+  .app-header .app-nav__link:nth-of-type(4) { animation-delay: .15s; }
+  .app-header .app-nav__link:nth-of-type(5) { animation-delay: .2s; }
+  .app-header .app-nav__link:nth-of-type(6) { animation-delay: .25s; }
+}
+@media (prefers-reduced-motion: reduce) { .workspace-soundmark i { animation: none; transform: none; } .app-header * { animation: none !important; } }
+@media (max-width: 850px) { .app-header .app-nav__link--active::before { display: none; } }
+@keyframes sb-in { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes sb-grow { from { transform: scaleY(0); } }
+@keyframes sb-pop { from { transform: scale(0); } }
+@keyframes sb-wave { 0%, 100% { transform: scaleY(.45); } 50% { transform: scaleY(1.25); } }
