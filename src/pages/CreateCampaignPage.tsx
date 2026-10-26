@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { AppHeader } from "../components/AppHeader";
 import { Button } from "../components/Button";
 import { CampaignStepIndicator } from "../components/CampaignStepIndicator";
+import { DatePicker, TimePicker } from "../components/Pickers";
 import { routes } from "../routes";
 
 import { getDraft, saveDraft, parseCsv, suggestMapping, downloadCsvTemplate, type CsvData } from "../lib/campaigns";
@@ -9,14 +10,17 @@ import { getDraft, saveDraft, parseCsv, suggestMapping, downloadCsvTemplate, typ
 interface CampaignFieldProps {
   children: ReactNode;
   label: string;
+  /** A popover inside a <label> would re-click its trigger on every inner click, so pickers use a div. */
+  group?: boolean;
 }
 
-function CampaignField({ children, label }: CampaignFieldProps) {
+function CampaignField({ children, label, group }: CampaignFieldProps) {
+  const Tag = group ? "div" : "label";
   return (
-    <label className="campaign-form__field">
+    <Tag className="campaign-form__field">
       <span>{label}</span>
       {children}
-    </label>
+    </Tag>
   );
 }
 
@@ -77,23 +81,12 @@ export function CreateCampaignPage() {
             </CampaignField>
 
             <div className="campaign-form__row">
-              <CampaignField label="วันที่จัดงาน">
-                <span className="campaign-form__control">
-                  <input
-                    type="date" defaultValue={draft?.eventDate}
-                    name="eventDate"
-                    placeholder="วว / ดด / ปปปป"
-                    inputMode="numeric"
-                  />
-                  <img src="/assets/create-campaign/calendar.svg" width="20" height="20" alt="" />
-                </span>
+              <CampaignField label="วันที่จัดงาน" group>
+                <DatePicker name="eventDate" label="วันที่จัดงาน" defaultValue={draft?.eventDate} />
               </CampaignField>
 
-              <CampaignField label="เวลาจัดงาน">
-                <span className="campaign-form__control">
-                  <input type="time" name="eventTime" defaultValue={draft?.eventTime || "09:00"} inputMode="numeric" />
-                  <img src="/assets/create-campaign/clock.svg" width="20" height="20" alt="" />
-                </span>
+              <CampaignField label="เวลาจัดงาน" group>
+                <TimePicker name="eventTime" label="เวลาจัดงาน" defaultValue={draft?.eventTime || "09:00"} />
               </CampaignField>
             </div>
 

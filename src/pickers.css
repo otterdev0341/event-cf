@@ -1,0 +1,59 @@
+/* Dropdown, DatePicker and TimePicker share one popover look. Tokens are set here so they work outside .dashboard-page. */
+.ov-dd {
+  --ov-ink: #1c1a2e; --ov-sub: #5a5670; --ov-faint: #716c86; --ov-line: #e8e5f1; --ov-surface: #fff; --ov-wash: #f6f4fb; --ov-brand: #6544cf;
+  --ov-ease: cubic-bezier(.16,1,.3,1); --ov-grad: linear-gradient(135deg, #7451e8, #4b6fe0);
+  position: relative; align-self: center;
+}
+.ov-dd__trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; min-width: 200px; max-width: 280px; padding: 0 14px; border: 1px solid var(--ov-line); border-radius: 10px; background: var(--ov-surface); color: var(--ov-ink); font: inherit; font-size: 13px; cursor: pointer; transition: border-color .2s, box-shadow .2s; }
+.ov-dd__trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-dd__trigger svg { flex: none; color: var(--ov-faint); transition: transform .35s var(--ov-ease); }
+.ov-dd__trigger:disabled { opacity: .55; cursor: not-allowed; }
+.ov-dd__trigger:hover:not(:disabled), .ov-dd[data-open="true"] .ov-dd__trigger { border-color: #9c86e6; }
+.ov-dd[data-open="true"] .ov-dd__trigger { box-shadow: 0 0 0 3px #6544cf1f; }
+.ov-dd[data-open="true"] .ov-dd__trigger[aria-haspopup="listbox"] svg { transform: rotate(180deg); }
+.pk-ph { color: var(--ov-faint); }
+
+/* popover shell: clip-path reveal, shared by list, calendar and time columns */
+.ov-dd__list, .pk-pop { position: absolute; z-index: 20; top: calc(100% + 8px); right: 0; margin: 0; padding: 8px; list-style: none; background: var(--ov-surface); border: 1px solid var(--ov-line); border-radius: 12px; box-shadow: 0 18px 40px -16px #1c1a2e40, 0 2px 6px #1c1a2e0d; transform-origin: top right; clip-path: inset(0 0 100% 0 round 12px); opacity: 0; transform: scale(.96); visibility: hidden; transition: clip-path .4s var(--ov-ease), opacity .2s, transform .4s var(--ov-ease), visibility 0s .4s; }
+.ov-dd[data-open="true"] > :is(.ov-dd__list, .pk-pop) { clip-path: inset(0 0 0 0 round 12px); opacity: 1; transform: none; visibility: visible; transition-delay: 0s; }
+.ov-dd__list { width: max(100%, 260px); max-height: 336px; overflow-y: auto; scrollbar-width: thin; }
+.ov-dd__list li[role="option"] { position: relative; z-index: 1; height: 40px; margin-bottom: 2px; padding: 0 14px; display: flex; align-items: center; border-radius: 8px; color: var(--ov-sub); font-size: 13px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: translateX(8px); transition: color .2s, opacity .2s, transform .3s var(--ov-ease); }
+.ov-dd[data-open="true"] li[role="option"] { opacity: 1; transform: none; transition-delay: 0s, calc(40ms + var(--i) * 20ms), calc(40ms + var(--i) * 20ms); }
+.ov-dd__list li[data-current="true"] { color: var(--ov-ink); }
+.ov-dd__list li[aria-selected="true"] { font-weight: 600; }
+.ov-dd__glide { position: absolute; left: 8px; right: 8px; top: 8px; height: 40px; border-radius: 8px; background: var(--ov-wash); transition: transform .35s var(--ov-ease); }
+.ov-dd__glide::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--ov-brand); }
+
+/* calendar */
+.pk-pop { left: 0; right: auto; transform-origin: top left; }
+.pk-cal { width: min(308px, calc(100vw - 48px)); padding: 14px; }
+.pk-cal__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.pk-cal__head strong { font-size: 14px; color: var(--ov-ink); }
+.pk-nav { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--ov-line); border-radius: 8px; background: transparent; color: var(--ov-sub); cursor: pointer; transition: background .2s, color .2s; }
+.pk-nav:hover { background: var(--ov-wash); color: var(--ov-brand); }
+.pk-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.pk-days > span { padding: 4px 0; text-align: center; font-size: 11px; color: var(--ov-faint); }
+.pk-grid { animation: pk-swap .35s var(--ov-ease) both; }
+.pk-grid button { aspect-ratio: 1; border: 0; border-radius: 9px; background: transparent; color: var(--ov-ink); font: 500 13px Inter, "Noto Sans Thai", sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; transition: background .15s, color .15s, transform .25s var(--ov-ease); }
+.pk-grid button:hover { background: var(--ov-wash); }
+.pk-grid button[data-out="true"] { color: #a8a3bb; }
+.pk-grid button[data-today="true"] { box-shadow: inset 0 0 0 1px #9c86e6; }
+.pk-grid button[aria-pressed="true"] { background: var(--ov-grad); color: #fff; font-weight: 600; transform: scale(1.06); box-shadow: 0 6px 12px -6px #6544cfcc; }
+.pk-foot { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--ov-line); }
+.pk-foot button { padding: 4px 6px; border: 0; background: none; color: var(--ov-brand); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 6px; }
+.pk-foot button:hover { background: var(--ov-wash); }
+
+/* time columns */
+.pk-time { display: flex; gap: 8px; }
+.pk-col { width: 84px; max-height: 224px; overflow-y: auto; scrollbar-width: thin; display: grid; align-content: start; gap: 2px; padding-right: 2px; }
+.pk-col button { height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--ov-sub); font: 500 14px Inter, sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; transition: background .15s, color .15s; }
+.pk-col button:hover { background: var(--ov-wash); color: var(--ov-ink); }
+.pk-col button[aria-selected="true"] { background: var(--ov-grad); color: #fff; font-weight: 600; }
+
+/* inside forms the trigger fills the field */
+.campaign-form__field .ov-dd { width: 100%; align-self: stretch; }
+.campaign-form__field .ov-dd__trigger { width: 100%; max-width: none; min-height: 46px; border-radius: 9px; }
+.campaign-form__field .ov-dd__list { right: auto; left: 0; width: 100%; transform-origin: top left; }
+
+@keyframes pk-swap { from { opacity: 0; transform: translateX(8px); } }
+@media (prefers-reduced-motion: reduce) { .ov-dd *, .pk-pop { transition: none !important; animation: none !important; } }

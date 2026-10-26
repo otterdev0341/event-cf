@@ -13,6 +13,7 @@ import "./workspace-design.css";
 import "./minimal-workspace.css";
 import "./dashboard.css";
 import "./sidebar.css";
+import "./pickers.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import { InterfaceMotion } from './components/InterfaceMotion';

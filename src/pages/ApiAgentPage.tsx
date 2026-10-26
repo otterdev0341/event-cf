@@ -1,3 +1,4 @@
+import { Dropdown } from '../components/Dropdown';
 import { useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
@@ -46,7 +47,7 @@ export function ApiAgentPage() {
     <CampaignStepIndicator activeStep={2} />
     {!draft ? <section className="workspace-empty"><h2>ยังไม่มีฉบับร่าง</h2><p>ตั้งค่าแคมเปญและอัปโหลด CSV ก่อนเลือก Agent</p><Button href={routes.createCampaign}>สร้างแคมเปญ</Button></section> : <>
       <section className="api-preview-panel"><header className="api-preview-panel__header"><div><h2>{draft.name}</h2><p>{draft.csv.rows.length.toLocaleString()} รายชื่อ · {draft.fileName}</p></div></header>
-        <label className="campaign-form__field"><span>Voice Agent</span><select className="workspace-select" value={agentId} onChange={e => { setAgentId(e.target.value); setMessage(''); }} disabled={loading || saving || connecting}><option value="">เลือก Agent สำหรับแคมเปญ</option>{agentId && !selected && <option value={agentId}>Agent เดิม ({agentId}) — ยังไม่พบในรายการ</option>}{agents.map(a => <option key={a.agent_id} value={a.agent_id}>{a.name}</option>)}</select></label>
+        <div className="campaign-form__field"><span>Voice Agent</span><Dropdown label="Voice Agent" value={agentId} disabled={loading || saving || connecting} onChange={id => { setAgentId(id); setMessage(''); }} options={[{ value: '', label: 'เลือก Agent สำหรับแคมเปญ' }, ...(agentId && !selected ? [{ value: agentId, label: `Agent เดิม (${agentId}) — ยังไม่พบในรายการ` }] : []), ...agents.map(a => ({ value: a.agent_id, label: a.name }))]} /></div>
         {error && <p className="workspace-alert" role="alert">โหลดรายชื่อ Agent ไม่สำเร็จ: {error}</p>}
         {!loading && !error && !agents.length && <p role="status">บัญชีนี้ยังไม่มี Agent</p>}
         <Button variant="secondary" size="compact" disabled={loading || saving || connecting} onClick={refetch}>{loading ? 'กำลังโหลด Agent…' : 'รีเฟรชรายชื่อ Agent'}</Button>
