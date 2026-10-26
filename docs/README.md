@@ -7,7 +7,7 @@
 - [Deployment foundation — JPG](diagrams/deployment-foundation.jpg)
 - [การ deploy บน Otter host และนโยบาย resource/cleanup](HOST_DEPLOYMENT.md)
 
-ภาพเป็น JPG ที่ render จาก PlantUML มาตรฐาน เปิดด้วย image viewer จาก terminal ได้
+ภาพเป็น JPG ที่ render จาก PlantUML มาตรฐาน (ไฟล์ `.puml` อัปเดตเป็น Go backend แล้ว แต่ JPG ยังเป็นภาพก่อน rewrite จนกว่าจะรัน `render.py` ใหม่) เปิดด้วย image viewer จาก terminal ได้
 เช่น `kitten icat docs/diagrams/application-architecture.jpg` เมื่อใช้ Kitty
 หรือ `chafa docs/diagrams/application-architecture.jpg` หากติดตั้ง chafa แล้ว
 ต้นฉบับ: [application-architecture.puml](diagrams/application-architecture.puml)
@@ -33,7 +33,7 @@ render PNG แล้วแปลง format เป็น JPG โดยไม่�
 - [Scheduler และ recurring calls](../SCHEDULER_SETUP.md)
 - [API documentation](API_DOCUMENTATION.md)
 
-`BACKEND_SETUP.md`, `DEPLOYMENT_HANDOFF.md` และ `TEST_REPORT.md` เป็นเอกสารจาก
+`BACKEND_SETUP.md` และ `TEST_REPORT.md` เป็นเอกสารจาก
 แอปเดิม บางข้อความยังอ้าง shared Voice Bot account, repository เก่า หรือระบุว่า
 scheduler ยังไม่มี ซึ่งไม่ตรงกับ source ปัจจุบันทั้งหมด ไม่ใช่หลักฐานว่า
 environment ของ `event-cf` ได้ตั้งค่า Supabase หรือ deploy แอปแล้ว

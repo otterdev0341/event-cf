@@ -9,7 +9,7 @@ interface StatusBadgeProps {
 export function StatusBadge({
   children,
   dot = false,
-  dotSrc = "/assets/live-agent/status-dot.svg",
+  dotSrc = import.meta.env.BASE_URL + "assets/live-agent/status-dot.svg",
   size = "default",
   tone,
 }: StatusBadgeProps) {

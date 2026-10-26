@@ -6,22 +6,25 @@ services:
     labels:
       ci.project: event-confirm
       ci.purpose: runtime
+    # Server-only secrets (Supabase service role, encryption key, callback secret). Kept outside the repo.
+    env_file: ${EVENT_CONFIRM_ENV_FILE:?Set EVENT_CONFIRM_ENV_FILE to the server-only env file}
+    environment:
+      GOMEMLIMIT: 100MiB
     ports:
-      - "127.0.0.1:18346:80"
-      - "172.17.0.1:18346:80"
+      - "127.0.0.1:18346:8080"
+      - "172.17.0.1:18346:8080"
     cpus: 0.25
-    mem_limit: 64m
-    memswap_limit: 64m
+    # ponytail: campaign reads decode up to 32 MiB of JSON into memory; 64m could OOM on large accounts.
+    mem_limit: 128m
+    memswap_limit: 128m
     pids_limit: 64
     read_only: true
     tmpfs:
-      - /var/cache/nginx:size=8m
-      - /var/run:size=1m
       - /tmp:size=4m
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/event-confirm/healthz"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/event-confirm/healthz"]
       interval: 15s
       timeout: 3s
       retries: 3

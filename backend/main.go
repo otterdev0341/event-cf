@@ -1,5 +1,5 @@
 // Command event-confirm serves the built frontend and the API under one base path.
-// API routes not yet ported from server/*.mjs answer JSON 503, matching the nginx foundation.
+// The API handlers are ports of the former Node server/*.mjs; each Vercel api/*.mjs route kept its path.
 package main
 
 import (
@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 )
 
 func getenv(key, fallback string) string {
@@ -19,16 +20,20 @@ func getenv(key, fallback string) string {
 	return fallback
 }
 
-func newServer(base string, static fs.FS) http.Handler {
+func newServer(base string, static fs.FS, a *App) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+base+"/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte("ok\n"))
 	})
+	mux.HandleFunc(base+"/api/voice", func(w http.ResponseWriter, r *http.Request) { a.handleVoice(w, r, "", nil, nil, nil) })
+	mux.HandleFunc(base+"/api/voice-result", a.handleResultCallback)
+	mux.HandleFunc(base+"/api/voice-recording", a.handleRecordingCallback)
+	mux.HandleFunc(base+"/api/voice-events", a.handleGeneralEventTool)
+	mux.HandleFunc(base+"/api/voice-scheduler", a.handleScheduler)
 	mux.HandleFunc(base+"/api/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(`{"status":"not_configured","message":"Application rewrite pending"}` + "\n"))
+		setJSONHeaders(w)
+		send(w, http.StatusNotFound, obj{"error": "Not found"})
 	})
 	mux.Handle(base+"/", spa(base, static))
 	mux.HandleFunc("GET "+base, func(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +56,9 @@ func spa(base string, static fs.FS) http.Handler {
 			return
 		}
 		name := strings.TrimPrefix(path.Clean(strings.TrimPrefix(r.URL.Path, base)), "/")
+		if name == "" {
+			name = "." // os.DirFS rejects ""
+		}
 		if info, err := fs.Stat(static, name); err != nil || info.IsDir() {
 			if !errors.Is(err, fs.ErrNotExist) && err != nil {
 				http.Error(w, "internal error", http.StatusInternalServerError)
@@ -67,7 +75,8 @@ func spa(base string, static fs.FS) http.Handler {
 func main() {
 	base := strings.TrimRight(getenv("BASE_PATH", "/event-confirm"), "/")
 	addr := getenv("ADDR", ":80")
-	handler := newServer(base, os.DirFS(getenv("STATIC_DIR", "dist")))
+	app := &App{cfg: configFromEnv(), client: newClient(http.DefaultTransport)}
+	server := &http.Server{Addr: addr, Handler: newServer(base, os.DirFS(getenv("STATIC_DIR", "dist")), app), ReadHeaderTimeout: 10 * time.Second}
 	log.Printf("listening on %s under %s/", addr, base)
-	log.Fatal(http.ListenAndServe(addr, handler))
+	log.Fatal(server.ListenAndServe())
 }

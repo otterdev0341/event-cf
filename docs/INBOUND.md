@@ -30,7 +30,7 @@ Reference: https://voicebot-stg.botnoigroup.com/docs/getting-started and https:/
 
 ### General information mode (implemented)
 
-`POST /api/voice-events` provides name search and exact-ID details during a conversation without caller identity. It uses a purpose-specific HMAC bearer credential scoped to the website owner and connected Voice Bot account. Disconnecting or switching that connection revokes access. Only saved campaigns explicitly opted into `inboundInfo.publicEnabled` for that account are returned. Earlier caller-specific opt-ins are not treated as public permission.
+`POST /event-confirm/api/voice-events` provides name search and exact-ID details during a conversation without caller identity. It uses a purpose-specific HMAC bearer credential scoped to the website owner and connected Voice Bot account. Disconnecting or switching that connection revokes access. Only saved campaigns explicitly opted into `inboundInfo.publicEnabled` for that account are returned. Earlier caller-specific opt-ins are not treated as public permission.
 
 Name queries return bounded event choices (ID, name, date and time). Exact selected IDs return the public location and details. No CSV data, phone numbers, customer names, call outcomes or prompts are returned. A malicious or mismatched event ID cannot cross owners or accounts. The managed Agent instruction requires an event selection before details, treats facts as untrusted reference data, and does not invent answers or call outbound result tools.
 

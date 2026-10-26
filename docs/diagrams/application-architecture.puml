@@ -10,12 +10,12 @@ skinparam ArrowColor #375A7F
 skinparam nodesep 50
 skinparam ranksep 70
 top to bottom direction
-title Event Confirm — Current application architecture
-caption Source baseline: 8a7ea40. Code architecture; not activated in the new foundation.
+title Event Confirm — Application architecture
+caption Go backend (backend/) replaced the Node api/*.mjs and server/*.mjs modules.
 
 component "Browser: React + Vite\nPages / components / hooks\nSession + campaign persistence\nBotnoi client + audio Web Worker" as Browser #EAF2FF
-component "HTTP adapters\napi/*.mjs\nVercel / local Vite middleware" as API #F1F5FA
-component "Server modules\nvoice: auth, routing, ownership\nconnection: encrypted credentials\nResults / recordings / events\nAgent setup / inbound / scheduler" as Server #F1F5FA
+component "HTTP routes\n/event-confirm/api/*\nGo net/http (backend/main.go)\nalso serves the built SPA" as API #F1F5FA
+component "Go handlers (backend/)\nvoice: auth, routing, ownership\nconnection: encrypted credentials\nResults / recordings / events\nAgent setup / inbound / scheduler" as Server #F1F5FA
 database "Supabase\nAuth + PostgreSQL + RLS\nCampaigns / call requests / jobs\nConnections / setup audits\nWorker heartbeat" as DB #E7F5ED
 component "Shared domain rules\nshared/*.mjs\nInputs / queue / schedules\nCall results / audio repair" as Shared #FFF8DF
 cloud "Botnoi Voice Bot\nProvider REST API + logs/audio\nLive preview WebSocket" as Provider #FFF1E5
@@ -28,7 +28,7 @@ Server -right-> DB : authorized persistence
 Server -down-> Provider : linked provider account token
 Provider -left-> API : result / recording callbacks
 Browser ..> Shared : shared rules
-Server ..> Shared : shared rules
+Server ..> Shared : Go ports, golden-tested
 Cron -right-> API : authenticated scheduler tick
 Browser --> Provider : ephemeral preview WebSocket
 

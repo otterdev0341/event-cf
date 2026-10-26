@@ -3,14 +3,14 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { clearWorkspace, loadCampaignWorkspace } from '../lib/campaigns';
 import { Button } from './Button';
-import { routes } from '../routes';
+import { currentPath, routes } from '../routes';
 export function WorkspaceGate({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [readyOwner, setReadyOwner] = useState('');
   const [revision, setRevision] = useState(0);
-  const needsDatabase = window.location.pathname.replace(/\/+$/, '') === routes.dashboard || window.location.pathname.startsWith('/campaigns') || window.location.pathname.startsWith('/contacts');
+  const needsDatabase = currentPath() === routes.dashboard || currentPath().startsWith(routes.campaigns) || currentPath().startsWith(routes.contacts);
   useEffect(() => {
     if (!supabase) { setError('ยังไม่ได้ตั้งค่า Supabase'); setLoading(false); return; }
     let active = true;

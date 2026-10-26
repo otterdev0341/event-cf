@@ -23,7 +23,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       <header className="campaign-card__header">
         <div className="campaign-card__identity">
           <span className="campaign-card__icon" aria-hidden="true">
-            <img src="/assets/campaigns/megaphone-off.svg" width="20" height="20" alt="" />
+            <img src={import.meta.env.BASE_URL + "assets/campaigns/megaphone-off.svg"} width="20" height="20" alt="" />
           </span>
           <h2>{campaign.name}</h2>
         </div>
@@ -48,22 +48,22 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       </div>
 
       <div className="campaign-card__divider" aria-hidden="true">
-        <img src="/assets/campaigns/divider.svg" width="1216" height="1" alt="" />
+        <img src={import.meta.env.BASE_URL + "assets/campaigns/divider.svg"} width="1216" height="1" alt="" />
       </div>
 
       <footer className="campaign-card__footer">
         <div className="campaign-card__buttons">
           <Button className="campaign-action">
-            <img src="/assets/campaigns/pause-circle.svg" width="14" height="14" alt="" />
+            <img src={import.meta.env.BASE_URL + "assets/campaigns/pause-circle.svg"} width="14" height="14" alt="" />
             {campaign.actionLabel}
           </Button>
           <Button className="campaign-action campaign-action--secondary" variant="secondary">
-            <img src="/assets/campaigns/users.svg" width="14" height="14" alt="" />
+            <img src={import.meta.env.BASE_URL + "assets/campaigns/users.svg"} width="14" height="14" alt="" />
             รายชื่อ
           </Button>
           <Button className="campaign-action">ทดสอบ AGENT</Button>
           <Button className="campaign-action">
-            <img src="/assets/campaigns/bar-chart.png" width="14" height="14" alt="" />
+            <img src={import.meta.env.BASE_URL + "assets/campaigns/bar-chart.png"} width="14" height="14" alt="" />
             รายงาน
           </Button>
         </div>

@@ -1,5 +1,10 @@
 # Event Confirm: baseline ก่อน refactor
 
+> **สถานะหลัง rewrite (26 ตุลาคม 2026):** `api/*.mjs`, `server/*.mjs`, `vercel.json` และ nginx
+> readiness ถูกแทนด้วย Go backend ใน `backend/` ซึ่งให้บริการทั้ง API และ SPA ใต้ `/event-confirm/`
+> ใน container เดียว (ดู [HOST_DEPLOYMENT.md](HOST_DEPLOYMENT.md)) ตารางในหัวข้อ 2 และ 3 อัปเดตแล้ว
+> ส่วนที่เหลือเป็นบันทึก baseline เดิม
+
 ตรวจจาก source ที่นำเข้าจาก `8a7ea40` และ foundation ที่เพิ่มใน repository นี้
 เมื่อ 20 ตุลาคม 2026 เอกสารนี้อธิบายโค้ดปัจจุบัน ไม่ได้ยืนยันสถานะ Supabase,
 Vercel หรือบริการ Voice Bot ภายนอก และยังไม่ได้กำหนด architecture เป้าหมายใหม่
@@ -21,17 +26,16 @@ Vercel หรือบริการ Voice Bot ภายนอก และย�
 | Campaign persistence | `src/lib/campaigns.ts` | ติดต่อ Supabase, draft/CSV/mapping, version conflicts และ import ข้อมูลเดิม |
 | Browser API client | `src/services/botnoi/` | แนบ Supabase access token และส่งผ่าน `/api/voice?path=...` |
 | Supabase client | `src/lib/supabase.ts` | Auth และ database access ด้วย publishable key และ user session |
-| HTTP adapters | `api/*.mjs` | Vercel entrypoints บางๆ ที่เรียก server handlers |
-| Application server | `server/voice.mjs` และ modules ข้างเคียง | ตรวจ auth/owner/account, dispatch operation และเรียก provider |
-| Credential storage | `server/connection.mjs` | ตรวจ token ที่เชื่อมบัญชี, เข้ารหัส AES-256-GCM และอ่านผ่าน server-only store |
+| HTTP server | `backend/main.go` | net/http routes ใต้ `/event-confirm/`, SPA fallback และ healthz |
+| Application server | `backend/voice.go` และไฟล์ข้างเคียง | ตรวจ auth/owner/account, dispatch operation และเรียก provider |
+| Credential storage | `backend/connection.go` | ตรวจ token ที่เชื่อมบัญชี, เข้ารหัส AES-256-GCM และอ่านผ่าน server-only store |
 | Shared rules | `shared/*.mjs` และ `.d.mts` | Campaign inputs, queue identity, schedule, call results/display, audio repair |
 | Database | `supabase/migrations/` | Tables, RLS, transactional RPC, rate limit, job lease และ reservation |
 | Audio worker | `src/workers/recording-repair.worker.ts` | แปลงเสียงสำหรับฟังใน browser |
-| Validation | `scripts/test-*.mjs` | Offline fixtures, backend behavior และ SQL/RLS tests ด้วย PGlite |
+| Validation | `scripts/test-*.mjs`, `backend/*_test.go` | Shared rules และ SQL/RLS tests ด้วย PGlite; Go handler tests และ golden tests เทียบกับ Node เดิม |
 
-`vite.config.ts` ติดตั้ง API middleware สำหรับ development หลาย endpoint
-แต่ไม่ได้ mount scheduler; `npm run preview` เป็น static preview ไม่ใช่ production API server
-`vercel.json` แยก `/api/` ออกจาก SPA fallback และตั้ง function timeouts
+`vite.config.ts` ตั้ง `base: '/event-confirm/'` และ proxy `/event-confirm/api` ไปยัง Go server ระหว่าง development
+`npm run preview` เป็น static preview ไม่ใช่ production API server
 
 ## 3. Request และ data flow
 
@@ -57,11 +61,11 @@ Vercel หรือบริการ Voice Bot ภายนอก และย�
 
 | HTTP entrypoint | Handler | หน้าที่ |
 |---|---|---|
-| `/api/voice` | `server/voice.mjs` | Browser operations และ dispatch ไป domain modules |
-| `/api/voice-result` | `server/callback.mjs` | รับผลที่ส่งกลับและผูกกับคำขอโทร |
-| `/api/voice-recording` | `server/recording-callback.mjs` | รับ recording metadata |
-| `/api/voice-events` | `server/general-events.mjs` | Agent HTTP Tool สำหรับ event information |
-| `/api/voice-scheduler` | `server/scheduler.mjs` | Authenticated worker tick |
+| `/api/voice` | `backend/voice.go` | Browser operations และ dispatch ไป domain modules |
+| `/api/voice-result` | `backend/callback.go` | รับผลที่ส่งกลับและผูกกับคำขอโทร |
+| `/api/voice-recording` | `backend/recording.go` | รับ recording metadata |
+| `/api/voice-events` | `backend/events.go` | Agent HTTP Tool สำหรับ event information |
+| `/api/voice-scheduler` | `backend/scheduler.go` | Authenticated worker tick |
 
 Callback ใช้ server-side secrets ไม่ใช่ browser session และต้องตรวจความสัมพันธ์
 ของบัญชี/agent/request ก่อนเขียนข้อมูล ส่วน audio ผ่าน backend ที่ตรวจสิทธิ์ก่อน stream
