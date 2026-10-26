@@ -30,7 +30,7 @@ export function CampaignStepIndicator({
             {index > 0 ? (
               <img
                 className="campaign-steps__line"
-                src="/assets/create-campaign/step-line.svg"
+                src={import.meta.env.BASE_URL + "assets/create-campaign/step-line.svg"}
                 width="40"
                 height="2"
                 alt=""
@@ -40,7 +40,7 @@ export function CampaignStepIndicator({
             <span className="campaign-steps__group">
               <span className="campaign-steps__number">
                 {isCompleted ? (
-                  <img src="/assets/data-mapping/check.svg" width="14" height="14" alt="" />
+                  <img src={import.meta.env.BASE_URL + "assets/data-mapping/check.svg"} width="14" height="14" alt="" />
                 ) : (
                   step
                 )}

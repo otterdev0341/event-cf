@@ -7,12 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "node scripts/test-local.mjs && node scripts/test-backend.mjs && node scripts/test-database.mjs && node scripts/test-campaign-queue.mjs && node scripts/test-call-results.mjs && node scripts/test-result-callback.mjs && node scripts/test-agent-setup.mjs && node scripts/test-voice-connection.mjs",
+    "test": "node scripts/test-local.mjs && node scripts/test-database.mjs && node scripts/test-campaign-queue.mjs && node scripts/test-call-results.mjs && node scripts/test-scheduler.mjs && node scripts/test-recording-repair.mjs && npm run test:go",
     "test:integration": "node scripts/run-all-tests.mjs",
     "test:readiness": "node scripts/check-readiness.mjs",
-    "test:inbound": "node scripts/test-inbound-events.mjs",
-    "test:general": "node scripts/test-general-events.mjs",
-    "test:audio": "node scripts/test-audio-library.mjs && node scripts/test-recording-repair.mjs && node scripts/test-recording-callback.mjs"
+    "test:go": "cd backend && go test ./..."
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.6",

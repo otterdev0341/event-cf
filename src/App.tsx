@@ -14,16 +14,16 @@ import { ContactDetailPage } from "./pages/ContactDetailPage";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { InboundPage } from "./pages/InboundPage";
-import { routes } from "./routes";
+import { currentPath, routes } from "./routes";
 
 import { WorkspaceGate } from './components/WorkspaceGate';
 export default function App() {
-  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  const path = currentPath();
   if (path === routes.home || path === routes.login) return <AppRoutes />;
   return <WorkspaceGate><AppRoutes /></WorkspaceGate>;
 }
 function AppRoutes() {
-  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  const path = currentPath();
 
   if (path === routes.inbound) return <InboundPage />;
 

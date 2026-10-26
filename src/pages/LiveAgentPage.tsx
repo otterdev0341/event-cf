@@ -6,6 +6,7 @@ import { BotTestRoom } from '../components/BotTestRoom';
 import { AgentResultSetup } from '../components/AgentResultSetup';
 import { AgentRecordings } from '../components/AgentRecordings';
 import { useAgents, useAgentDetail, useCallLogs } from '../hooks/useBotnoiData';
+import { routes } from '../routes';
 import type { PreviewData } from '../hooks/useVoicePreview';
 import { parseCsv, type CsvData } from '../lib/campaigns';
 import '../voice-preview.css';
@@ -23,7 +24,7 @@ export function LiveAgentPage() {
       <section className="preview-card"><div className="preview-section-head"><div><span className="ui-kicker">YOUR AGENT</span><h2>เลือกบอทที่จะทดสอบ</h2></div><Button size="compact" variant="secondary" onClick={refetch} disabled={loading}>รีเฟรช Agent</Button></div>
         <label className="preview-field">Agent<select value={agentId} disabled={loading} onChange={event => setSelected(event.target.value)}><option value="">เลือก Agent ของคุณ</option>{agents.map(agent => <option key={agent.agent_id} value={agent.agent_id}>{agent.name}</option>)}</select></label>
         {loading && <p role="status">กำลังโหลด Agent…</p>}{error && <p role="alert" className="workspace-alert">{error}</p>}
-        {!loading && !error && !agents.length && <p>ยังไม่มี Agent ในบัญชีที่เชื่อมไว้ <a href="/settings">ตรวจการเชื่อมต่อบัญชี</a></p>}
+        {!loading && !error && !agents.length && <p>ยังไม่มี Agent ในบัญชีที่เชื่อมไว้ <a href={routes.settings}>ตรวจการเชื่อมต่อบัญชี</a></p>}
       </section>
       {agentId ? <AgentPreparation key={agentId} agentId={agentId} onTest={openPreview} /> : <section className="preview-empty"><span aria-hidden="true">✦</span><h2>เริ่มจากบอทที่อยากคุยด้วย</h2><p>เมื่อเลือกแล้ว ตัวแปรจาก Prompt จะปรากฏให้คุณเตรียมข้อมูล</p></section>}
     </div>

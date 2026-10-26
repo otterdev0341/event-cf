@@ -1,4 +1,14 @@
 **
-!infra/
+!package.json
+!package-lock.json
+!index.html
+!vite.config.ts
+!tsconfig*.json
+!public
+!src
+!shared
+!scripts/*.mjs
+!supabase/migrations
+!backend
+backend/*.exe
 !infra/Dockerfile
-!infra/nginx.conf

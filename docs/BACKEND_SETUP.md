@@ -13,13 +13,13 @@
 - `save_voice_campaign`: บันทึกแบบ transaction พร้อมตรวจเวอร์ชันข้อมูล ป้องกันการแก้ทับข้ามอุปกรณ์
 - `voice_call_requests`: เก็บคำขอโทรและ Call ID ของผู้ส่ง
 - `reserve_voice_call`: จอง request UUID ก่อนส่ง API ป้องกันส่งซ้ำด้วย UUID เดิม จำกัด 5 คำขอต่อนาทีต่อผู้ใช้
-- ไม่ต้องใช้ service-role key ในเว็บหรือ Vercel Function
+- ไม่ต้องใช้ service-role key ในเว็บ (ใช้เฉพาะใน Go backend)
 
 การสร้างตารางไม่ลบข้อมูลเดิม และโค้ดไม่ย้าย localStorage เข้าบัญชีโดยเงียบๆ หน้าแคมเปญมีปุ่มนำเข้าข้อมูลเดิมให้ตรวจเจ้าของก่อน ยังคงข้อมูลเดิมในเครื่องไว้
 
-## 2. Environment Variables บน Vercel
+## 2. Environment Variables ของ server
 
-ตั้งทั้ง Preview/Production ตาม environment ที่ใช้ แล้ว redeploy commit ใหม่
+ตั้งใน env file ของ server ตาม [HOST_DEPLOYMENT.md](HOST_DEPLOYMENT.md) แล้ว deploy ใหม่ ใช้ `.env.example` เป็นแม่แบบ
 
 | ชื่อ | ค่า |
 |---|---|
@@ -33,17 +33,17 @@
 
 ในโหมด `members` ไม่ต้องเพิ่มสิทธิ์รายอีเมล และรายชื่อ allowlist เดิมไม่มีผล โหมด `allowlist` เท่านั้นที่ใช้ `VOICE_ALLOWED_EMAILS` / `VOICE_ALLOWED_USER_IDS` และปฏิเสธทุกบัญชีหากทั้งสองว่าง ค่าโหมดอื่นจะถูกปฏิเสธ สมาชิกใช้ Agent, คู่สาย และโควตาของบัญชี Voice Bot กลางร่วมกัน รวมถึงรายงานและบันทึกสนทนาที่อ่านจากบัญชีกลาง ส่วนแคมเปญ รายชื่อ CSV และประวัติคำขอโทรใน Supabase ยังแยกตามผู้ใช้ด้วย RLS
 
-ลบ `VITE_VOICE_BOT_ACCESS_TOKEN` และ `VITE_VOICE_BOT_BASE_URL` จาก Vercel หลังตั้งค่าชื่อใหม่แล้ว เพราะ `VITE_*` เป็นค่าที่เผยแพร่ไปยังเบราว์เซอร์ Token เก่าที่เคยเผยแพร่ใน bundle ควรเปลี่ยนที่ผู้ให้บริการ และใส่ค่าใหม่เฉพาะตัวแปร server
+ห้ามตั้ง `VITE_VOICE_BOT_ACCESS_TOKEN` หรือ `VITE_VOICE_BOT_BASE_URL` เพราะ `VITE_*` เป็นค่าที่เผยแพร่ไปยังเบราว์เซอร์ Token เก่าที่เคยเผยแพร่ใน bundle ควรเปลี่ยนที่ผู้ให้บริการ และใส่ค่าใหม่เฉพาะตัวแปร server
 
 ## 3. Build และ deploy
 
 - Install: `npm ci`
 - Build: `npm run build`
 - Output: `dist`
-- ใช้ Git deployment ของทั้ง repository เพื่อให้ Vercel สร้าง `/api/voice` ด้วย การอัปโหลดเฉพาะ `dist` ไม่รวม Backend
-- local: `npm run dev` ใช้ handler เดียวกันผ่าน Vite middleware
+- Production: Jenkins build `infra/Dockerfile` ซึ่งรวม `dist` กับ Go server ใน `backend/` และให้บริการที่ `https://otterdev.xyz/event-confirm/`
+- local: รัน `go run .` ใน `backend/` (`ADDR=127.0.0.1:8080`) แล้ว `npm run dev`; Vite proxy `/event-confirm/api` ไปยัง Go server
 - `npm run preview` แสดงเฉพาะ static build ไม่ใช่ API server
-- ตั้ง Supabase Auth Site URL/Redirect URLs ให้มี URL ของเว็บจริง และ localhost ที่ใช้พัฒนา
+- ตั้ง Supabase Auth Site URL/Redirect URLs ให้มี `https://otterdev.xyz/event-confirm/login` และ `https://otterdev.xyz/event-confirm/dashboard` และ localhost ที่ใช้พัฒนา
 
 ## 4. ตัวแปรรายคน
 

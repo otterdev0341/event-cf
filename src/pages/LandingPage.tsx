@@ -5,10 +5,10 @@ import { VoiceAssistantPanel } from "../components/VoiceAssistantPanel";
 import { routes } from "../routes";
 
 const features = [
-  { icon: "/assets/brain-circuit.svg", title: "เตรียมแคมเปญ", description: "จัดการวันเวลาและรายละเอียดการยืนยัน ให้ทุกแคมเปญพร้อมก่อนเริ่มโทร" },
-  { icon: "/assets/arrow-up-right.svg", title: "นำเข้ารายชื่อ", description: "อัปโหลด CSV จับคู่ข้อมูล และตรวจสอบหมายเลขโทรศัพท์ในขั้นตอนเดียว" },
-  { icon: "/assets/message-square-reply.svg", title: "เลือกบทสนทนา", description: "เลือก Voice Agent ที่เหมาะกับงาน และทดสอบการเชื่อมต่อก่อนใช้งาน" },
-  { icon: "/assets/webhook.svg", title: "ติดตามการยืนยัน", description: "เตรียมดูผลการโทรและบทสนทนาเมื่อเชื่อมต่อบริการ Voice Bot ของคุณ" },
+  { icon: import.meta.env.BASE_URL + "assets/brain-circuit.svg", title: "เตรียมแคมเปญ", description: "จัดการวันเวลาและรายละเอียดการยืนยัน ให้ทุกแคมเปญพร้อมก่อนเริ่มโทร" },
+  { icon: import.meta.env.BASE_URL + "assets/arrow-up-right.svg", title: "นำเข้ารายชื่อ", description: "อัปโหลด CSV จับคู่ข้อมูล และตรวจสอบหมายเลขโทรศัพท์ในขั้นตอนเดียว" },
+  { icon: import.meta.env.BASE_URL + "assets/message-square-reply.svg", title: "เลือกบทสนทนา", description: "เลือก Voice Agent ที่เหมาะกับงาน และทดสอบการเชื่อมต่อก่อนใช้งาน" },
+  { icon: import.meta.env.BASE_URL + "assets/webhook.svg", title: "ติดตามการยืนยัน", description: "เตรียมดูผลการโทรและบทสนทนาเมื่อเชื่อมต่อบริการ Voice Bot ของคุณ" },
 ];
 export function LandingPage() {
   return <div className="app landing-refined" id="top"><Header /><main>
@@ -22,5 +22,5 @@ export function LandingPage() {
     </section>
     <section className="workflow-band page-shell" id="how-it-works" aria-labelledby="workflow-title"><div className="workflow-intro"><span className="ui-kicker">HOW IT WORKS</span><h2 id="workflow-title">พร้อมใน 4 ขั้นตอน</h2></div><ol><li><span>01</span><div><strong>เตรียมรายชื่อ</strong><small>อัปโหลด CSV ของคุณ</small></div></li><li><span>02</span><div><strong>เลือก Agent</strong><small>อ่านตัวแปรจากบทสนทนา</small></div></li><li><span>03</span><div><strong>จับคู่ข้อมูล</strong><small>เชื่อมคอลัมน์กับตัวแปร</small></div></li><li><span>04</span><div><strong>สรุปแคมเปญ</strong><small>ตรวจสอบก่อนบันทึก</small></div></li></ol></section>
     <section className="features page-shell" id="features" aria-labelledby="features-title"><div className="features-heading"><div><span className="ui-kicker">BUILT AROUND YOUR WORK</span><h2 id="features-title">ทุกขั้นตอน ในพื้นที่เดียว</h2></div><p>จัดระเบียบงานโทร ให้คุณมีเวลาดูแลเรื่องสำคัญ</p></div><div className="feature-grid">{features.map(feature => <FeatureCard key={feature.title} {...feature} />)}</div></section>
-  </main><footer className="landing-footer page-shell"><span>Voice Confirm</span><span>สร้างพื้นที่ให้ทุกบทสนทนามีความหมาย</span><a href="/api-documentation.md" target="_blank" rel="noreferrer">เอกสารการเชื่อมต่อ ↗</a></footer></div>;
+  </main><footer className="landing-footer page-shell"><span>Voice Confirm</span><span>สร้างพื้นที่ให้ทุกบทสนทนามีความหมาย</span><a href={import.meta.env.BASE_URL + "api-documentation.md"} target="_blank" rel="noreferrer">เอกสารการเชื่อมต่อ ↗</a></footer></div>;
 }

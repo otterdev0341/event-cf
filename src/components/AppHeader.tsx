@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Brand } from "./Brand";
-import { routes } from "../routes";
+import { currentPath, routes } from "../routes";
 
 const navigation = [
   { key: "home", label: "ภาพรวม", href: routes.dashboard, path: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" },
@@ -14,7 +14,7 @@ interface AppHeaderProps { activeNav?: "home" | "campaigns" | "reports" | "setti
 export function AppHeader({ activeNav }: AppHeaderProps) {
   const [menuOpen,setMenuOpen]=useState(false);
   const menuButton=useRef<HTMLButtonElement>(null);
-  const path = window.location.pathname;
+  const path = currentPath();
   const active = activeNav ?? (path.startsWith(routes.campaigns) ? "campaigns" : path.startsWith(routes.contacts) ? "contacts" : path === routes.liveAgent ? "live" : path === routes.dashboard ? "home" : path === routes.analytics ? "reports" : "settings");
   useEffect(()=>{if(!menuOpen)return;const close=(event:KeyboardEvent)=>{if(event.key==='Escape'){setMenuOpen(false);menuButton.current?.focus();}};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close);},[menuOpen]);
   return <header className={`app-header${menuOpen?' app-header--open':''}`}><div className="app-header__inner page-shell">

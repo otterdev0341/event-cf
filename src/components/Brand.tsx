@@ -16,7 +16,7 @@ export function Brand({
   const content = (
     <>
       <span className="brand__mark" aria-hidden="true">
-        <img src="/assets/audio-lines.svg" width="20" height="20" alt="" />
+        <img src={import.meta.env.BASE_URL + "assets/audio-lines.svg"} width="20" height="20" alt="" />
       </span>
       <span className="brand__name">Voice Confirm</span>
     </>

@@ -85,14 +85,14 @@ export function CreateCampaignPage() {
                     placeholder="วว / ดด / ปปปป"
                     inputMode="numeric"
                   />
-                  <img src="/assets/create-campaign/calendar.svg" width="20" height="20" alt="" />
+                  <img src={import.meta.env.BASE_URL + "assets/create-campaign/calendar.svg"} width="20" height="20" alt="" />
                 </span>
               </CampaignField>
 
               <CampaignField label="เวลาจัดงาน">
                 <span className="campaign-form__control">
                   <input type="time" name="eventTime" defaultValue={draft?.eventTime || "09:00"} inputMode="numeric" />
-                  <img src="/assets/create-campaign/clock.svg" width="20" height="20" alt="" />
+                  <img src={import.meta.env.BASE_URL + "assets/create-campaign/clock.svg"} width="20" height="20" alt="" />
                 </span>
               </CampaignField>
             </div>
@@ -105,7 +105,7 @@ export function CreateCampaignPage() {
             <label className={`campaign-dropzone${dragging ? ' campaign-dropzone--dragging' : ''}`} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); void importFile(e.dataTransfer.files[0]); }}>
               <input type="file" name="contacts" accept=".csv,text/csv" disabled={reading} onChange={e => void importFile(e.target.files?.[0])} />
               <span className="campaign-dropzone__icon" aria-hidden="true">
-                <img src="/assets/create-campaign/cloud-upload.svg" width="24" height="24" alt="" />
+                <img src={import.meta.env.BASE_URL + "assets/create-campaign/cloud-upload.svg"} width="24" height="24" alt="" />
               </span>
               <span className="campaign-dropzone__copy">
                 <strong>{reading ? "กำลังอ่านไฟล์..." : fileName || "ลากไฟล์ CSV มาวางที่นี่"}</strong>
@@ -114,7 +114,7 @@ export function CreateCampaignPage() {
             </label>
 
             <button className="campaign-template-link" type="button" onClick={downloadCsvTemplate}>
-              <img src="/assets/create-campaign/file-down.svg" width="18" height="18" alt="" />
+              <img src={import.meta.env.BASE_URL + "assets/create-campaign/file-down.svg"} width="18" height="18" alt="" />
               ดาวน์โหลด Template สำหรับแคมเปญ (.csv)
             </button>
           </section>
@@ -125,7 +125,7 @@ export function CreateCampaignPage() {
             <a href={routes.campaigns}>ยกเลิกการสร้างแคมเปญ</a>
             <Button className="create-campaign-next" type="submit" disabled={reading || saving}>
               เลือก Agent
-              <img src="/assets/create-campaign/arrow-right.svg" width="14" height="14" alt="" />
+              <img src={import.meta.env.BASE_URL + "assets/create-campaign/arrow-right.svg"} width="14" height="14" alt="" />
             </Button>
           </footer>
         </form>

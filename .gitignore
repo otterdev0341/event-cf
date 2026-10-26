@@ -7,3 +7,4 @@ vercel-preview-figma-ui/
 
 .env.*
 !.env.example
+backend/*.exe
