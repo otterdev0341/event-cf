@@ -1,3 +1,4 @@
+import { Dropdown } from '../components/Dropdown';
 import { useEffect, useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
@@ -79,7 +80,7 @@ export function InboundPage() {
         {setup.notice && <p className="workspace-notice">{setup.notice}</p>}
         {setup.numbers.length ? <div className="inbound-routing-grid">
           <div className="inbound-number-list" role="group" aria-label="เลือกเบอร์รับสาย">{setup.numbers.map(number => <button key={number.did} type="button" className={`inbound-number${did === number.did ? ' inbound-number--selected' : ''}`} aria-pressed={did === number.did} disabled={busy} onClick={() => changeNumber(number.did)}><span className="inbound-number__caption">เบอร์รับสายเข้า</span><strong>{number.did}</strong><span>{agentName(number.agent_id)}</span><span className="inbound-number__arrow" aria-hidden="true">↗</span></button>)}</div>
-          <div className="inbound-editor"><span className="ui-kicker">รับสายด้วย</span><h3>{selected?.did}</h3><label htmlFor="inbound-agent">Agent ประจำเบอร์</label><select id="inbound-agent" value={agentId} disabled={busy || agents.loading || !setup.can_manage || mustRefresh} onChange={event => { setAgentId(event.target.value); setReview(false); setConfirmed(false); setMessage(''); }}><option value="">เลือก Agent</option>{agents.agents.map(item => <option key={item.agent_id} value={item.agent_id}>{item.name}</option>)}{agentId && !agents.agents.some(item => item.agent_id === agentId) && <option value={agentId}>{agentId} (ไม่อยู่ในรายการที่โหลด)</option>}</select>
+          <div className="inbound-editor"><span className="ui-kicker">รับสายด้วย</span><h3>{selected?.did}</h3><label htmlFor="inbound-agent">Agent ประจำเบอร์</label><Dropdown id="inbound-agent" label="Agent ประจำเบอร์" value={agentId} disabled={busy || agents.loading || !setup.can_manage || mustRefresh} onChange={v => { setAgentId(v); setReview(false); setConfirmed(false); setMessage(''); }} options={[{ value: '', label: 'เลือก Agent' }, ...agents.agents.map(item => ({ value: item.agent_id, label: item.name })), ...(agentId && !agents.agents.some(item => item.agent_id === agentId) ? [{ value: agentId, label: `${agentId} (ไม่อยู่ในรายการที่โหลด)` }] : [])]} />
             {agents.error && <p className="workspace-alert" role="alert">{agents.error}</p>}
             <p className="workspace-note">ปัจจุบัน: {agentName(selected?.agent_id || null)}</p>
             {agent.loading && <p className="workspace-note" role="status">กำลังอ่านข้อมูล Agent…</p>}

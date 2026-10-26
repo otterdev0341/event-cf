@@ -1,3 +1,4 @@
+import { Dropdown } from '../components/Dropdown';
 import { useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
@@ -41,12 +42,12 @@ export function DataMappingPage() {
       {detail.loading && <p role="status">กำลังอ่านตัวแปร Agent…</p>}
       {detail.error && <div role="alert" className="workspace-alert">{detail.error}<Button onClick={detail.refetch}>ลองใหม่</Button></div>}
       {ready && <section className="wizard-summary-card">
-        <h2>1. เบอร์ปลายทาง</h2><label className="campaign-form__field"><span>คอลัมน์เบอร์โทร</span><select className="workspace-select" value={phoneColumn} disabled={saving} onChange={e => { setPhoneColumn(e.target.value); setMessage(''); }}><option value="">เลือกคอลัมน์</option>{draft.csv.headers.map(h => <option key={h}>{h}</option>)}</select></label>
+        <h2>1. เบอร์ปลายทาง</h2><div className="campaign-form__field"><span>คอลัมน์เบอร์โทร</span><Dropdown label="คอลัมน์เบอร์โทร" value={phoneColumn} disabled={saving} onChange={v => { setPhoneColumn(v); setMessage(''); }} options={[{ value: '', label: 'เลือกคอลัมน์' }, ...draft.csv.headers.map(h => ({ value: h, label: h }))]} /></div>
         <h2>2. ข้อมูลที่ Agent ใช้</h2><p className="workspace-note">เลือกคอลัมน์ให้แต่ละตัวแปร คอลัมน์เดียวใช้ได้หลายตัวแปร เช่น เบอร์ปลายทางและ phone_number</p>
         <p className="workspace-note">หากตัวแปรใช้บันทึกคำตอบหลังสนทนา ให้เลือก “ผลลัพธ์หลังโทร” ระบบจะไม่บังคับข้อมูลนั้นใน CSV และไม่ส่งค่าเริ่มต้นแทนคุณ</p>
         <div className="csv-preview"><table><thead><tr><th>ตัวแปร Agent</th><th>แหล่งข้อมูล</th><th>ตัวอย่างแถวแรก</th></tr></thead><tbody>{detail.variables.map(variable => {
           const binding = bindings[variable];
-          return <tr key={variable}><td><code>{variable}</code></td><td><select className="workspace-select" aria-label={`แหล่งข้อมูล ${variable}`} disabled={saving} value={binding.source === 'output' ? 'output' : binding.column ? `csv:${binding.column}` : ''} onChange={e => { const value = e.target.value; setEdits(prev => ({...prev, [variable]: value === 'output' ? {source:'output'} : {source:'csv', column:value.startsWith('csv:') ? value.slice(4) : ''}})); setMessage(''); }}><option value="">เลือกคอลัมน์ CSV</option>{binding.source === 'csv' && binding.column && !draft.csv.headers.includes(binding.column) && <option value={`csv:${binding.column}`}>ไม่พบคอลัมน์เดิม: {binding.column}</option>}{draft.csv.headers.map(h => <option key={h} value={`csv:${h}`}>{h}</option>)}<option value="output">ผลลัพธ์หลังโทร — ไม่รับค่าจาก CSV</option></select></td><td>{binding.source === 'output' ? 'รอข้อมูลหลังสนทนา' : draft.csv.rows[0]?.[draft.csv.headers.indexOf(binding.column)] || '—'}</td></tr>;
+          return <tr key={variable}><td><code>{variable}</code></td><td><Dropdown label={`แหล่งข้อมูล ${variable}`} disabled={saving} value={binding.source === 'output' ? 'output' : binding.column ? `csv:${binding.column}` : ''} onChange={value => { setEdits(prev => ({...prev, [variable]: value === 'output' ? {source:'output'} : {source:'csv', column:value.startsWith('csv:') ? value.slice(4) : ''}})); setMessage(''); }} options={[{ value: '', label: 'เลือกคอลัมน์ CSV' }, ...(binding.source === 'csv' && binding.column && !draft.csv.headers.includes(binding.column) ? [{ value: `csv:${binding.column}`, label: `ไม่พบคอลัมน์เดิม: ${binding.column}` }] : []), ...draft.csv.headers.map(h => ({ value: `csv:${h}`, label: h })), { value: 'output', label: 'ผลลัพธ์หลังโทร — ไม่รับค่าจาก CSV' }]} /></td><td>{binding.source === 'output' ? 'รอข้อมูลหลังสนทนา' : draft.csv.rows[0]?.[draft.csv.headers.indexOf(binding.column)] || '—'}</td></tr>;
         })}</tbody></table></div>
         {!detail.variables.length && <p>Agent นี้ไม่มีตัวแปรใน Prompt ใช้เฉพาะเบอร์ปลายทาง</p>}
         <Button variant="secondary" size="compact" onClick={template}>ดาวน์โหลดหัวตาราง CSV สำหรับ Agent นี้</Button>

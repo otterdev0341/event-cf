@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
-import { useDismiss } from './Dropdown';
+import { Layer, useDismiss } from './Dropdown';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -15,26 +15,32 @@ const Icon = ({ d }: { d: string }) => <svg width="18" height="18" viewBox="0 0 
 /** Shared open/close shell: outside click, Escape, focus back to the trigger. */
 function usePopover() {
   const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
-  useDismiss(root, open, () => setOpen(false));
+  const root = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null), layer = useRef<HTMLDivElement>(null);
+  useDismiss([root, layer], open, () => setOpen(false));
   const close = () => { setOpen(false); trigger.current?.focus(); };
   const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape' && open) { e.preventDefault(); close(); } };
-  return { open, setOpen, root, trigger, close, onKeyDown };
+  return { open, setOpen, root, trigger, layer, close, onKeyDown };
 }
 
-interface PickerProps { name: string; label: string; defaultValue?: string; }
+/** Works uncontrolled (`defaultValue` + `name`, read by FormData) or controlled (`value` + `onChange`). */
+interface PickerProps { label: string; name?: string; defaultValue?: string; value?: string; onChange?: (value: string) => void; disabled?: boolean; }
+
+function useValue({ defaultValue = '', value, onChange }: Pick<PickerProps, 'defaultValue' | 'value' | 'onChange'>) {
+  const [inner, setInner] = useState(defaultValue);
+  return [value ?? inner, (v: string) => { setInner(v); onChange?.(v); }] as const;
+}
 
 /** Calendar popover. Posts `YYYY-MM-DD` through a hidden input so plain FormData forms keep working. */
-export function DatePicker({ name, label, defaultValue = '' }: PickerProps) {
-  const [value, setValue] = useState(defaultValue);
+export function DatePicker({ name, label, disabled, ...rest }: PickerProps) {
+  const [value, setValue] = useValue(rest);
   const picked = parseDate(value);
   const [cursor, setCursor] = useState(() => picked ?? new Date());
-  const { open, setOpen, root, trigger, close, onKeyDown } = usePopover();
+  const { open, setOpen, root, trigger, layer, close, onKeyDown } = usePopover();
   const focusGrid = useRef(false);
   const id = useId();
 
   useEffect(() => { // only keyboard moves and opening pull focus into the grid, so the month buttons stay clickable
-    if (open && focusGrid.current) { root.current?.querySelector<HTMLElement>('[data-cursor="true"]')?.focus({ preventScroll: true }); focusGrid.current = false; }
+    if (open && focusGrid.current) { layer.current?.querySelector<HTMLElement>('[data-cursor="true"]')?.focus({ preventScroll: true }); focusGrid.current = false; }
   }, [open, cursor]);
 
   const go = (d: Date) => { focusGrid.current = true; setCursor(d); };
@@ -49,12 +55,12 @@ export function DatePicker({ name, label, defaultValue = '' }: PickerProps) {
   const days = Array.from({ length: 42 }, (_, i) => addDays(first, i - first.getDay()));
   const today = iso(new Date());
   return <div className="ov-dd" ref={root} data-open={open} onKeyDown={onKeyDown}>
-    <input type="hidden" name={name} value={value} />
-    <button ref={trigger} type="button" className="ov-dd__trigger" aria-haspopup="dialog" aria-expanded={open} aria-controls={`${id}-pop`} aria-label={`${label}: ${picked ? th(picked, { dateStyle: 'long' }) : 'ยังไม่ได้เลือก'}`} onClick={() => { if (open) setOpen(false); else { setCursor(picked ?? new Date()); focusGrid.current = true; setOpen(true); } }}>
+    {name && <input type="hidden" name={name} value={value} />}
+    <button ref={trigger} type="button" className="ov-dd__trigger" disabled={disabled} aria-haspopup="dialog" aria-expanded={open} aria-controls={`${id}-pop`} aria-label={`${label}: ${picked ? th(picked, { dateStyle: 'long' }) : 'ยังไม่ได้เลือก'}`} onClick={() => { if (open) setOpen(false); else { setCursor(picked ?? new Date()); focusGrid.current = true; setOpen(true); } }}>
       <span className={picked ? '' : 'pk-ph'}>{picked ? th(picked, { dateStyle: 'long' }) : 'เลือกวันที่'}</span>
       <Icon d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" />
     </button>
-    <div id={`${id}-pop`} className="pk-pop pk-cal" role="dialog" aria-label={label}>
+    <Layer open={open} trigger={trigger} layerRef={layer}><div id={`${id}-pop`} className="pk-pop pk-cal" role="dialog" aria-label={label}>
       <div className="pk-cal__head">
         <button type="button" className="pk-nav" aria-label="เดือนก่อนหน้า" onClick={() => setCursor(addMonths(cursor, -1))}><Icon d="m15 6-6 6 6 6" /></button>
         <strong aria-live="polite">{th(cursor, { month: 'long', year: 'numeric' })}</strong>
@@ -68,24 +74,24 @@ export function DatePicker({ name, label, defaultValue = '' }: PickerProps) {
         })}
       </div>
       <div className="pk-foot"><button type="button" onClick={() => choose(new Date())}>วันนี้</button><button type="button" onClick={() => { setValue(''); close(); }}>ล้างวันที่</button></div>
-    </div>
+    </div></Layer>
   </div>;
 }
 
 /** Hour and minute columns; picking a minute closes. Posts `HH:MM`. shortcut: 5-minute steps, an off-grid saved minute stays listed until changed. */
-export function TimePicker({ name, label, defaultValue = '09:00' }: PickerProps) {
-  const [value, setValue] = useState(defaultValue);
+export function TimePicker({ name, label, disabled, ...rest }: PickerProps) {
+  const [value, setValue] = useValue({ ...rest, defaultValue: rest.defaultValue ?? '09:00' });
   const [h, m] = /^\d{2}:\d{2}$/.test(value) ? value.split(':').map(Number) : [9, 0];
   const minutes = [...new Set([...Array.from({ length: 12 }, (_, i) => i * 5), m])].sort((a, b) => a - b);
-  const { open, setOpen, root, trigger, close, onKeyDown } = usePopover();
+  const { open, setOpen, root, trigger, layer, close, onKeyDown } = usePopover();
   const id = useId();
   const set = (nh: number, nm: number) => setValue(`${pad(nh)}:${pad(nm)}`);
-  const focusSel = (col: 'h' | 'm') => requestAnimationFrame(() => root.current?.querySelector<HTMLElement>(`[data-col="${col}"][aria-selected="true"]`)?.focus());
+  const focusSel = (col: 'h' | 'm') => requestAnimationFrame(() => layer.current?.querySelector<HTMLElement>(`[data-col="${col}"][aria-selected="true"]`)?.focus());
 
   useEffect(() => { // centre the current hour and minute when the popover opens
     if (!open) return;
-    root.current?.querySelectorAll<HTMLElement>('.pk-col').forEach(col => { const el = col.querySelector<HTMLElement>('[aria-selected="true"]'); if (el) col.scrollTop = el.offsetTop - col.clientHeight / 2 + el.offsetHeight / 2; });
-    root.current?.querySelector<HTMLElement>('[data-col="h"][aria-selected="true"]')?.focus({ preventScroll: true });
+    layer.current?.querySelectorAll<HTMLElement>('.pk-col').forEach(col => { const el = col.querySelector<HTMLElement>('[aria-selected="true"]'); if (el) col.scrollTop = el.offsetTop - col.clientHeight / 2 + el.offsetHeight / 2; });
+    layer.current?.querySelector<HTMLElement>('[data-col="h"][aria-selected="true"]')?.focus({ preventScroll: true });
   }, [open]);
 
   const onColKey = (e: KeyboardEvent, col: 'h' | 'm') => {
@@ -99,12 +105,12 @@ export function TimePicker({ name, label, defaultValue = '09:00' }: PickerProps)
   };
 
   return <div className="ov-dd" ref={root} data-open={open} onKeyDown={onKeyDown}>
-    <input type="hidden" name={name} value={value} />
-    <button ref={trigger} type="button" className="ov-dd__trigger" aria-haspopup="dialog" aria-expanded={open} aria-controls={`${id}-pop`} aria-label={`${label}: ${pad(h)}:${pad(m)} น.`} onClick={() => setOpen(!open)}>
+    {name && <input type="hidden" name={name} value={value} />}
+    <button ref={trigger} type="button" className="ov-dd__trigger" disabled={disabled} aria-haspopup="dialog" aria-expanded={open} aria-controls={`${id}-pop`} aria-label={`${label}: ${pad(h)}:${pad(m)} น.`} onClick={() => setOpen(!open)}>
       <span>{pad(h)}:{pad(m)} น.</span>
       <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 7v5l3 2" />
     </button>
-    <div id={`${id}-pop`} className="pk-pop pk-time" role="dialog" aria-label={label}>
+    <Layer open={open} trigger={trigger} layerRef={layer}><div id={`${id}-pop`} className="pk-pop pk-time" role="dialog" aria-label={label}>
       {([['h', 'ชั่วโมง', HOURS], ['m', 'นาที', minutes]] as const).map(([col, title, list]) =>
         <div key={col} className="pk-col" role="listbox" aria-label={title} onKeyDown={e => onColKey(e, col)}>
           {list.map(n => {
@@ -112,6 +118,6 @@ export function TimePicker({ name, label, defaultValue = '09:00' }: PickerProps)
             return <button key={n} type="button" role="option" data-col={col} aria-selected={on} tabIndex={on ? 0 : -1} onClick={() => { if (col === 'h') set(n, m); else { set(h, n); close(); } }}>{pad(n)}</button>;
           })}
         </div>)}
-    </div>
+    </div></Layer>
   </div>;
 }

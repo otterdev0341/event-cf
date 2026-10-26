@@ -1,3 +1,4 @@
+import { Dropdown } from '../components/Dropdown';
 import { useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
@@ -28,8 +29,8 @@ export function AnalyticsPage() {
     <header><span className="ui-kicker">CALL USAGE</span><h1>การใช้งาน Voice Bot</h1><p>นับจากประวัติสายโทรศัพท์จริงของบัญชี Voice Bot ที่เชื่อมอยู่</p><p className="workspace-note">รวมสายที่โทรจากแคมเปญ สายโทรทดสอบ และสายที่โทรผ่าน Voice Bot โดยตรง · ดูคำตอบของผู้ติดต่อได้ที่ <a href={routes.dashboard}>ภาพรวมการโทร →</a></p></header>
     <section className="activity-section">
       <div className="usage-toolbar"><div className="usage-controls">
-        <label>ช่วงเวลา<select value={period} onChange={event => setPeriod(event.target.value as typeof period)}><option value="month">เดือนนี้</option><option value="7-days">7 วันรวมวันนี้</option></select></label>
-        <label>ประเภทสาย<select value={source} onChange={event => setSource(event.target.value as typeof source)}><option value="all">โทรเข้าและโทรออก</option><option value="outbound">เฉพาะสายโทรออก</option><option value="inbound">เฉพาะสายโทรเข้า</option></select></label>
+        <label>ช่วงเวลา<Dropdown label="ช่วงเวลา" value={period} onChange={v => setPeriod(v as typeof period)} options={[{ value: 'month', label: 'เดือนนี้' }, { value: '7-days', label: '7 วันรวมวันนี้' }]} /></label>
+        <label>ประเภทสาย<Dropdown label="ประเภทสาย" value={source} onChange={v => setSource(v as typeof source)} options={[{ value: 'all', label: 'โทรเข้าและโทรออก' }, { value: 'outbound', label: 'เฉพาะสายโทรออก' }, { value: 'inbound', label: 'เฉพาะสายโทรเข้า' }]} /></label>
       </div><Button size="compact" variant="secondary" onClick={usage.refetch} disabled={usage.loading}>รีเฟรชประวัติสาย</Button></div>
       <h2>สรุปการโทรในช่วงที่เลือก</h2><p className="workspace-note">{range} · {typeLabel} · เขตเวลาไทย</p>
       {usage.loading ? <p role="status">กำลังโหลดประวัติสายจริง…</p> : usage.error ? <p role="alert" className="workspace-alert">{usage.error}</p> : report && <>
