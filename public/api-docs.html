@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Confirm API</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Code:wght@400;500&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap">
+  <style>
+    :root { --brand: #6544cf; --ink: #202124; --line: #e3e6ea; --wash: #f6f4fb; --grad: linear-gradient(135deg, #7451e8, #4b6fe0); }
+    body { margin: 0; padding-top: 56px; background: #fff; }
+    .topbar { position: fixed; inset: 0 0 auto 0; z-index: 200; height: 56px; display: flex; align-items: center; gap: 14px; padding: 0 20px; background: #ffffffd9; backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); font-family: "Google Sans", "Noto Sans Thai", system-ui, sans-serif; }
+    .topbar__mark { width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(145deg, #7a5be0, #5634be); box-shadow: 0 6px 14px -6px #6544cf99; display: grid; place-items: center; }
+    .topbar__mark img { display: block; }
+    .topbar strong { font-size: 15px; color: var(--ink); letter-spacing: -.01em; }
+    .topbar small { padding: 2px 8px; border-radius: 999px; background: #f0ebfc; color: #5a3cc4; font-size: 11px; font-weight: 600; }
+    .topbar nav { margin-left: auto; display: flex; gap: 8px; }
+    .topbar a { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--line); color: var(--ink); font-size: 13px; font-weight: 500; text-decoration: none; background: #fff; transition: border-color .2s, color .2s, box-shadow .2s; }
+    .topbar a:hover { border-color: #9c86e6; color: var(--brand); }
+    .topbar a.primary { border: 0; background: var(--grad); color: #fff; box-shadow: 0 8px 16px -8px #6544cfcc; }
+    .topbar a.primary:hover { color: #fff; }
+    /* ReDoc surfaces: soft cards, rounded code, tinted tables */
+    .api-content h1 { letter-spacing: -.02em; }
+    .api-content h2 { letter-spacing: -.01em; }
+    .api-content pre { border-radius: 12px !important; }
+    .api-content table { border-radius: 10px; }
+    .api-content [data-section-id] { border-radius: 14px; }
+    .api-content a:hover { text-decoration: underline; }
+    .menu-content { border-right: 0; }
+    /* search: glassy field, violet focus ring */
+    [role="search"] { position: relative; padding: 0; }
+    [role="search"] .search-icon { left: 28px; top: 27px; width: 15px; height: 15px; fill: #8f96c4; transition: fill .2s; }
+    [role="search"] .search-input { box-sizing: border-box; width: calc(100% - 28px); margin: 14px 14px 6px; height: 40px; padding: 0 14px 0 40px !important; border: 1px solid #ffffff1f !important; border-radius: 12px !important; background: #ffffff12 !important; color: #fff !important; font-family: inherit; font-size: 14px; outline: none; transition: border-color .2s, background .2s, box-shadow .25s; }
+    [role="search"] .search-input::placeholder { color: #8f96c4; opacity: 1; }
+    [role="search"] .search-input:hover { background: #ffffff1c !important; }
+    [role="search"] .search-input:focus { border-color: #9c86e6 !important; background: #ffffff1f !important; box-shadow: 0 0 0 3px #7451e84d; }
+    [data-role="search:results"] { background: #1b1f45 !important; margin: 0 10px; width: auto !important; box-sizing: border-box; border-radius: 12px; border: 1px solid #ffffff14; box-shadow: 0 16px 32px -16px #000a; }
+    [data-role="search:results"] ul { padding: 6px; }
+    [data-role="search:results"] li { border-radius: 8px; }
+    [data-role="search:results"] li:hover { background: #ffffff14; }
+    [data-role="search:results"] mark { background: #7451e866; color: #fff; border-radius: 3px; padding: 0 2px; }
+    [role="search"]:focus-within .search-icon { fill: #c9bcf3; }
+    /* right panel: quiet tabs, rounded blocks, no heavy red */
+    .react-tabs__tab-list { gap: 6px; display: flex; flex-wrap: wrap; padding: 0; margin: 0 0 10px; }
+    .react-tabs__tab { border-radius: 999px !important; border: 1px solid #e3e0ee !important; background: #fff !important; color: #3c4043 !important; font-size: 12px !important; padding: 5px 14px !important; list-style: none; cursor: pointer; transition: background .2s, border-color .2s, color .2s; }
+    .react-tabs__tab:hover { border-color: #9c86e6 !important; color: #6544cf !important; }
+    .react-tabs__tab--selected { background: #6544cf !important; border-color: #6544cf !important; color: #fff !important; font-weight: 500; }
+    .react-tabs__tab-panel pre { font-size: 12.5px; line-height: 1.65; }
+    .menu-content label { border-radius: 10px; }
+    .menu-content { background: linear-gradient(180deg, #232a55 0%, #161a37 100%) !important; }
+    .menu-content label:not(.active) { background: transparent !important; }
+    .menu-content label:not(.active):hover { color: #fff !important; background: #ffffff14 !important; }
+    .menu-content label svg { transition: transform .35s cubic-bezier(.16,1,.3,1); }
+    /* accordion: submenu opens by growing from 0 with staggered items */
+    .menu-content li > ul { overflow: hidden; }
+    @media (prefers-reduced-motion: no-preference) {
+      .menu-content li > ul { animation: acc-down .38s cubic-bezier(.16,1,.3,1) both; }
+      .menu-content li > ul > li { animation: acc-item .38s cubic-bezier(.16,1,.3,1) both; }
+      .menu-content li > ul > li:nth-child(2) { animation-delay: .04s; } .menu-content li > ul > li:nth-child(3) { animation-delay: .08s; } .menu-content li > ul > li:nth-child(n+4) { animation-delay: .12s; }
+    }
+    @keyframes acc-down { from { max-height: 0; opacity: 0; } to { max-height: 800px; opacity: 1; } }
+    @keyframes acc-item { from { opacity: 0; transform: translateX(-8px); } }
+    .menu-content label.active { background: linear-gradient(135deg, #7451e8, #4b6fe0) !important; color: #fff; box-shadow: 0 8px 18px -10px #6544cfcc; }
+    .menu-content label.active .operation-type { background: #ffffff33; }
+    [role="tab"].tab-success, [role="tab"].tab-error, [role="tab"].tab-info, [role="tab"].tab-redirect { border-radius: 999px; border: 1px solid #e3e0ee; background: #fff; font-size: 12px; font-weight: 500; transition: background .2s, border-color .2s; }
+    [role="tab"].tab-success { color: #188038; } [role="tab"].tab-error { color: #d93025; } [role="tab"].tab-info { color: #6544cf; } [role="tab"].tab-redirect { color: #b06000; }
+    [role="tab"].tab-success:hover, [role="tab"].tab-error:hover, [role="tab"].tab-info:hover { border-color: #9c86e6; }
+    [role="tab"][aria-selected="true"].tab-success { background: #e6f4ea; border-color: #188038; } [role="tab"][aria-selected="true"].tab-error { background: #fce8e6; border-color: #d93025; } [role="tab"][aria-selected="true"].tab-info { background: #f0ebfc; border-color: #6544cf; }
+    .redoc-json, .redoc-json *, .redoc-json code { font-family: "Google Sans Code", Consolas, ui-monospace, monospace !important; font-size: 12.5px; }
+    td[kind="field"], td[kind="field"] * { font-family: "Google Sans Code", Consolas, ui-monospace, monospace; font-size: 13px; }
+    ::selection { background: #6544cf33; }
+    .menu-content [role="menuitem"] { border-radius: 10px; margin: 1px 10px; width: auto !important; }
+    #nav-pill { position: fixed; left: 0; top: 0; z-index: 5; pointer-events: none; border-radius: 10px; background: #ffffff1c; opacity: 0; }
+    @media (prefers-reduced-motion: no-preference) {
+      /* spring hover / tap on every button, same curve as the app */
+      button:not(:disabled), a[href].button, [role="tab"] {
+        scale: 1; transition: scale .5s linear(0, .22 6%, .72 15%, 1.05 25%, 1.12 32%, 1.04 48%, .99 62%, 1 80%, 1);
+      }
+      button:not(:disabled):hover, [role="tab"]:hover { scale: 1.03; }
+      button:not(:disabled):active, [role="tab"]:active { scale: .95; transition-duration: .12s; }
+      #nav-pill { transition: opacity .15s, transform .5s linear(0, .3 8%, .78 18%, 1.06 30%, 1.05 40%, .99 58%, 1 80%, 1), width .5s linear(0, .3 8%, .78 18%, 1.06 30%, 1.05 40%, .99 58%, 1 80%, 1), height .3s ease; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <span class="topbar__mark" aria-hidden="true"><img src="assets/audio-lines.svg" width="18" height="18" alt=""></span>
+    <strong>Voice Confirm</strong><small>API</small>
+    <nav aria-label="ลิงก์เอกสาร">
+      <a href="./">กลับสู่แอป</a>
+      <a class="primary" href="openapi.yaml" download>ดาวน์โหลด OpenAPI</a>
+    </nav>
+  </header>
+  <div id="docs"></div>
+  <div id="nav-pill" aria-hidden="true"></div>
+  <script src="https://cdn.jsdelivr.net/npm/redoc@2.1.5/bundles/redoc.standalone.js" integrity="sha384-0GrsyTQc9Oqd8h+b2dbc4XdR2T/DYpy0tLNNstyx+LBMUyiBbcWPbEs9aRmUcaxD" crossorigin="anonymous"></script>
+  <script>
+    // Same palette as the app: violet brand, dark indigo sidebar.
+    Redoc.init('openapi.yaml', {
+      hideDownloadButton: true,
+      scrollYOffset: 56,
+      expandResponses: '200,201',
+      pathInMiddlePanel: true,
+      theme: {
+        spacing: { sectionVertical: 28, sectionHorizontal: 44 },
+        breakpoints: { small: '50rem', medium: '75rem', large: '105rem' },
+        colors: {
+          primary: { main: '#6544cf' },
+          success: { main: '#188038' },
+          error: { main: '#d93025' },
+          text: { primary: '#202124', secondary: '#5f6368' },
+          border: { dark: '#e3e0ee', light: '#f1f3f4' },
+          http: { get: '#2f7fe0', post: '#6544cf', put: '#d98a1a', delete: '#c93a52', patch: '#1f9d6b' },
+          responses: {
+            success: { color: '#1f7a56', backgroundColor: '#eef8f3', tabTextColor: '#1f7a56' },
+            error: { color: '#b02f46', backgroundColor: '#fdf1f3', tabTextColor: '#b02f46' },
+            redirect: { color: '#9a6a12', backgroundColor: '#fff8e8', tabTextColor: '#9a6a12' },
+            info: { color: '#2f6fc0', backgroundColor: '#eef4fd', tabTextColor: '#2f6fc0' },
+          },
+        },
+        typography: {
+          fontFamily: '"Google Sans", "Noto Sans Thai", system-ui, sans-serif',
+          fontSize: '15px',
+          lineHeight: '1.7',
+          headings: { fontFamily: '"Google Sans", "Noto Sans Thai", system-ui, sans-serif', fontWeight: '700' },
+          code: { fontFamily: '"Google Sans Code", Consolas, ui-monospace, monospace', fontSize: '12.5px', color: '#5a3cc4', backgroundColor: '#f0ebfc', wrap: true },
+          links: { color: '#6544cf', hover: '#5a3cc4' },
+        },
+        sidebar: { width: '280px', backgroundColor: '#161a37', textColor: '#c9cdea', activeTextColor: '#ffffff', groupItems: { textTransform: 'none' }, level1Items: { textTransform: 'none' }, arrow: { color: '#8f96c4' } },
+        rightPanel: { backgroundColor: '#1c1a2e', width: '40%', textColor: '#e8eaed' },
+        schema: { nestedBackground: '#f6f4fb', linesColor: '#e3e0ee', typeNameColor: '#5a5670', typeTitleColor: '#5a3cc4', requireLabelColor: '#c93a52' },
+        codeBlock: { backgroundColor: '#12152e' },
+      },
+    }, document.getElementById('docs'));
+
+    // Press / to jump to search.
+    document.addEventListener('keydown', e => {
+      if (e.key !== '/' || e.target.closest('input, textarea, select, [contenteditable]')) return;
+      e.preventDefault(); document.querySelector('.search-input')?.focus();
+    });
+
+    // Sliding hover pill across sidebar entries.
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const pill = document.getElementById('nav-pill');
+    const hide = () => { pill.style.opacity = 0; pill.dataset.on = ''; };
+    document.addEventListener('pointerover', e => {
+      const item = e.target.closest('.menu-content [role="menuitem"]');
+      if (!item) return;
+      const r = item.getBoundingClientRect();
+      pill.style.width = r.width + 'px'; pill.style.height = r.height + 'px';
+      if (!pill.dataset.on) { pill.style.transition = 'none'; pill.style.transform = `translate(${r.left}px, ${r.top}px)`; void pill.offsetWidth; pill.style.transition = ''; }
+      pill.style.transform = `translate(${r.left}px, ${r.top}px)`;
+      pill.style.opacity = 1; pill.dataset.on = '1';
+      if (reduce.matches) pill.style.transition = 'none';
+    });
+    document.addEventListener('pointerout', e => { if (!e.relatedTarget?.closest?.('.menu-content')) hide(); });
+    document.addEventListener('scroll', hide, true);
+
+    // Sections rise in once as they enter view.
+    if (!reduce.matches) {
+      const seen = new WeakSet();
+      const io = new IntersectionObserver(entries => entries.forEach(en => {
+        if (!en.isIntersecting) return;
+        io.unobserve(en.target);
+        en.target.animate([{ opacity: .35, transform: 'translateY(12px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 420, easing: 'cubic-bezier(.22,1,.36,1)' });
+      }), { threshold: .04 });
+      const scan = () => document.querySelectorAll('[data-section-id], .api-content h1').forEach(el => { if (!seen.has(el)) { seen.add(el); io.observe(el); } });
+      new MutationObserver(scan).observe(document.getElementById('docs'), { childList: true, subtree: true });
+      scan();
+    }
+  </script>
+</body>
+</html>
