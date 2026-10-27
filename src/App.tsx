@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { currentPath, routes } from "./routes";
 import { WorkspaceGate, useIsDev } from './components/WorkspaceGate';
+import { LoadingScreen } from './components/LoadingScreen';
 
 // Every navigation is a full page load, so each page ships as its own chunk.
 const CampaignCallPage = lazy(() => import("./pages/CampaignCallPage").then(m => ({ default: m.CampaignCallPage })));
@@ -21,7 +22,7 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ defa
 const InboundPage = lazy(() => import("./pages/InboundPage").then(m => ({ default: m.InboundPage })));
 export default function App() {
   const path = currentPath();
-  const page = <Suspense fallback={<main className="page-shell real-data-page"><p role="status">กำลังโหลด…</p></main>}><AppRoutes /></Suspense>;
+  const page = <Suspense fallback={<LoadingScreen />}><AppRoutes /></Suspense>;
   if (path === routes.home || path === routes.login) return page;
   return <WorkspaceGate>{page}</WorkspaceGate>;
 }
