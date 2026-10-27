@@ -65,7 +65,12 @@ func (b *backendFixture) reply(c call) reply {
 			if b.on("unconfirmed") {
 				confirmed = nil
 			}
-			return ok(obj{"id": fixtureUser, "email": "fixture@example.invalid", "email_confirmed_at": confirmed})
+			user := obj{"id": fixtureUser, "email": "fixture@example.invalid", "email_confirmed_at": confirmed, "app_metadata": obj{"role": "dev"}}
+			if b.on("normalUser") {
+				// A self-written user_metadata role must not grant dev access.
+				user["app_metadata"], user["user_metadata"] = obj{}, obj{"role": "dev"}
+			}
+			return ok(user)
 		case strings.HasSuffix(c.Path, "/voice_bot_connections"):
 			check(b.t, c.Query.Get("owner_id") == "eq."+fixtureUser, "connection query not scoped")
 			if b.on("noConnection") {
@@ -329,6 +334,18 @@ func TestVoiceAPI(t *testing.T) {
 	run("Foreign Agent setup status is denied without reading its configuration", func(t *testing.T, b *backendFixture) {
 		check(t, b.invoke("/workspace/agents/agt_other/result-setup", nil).status == 403, "not 403")
 		check(t, b.count(func(c call) bool { return c.Path == "/agents/agt_other" }) == 0, "foreign agent read")
+	})
+	run("Normal users cannot use dev-only controls or test calls", func(t *testing.T, b *backendFixture) {
+		b.opt["normalUser"] = true
+		for _, c := range []struct {
+			route string
+			body  any
+		}{{"/workspace/agents/agt_fixture/preview-token", obj{}}, {"/workspace/agents/agt_fixture/result-setup", nil},
+			{"/workspace/agents/agt_fixture/general-setup", obj{}}, {"/workspace/connection", nil}, {"/workspace/inbound/bind", obj{}}, {callPath, callPayload()}} {
+			check(t, b.invoke(c.route, c.body).status == 403, "%s allowed for normal user", c.route)
+		}
+		check(t, len(b.dials()) == 0, "normal user dialed")
+		check(t, b.invoke("/agents", nil).status == 200, "normal user cannot list Agents")
 	})
 	run("Missing consent prevents dial", func(t *testing.T, b *backendFixture) {
 		check(t, b.invoke(callPath, with(callPayload(), obj{"consent": false})).status == 400 && len(b.dials()) == 0, "dialed")

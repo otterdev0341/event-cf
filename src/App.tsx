@@ -16,7 +16,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { InboundPage } from "./pages/InboundPage";
 import { currentPath, routes } from "./routes";
 
-import { WorkspaceGate } from './components/WorkspaceGate';
+import { WorkspaceGate, useIsDev } from './components/WorkspaceGate';
 export default function App() {
   const path = currentPath();
   if (path === routes.home || path === routes.login) return <AppRoutes />;
@@ -24,6 +24,7 @@ export default function App() {
 }
 function AppRoutes() {
   const path = currentPath();
+  const isDev = useIsDev();
 
   if (path === routes.inbound) return <InboundPage />;
 
@@ -36,7 +37,7 @@ function AppRoutes() {
   }
 
   if (path === routes.liveAgent) {
-    return <LiveAgentPage />;
+    return isDev ? <LiveAgentPage /> : <DashboardOverviewPage />;
   }
 
   if (path === routes.campaigns) {

@@ -123,7 +123,7 @@ type setupKind struct {
 func (v *voiceRequest) handleAgentSetup(id string, body any, cfg Config, transcript, general bool) error {
 	accountID := strOr(v.conn["account_id"])
 	ownerID := strOr(v.user["id"])
-	canManage := jsSame(v.conn["owner_id"], v.user["id"]) && truthy(v.user["email_confirmed_at"])
+	canManage := jsSame(v.conn["owner_id"], v.user["id"]) && truthy(v.user["email_confirmed_at"]) && isDev(v.user)
 	var rec reception
 	endpoint := receiverURL(cfg)
 	if general {

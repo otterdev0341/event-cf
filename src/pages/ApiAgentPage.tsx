@@ -3,6 +3,7 @@ import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { CampaignStepIndicator } from '../components/CampaignStepIndicator';
 import { AgentResultSetup } from '../components/AgentResultSetup';
+import { useIsDev } from '../components/WorkspaceGate';
 import { useAgents, useAgentDetail } from '../hooks/useBotnoiData';
 import { getDraft, saveDraft, mappingForAgent } from '../lib/campaigns';
 import { routes } from '../routes';
@@ -14,7 +15,9 @@ export function ApiAgentPage() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const [recordConversation, setRecordConversation] = useState(draft?.recordConversation === true);
+  const isDev = useIsDev();
+  // Recording connects a Tool to the shared Agent, so only devs may turn it on.
+  const [recordConversation, setRecordConversation] = useState(isDev && draft?.recordConversation === true);
   const [connectionMessage, setConnectionMessage] = useState('');
   const { agents, loading, error, refetch } = useAgents();
   const selected = agents.find(a => a.agent_id === agentId);
@@ -73,9 +76,9 @@ export function ApiAgentPage() {
           </section>
           <section className="rd-card rd-pad rd-stack">
             <h2 className="rd-section-title" style={{fontSize:16}}>ระบบรับผลหลังโทร</h2>
-            {selected ? <AgentResultSetup key={agentId} agentId={agentId} onConnected={detail.refetch} onBusy={setConnecting} /> : <p className="rd-muted" style={{margin:0}}>เมื่อเลือก Agent ระบบจะตรวจการเชื่อมรับผลให้ หากยังไม่เชื่อม คุณกดเชื่อมได้ที่นี่</p>}
+            {!isDev ? <p className="rd-muted" style={{margin:0}}>ทีมพัฒนาเป็นผู้เชื่อมระบบรับผลให้ Agent หากโทรไม่ได้เพราะยังไม่เชื่อม กรุณาแจ้งทีมพัฒนา</p> : selected ? <AgentResultSetup key={agentId} agentId={agentId} onConnected={detail.refetch} onBusy={setConnecting} /> : <p className="rd-muted" style={{margin:0}}>เมื่อเลือก Agent ระบบจะตรวจการเชื่อมรับผลให้ หากยังไม่เชื่อม คุณกดเชื่อมได้ที่นี่</p>}
           </section>
-          <section className={`rd-card rd-pad campaign-conversation-option${recordConversation ? ' enabled' : ''}`} aria-label="การบันทึกบทสนทนา"><label className="rd-toggle-row"><input type="checkbox" checked={recordConversation} disabled={saving || connecting} onChange={event => { setRecordConversation(event.target.checked); setMessage(''); }} /><span><strong>บันทึกบทสนทนา</strong><small>เก็บข้อความที่ผู้รับกับบอทคุยกัน ให้เปิดอ่านย้อนหลังในรายละเอียดแต่ละสาย</small></span></label><p className="rd-stat__note">{recordConversation ? 'เมื่อกดถัดไป ระบบจะสร้างหรือเชื่อม Tool ให้ Agent ที่เลือกอัตโนมัติ และเปิดการบันทึกสำหรับแคมเปญนี้' : 'ติ๊กเพื่อให้ระบบเชื่อม Tool บันทึกบทสนทนาอัตโนมัติในขั้นตอนนี้'} · หากวางสายก่อนส่งบันทึกอาจไม่มีข้อมูล · การบันทึกไฟล์เสียงเป็นอีกบริการหนึ่ง</p>{connectionMessage && <p role="status" className="rd-muted">{connectionMessage}</p>}</section>
+          {isDev && <section className={`rd-card rd-pad campaign-conversation-option${recordConversation ? ' enabled' : ''}`} aria-label="การบันทึกบทสนทนา"><label className="rd-toggle-row"><input type="checkbox" checked={recordConversation} disabled={saving || connecting} onChange={event => { setRecordConversation(event.target.checked); setMessage(''); }} /><span><strong>บันทึกบทสนทนา</strong><small>เก็บข้อความที่ผู้รับกับบอทคุยกัน ให้เปิดอ่านย้อนหลังในรายละเอียดแต่ละสาย</small></span></label><p className="rd-stat__note">{recordConversation ? 'เมื่อกดถัดไป ระบบจะสร้างหรือเชื่อม Tool ให้ Agent ที่เลือกอัตโนมัติ และเปิดการบันทึกสำหรับแคมเปญนี้' : 'ติ๊กเพื่อให้ระบบเชื่อม Tool บันทึกบทสนทนาอัตโนมัติในขั้นตอนนี้'} · หากวางสายก่อนส่งบันทึกอาจไม่มีข้อมูล · การบันทึกไฟล์เสียงเป็นอีกบริการหนึ่ง</p>{connectionMessage && <p role="status" className="rd-muted">{connectionMessage}</p>}</section>}
         </aside>
       </div>
       {message && <p className="workspace-alert" role="alert">{message}</p>}

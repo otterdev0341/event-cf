@@ -489,7 +489,7 @@ func (v *voiceRequest) handleInbound(action string, body any) error {
 	if !ok || !jsSame(accountID, v.conn["account_id"]) || !safeID.MatchString(accountID) {
 		return fail(403, "บัญชี Voice Bot ไม่ตรงกับบัญชีที่เชื่อม")
 	}
-	canManage := jsSame(v.conn["owner_id"], v.user["id"]) && truthy(v.user["email_confirmed_at"])
+	canManage := jsSame(v.conn["owner_id"], v.user["id"]) && truthy(v.user["email_confirmed_at"]) && isDev(v.user)
 	root := "/v1/provisioning/tenants/" + accountID
 	if action == "history" {
 		// One bounded page; show that this is recent history, not an account-wide total.

@@ -41,7 +41,7 @@ func (c *connFixture) reply(r call) reply {
 	t := c.t
 	if r.Host == "connection-db.invalid" {
 		if r.Path == "/auth/v1/user" {
-			return ok(obj{"id": c.user, "email": c.user + "@example.invalid", "email_confirmed_at": "2026-01-01"})
+			return ok(obj{"id": c.user, "email": c.user + "@example.invalid", "email_confirmed_at": "2026-01-01", "app_metadata": obj{"role": "dev"}})
 		}
 		check(t, r.Path == "/rest/v1/voice_bot_connections" && r.Header.Get("apikey") == "fixture-service", "unexpected store call %s", r.Path)
 		own := strings.TrimPrefix(r.Query.Get("owner_id"), "eq.")

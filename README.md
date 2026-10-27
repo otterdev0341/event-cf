@@ -56,7 +56,10 @@ Never put server-only values in `VITE_` variables. Callback endpoints return HTT
 
 OpenAPI spec: [`public/openapi.yaml`](public/openapi.yaml), rendered with ReDoc at `/event-confirm/api-docs.html` (`https://otterdev.xyz/event-confirm/api-docs.html`).
 
-The browser sends only its Supabase session. The backend validates the session, confirmed email (members mode), account, Agent and permitted endpoint. With `VOICE_BOT_ACCESS_TOKEN` set, everyone uses that team account. Otherwise each member uses their own connected Voice Bot JWT, which the server stores encrypted and never returns to the browser ([connection](docs/PERSONAL_VOICE_BOT_CONNECTION.md)). Supabase workspace data is owner-scoped. Telephony administration operations are not exposed.
+The browser sends only its Supabase session. The backend validates the session, confirmed email (members mode), account, Agent and permitted endpoint. With `VOICE_BOT_ACCESS_TOKEN` set, everyone uses that team account. Otherwise each member uses their own connected Voice Bot JWT, which the server stores encrypted and never returns to the browser ([connection](docs/PERSONAL_VOICE_BOT_CONNECTION.md)). Supabase workspace data is owner-scoped. Users with `app_metadata.role = "dev"` can also use the bot test page, Agent setup (result, transcript and general-information Tools), inbound number binding, the Voice Bot account card, and test calls outside a campaign. The server returns 403 for these to everyone else; the frontend only hides them. Grant the role in the Supabase SQL editor, then have the user sign in again:
+```sql
+update auth.users set raw_app_meta_data = raw_app_meta_data || '{"role":"dev"}' where email = 'dev@example.com';
+``` Telephony administration operations are not exposed.
 
 ## Campaigns and calls
 

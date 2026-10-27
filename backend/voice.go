@@ -227,6 +227,10 @@ var (
 
 var readRoutes = []string{"/me", "/agents", "/dashboard/v1/overview", "/logs/call_logs_platform", "/platform-config/tools"}
 
+// isDev reads the role from Supabase app_metadata, which only the service role can write.
+// Never use user_metadata here: users can edit it themselves.
+func isDev(user obj) bool { return get(user, "app_metadata", "role") == "dev" }
+
 func validBearer(header string) bool {
 	token, ok := strings.CutPrefix(header, "Bearer ")
 	return ok && token != "" && !strings.ContainsFunc(token, isJSSpace)
@@ -379,6 +383,10 @@ func (v *voiceRequest) serve(endpoint string) error {
 	if !(method == "GET" && readAllowed) && !isCall && !isResult && !isSetup && !isConnection && !isRecording && !isAudio &&
 		!isPreview && !isUsage && inboundAction == "" && inboundEventAction == "" && !isSchedule {
 		return fail(405, "ไม่อนุญาตให้เรียกบริการนี้")
+	}
+	// These change the shared team Agents, account or phone numbers.
+	if (isPreview || isSetup || isConnection || inboundAction == "bind") && !isDev(v.user) {
+		return fail(403, "เฉพาะทีมพัฒนาเท่านั้น")
 	}
 
 	queryKeys := []string{"agent_id", "limit", "start_at", "end_at", "timezone", "granularity", "include", "month"}
@@ -599,6 +607,9 @@ func (v *voiceRequest) placeCall(path string, agents any) error {
 		return fail(400, "ไม่มีรหัสคำขอโทร")
 	}
 	bodyMeta, _ := body["metadata"].(obj)
+	if !truthy(get(bodyMeta, "campaign_id")) && !isDev(v.user) {
+		return fail(403, "โทรทดสอบได้เฉพาะทีมพัฒนา ผู้ใช้ทั่วไปโทรผ่านแคมเปญเท่านั้น")
+	}
 	variablesValue := any(obj{})
 	if bodyMeta != nil && bodyMeta["variables"] != nil {
 		variablesValue = bodyMeta["variables"]
