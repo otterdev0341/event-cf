@@ -1,0 +1,489 @@
+openapi: 3.0.3
+info:
+  title: Voice Confirm API
+  version: "1.0"
+  description: |
+    Go server under the `/event-confirm/` base path.
+
+    - `/api/voice` serves the Voice Confirm website and requires a Supabase session.
+    - `/api/voice-result`, `/api/voice-recording` and `/api/voice-events` receive calls from Botnoi Voice Bot Agents and systems.
+    - `/api/voice-scheduler` is called by Supabase `pg_cron`.
+
+    Every error response is JSON: `{"error": "<message>"}`, sometimes with `code`, `fields` or `expected`.
+servers:
+  - url: https://otterdev.xyz/event-confirm
+  - url: http://127.0.0.1:5173/event-confirm
+    description: Local Vite dev server (proxies to the Go API)
+tags:
+  - name: Agent tools
+    description: Called by Voice Bot Agent HTTP Tools during a conversation.
+  - name: Provider callbacks
+    description: Called by Botnoi systems, not by the language model.
+  - name: Website
+    description: Called by the Voice Confirm frontend with a Supabase session.
+  - name: Operations
+paths:
+  /healthz:
+    get:
+      tags: [Operations]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: Server is running.
+          content:
+            text/plain:
+              schema: { type: string, example: "ok\n" }
+
+  /api/voice-result:
+    post:
+      tags: [Agent tools]
+      summary: Save the final call result or the conversation text
+      description: |
+        The Agent sends one final result per call, before the call ends. The "เชื่อมระบบรับผล" setup creates this Tool automatically.
+
+        - `request_id` must be the exact `{{vc_call_reference}}` value from the call variables. The server injects it; never invent it.
+        - Send a flat JSON object with only the listed fields. Do not wrap it in `arguments` or `parameters`.
+        - On a timeout, 503, or 409 `Call not yet persisted` / `Concurrent update`, resend the same payload at most 2 times.
+
+        The transcript form is accepted only for calls created with conversation recording enabled.
+      security:
+        - accountKey: []
+        - rootSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/CallResult"
+                - $ref: "#/components/schemas/Transcript"
+            examples:
+              result:
+                summary: Final result
+                value:
+                  request_id: 22222222-2222-4222-8222-222222222222
+                  agent_id: agt_example
+                  call_result: CONFIRMED
+                  needs_agent: false
+                  evidence: ยืนยันว่าจะไปร่วมงานครับ
+              transcript:
+                summary: Conversation text
+                value:
+                  request_id: 22222222-2222-4222-8222-222222222222
+                  agent_id: agt_example
+                  transcript: "Bot: สวัสดีค่ะ ... User: ไปครับ"
+      responses:
+        "200":
+          description: Saved. `duplicate` is true when the same payload was already saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Received" }
+        "400":
+          description: Invalid fields. `fields` names the invalid fields and `expected` describes the types.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Conversation recording is disabled for this call.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Unknown callback reference.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: |
+            `Call not yet persisted; retry later` or `Concurrent update; retry the same payload`: retry.
+            `A final result already exists`: a different result was already saved; do not retry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "415": { $ref: "#/components/responses/NotJson" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /api/voice-recording:
+    post:
+      tags: [Provider callbacks]
+      summary: Link a recording file to a Call ID
+      description: |
+        Optional. Not needed when `GET /calls/{call_id}` already returns `conversation.linked_by: "exact"`.
+        Botnoi's call system sends this, never the language model. A `.txt` path is accepted; the server replaces the final extension with `.wav`.
+      security:
+        - accountKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordingLink" }
+      responses:
+        "200":
+          description: Saved. `duplicate` is true when the same link was already saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Received" }
+        "400":
+          description: Invalid payload, Agent, file date or request ID.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: Unknown request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: |
+            `Call not yet persisted` or `Concurrent update`: resend the same payload with increasing delay.
+            Call ID mismatch or another file already linked: check the source data.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "415": { $ref: "#/components/responses/NotJson" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /api/voice-events:
+    post:
+      tags: [Agent tools]
+      summary: Look up public event information
+      description: |
+        For inbound or general-information Agents. Returns only campaigns the owner published for this Voice Bot account (`inboundInfo.publicEnabled`).
+        Never returns contact names, phone numbers, CSV data or call results.
+
+        1. Send `query` (the spoken event name, or empty) with `event_id: ""` to get choices.
+        2. After the caller chooses, send the exact `event_id` to get `location` and `details`.
+      security:
+        - accountKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [query, event_id]
+              properties:
+                query:
+                  type: string
+                  maxLength: 160
+                  description: Event name spoken by the caller, or empty to list choices. No phone numbers or private information.
+                event_id:
+                  type: string
+                  maxLength: 36
+                  description: Exact event ID returned earlier by this Tool, or an empty string.
+            example: { query: งานสัมมนา, event_id: "" }
+      responses:
+        "200":
+          description: Event choices (at most 20) or the details of one event.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventLookup" }
+        "400":
+          description: Expected `query` and `event_id` strings only.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Invalid Tool credentials, or the Voice Bot connection is no longer active.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "415": { $ref: "#/components/responses/NotJson" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /api/voice-scheduler:
+    post:
+      tags: [Operations]
+      summary: Run one campaign worker tick
+      description: Called every minute by Supabase `pg_cron`. See `SCHEDULER_SETUP.md`. The token is derived from `VOICE_RESULT_CALLBACK_SECRET`.
+      security:
+        - schedulerToken: []
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, example: {} }
+      responses:
+        "200":
+          description: Tick finished.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  processed: { type: integer, description: Number of jobs processed in this tick }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /api/voice:
+    get:
+      tags: [Website]
+      summary: Read Voice Bot and workspace data
+      description: |
+        Not a general proxy. The server checks the session, confirmed email, the user's connected Voice Bot account, Agent ownership and the path below.
+
+        Allowed `path` values for GET:
+        - `/me`, `/agents`, `/agents/{agent_id}`, `/platform-config/tools`
+        - `/dashboard/v1/overview`, `/workspace/usage`
+        - `/logs/call_logs_platform`, `/logs/call_logs_platform/{id}`
+        - `/v1/provisioning/tenants/{tenant_id}`, `.../overview`, `.../trunk/status`, `.../calls/{call_id}`
+        - `/workspace/connection`
+        - `/workspace/calls/{request_id}/result`, `.../recording`, `.../recording-audio` (WAV bytes)
+        - `/workspace/agents/{agent_id}/audio`, `.../audio/{file_hash}` (WAV bytes)
+        - `/workspace/agents/{agent_id}/result-setup`, `.../transcript-setup`, `.../general-setup`
+        - `/workspace/campaigns/{campaign_id}/schedule`
+        - `/workspace/inbound`, `/workspace/inbound/history`, `/workspace/inbound/events`
+      security:
+        - supabaseSession: []
+      parameters:
+        - $ref: "#/components/parameters/VoicePath"
+      responses:
+        "200":
+          description: Provider or workspace data. The shape depends on `path`.
+          content:
+            application/json:
+              schema: { type: object }
+            audio/wav:
+              schema: { type: string, format: binary }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      tags: [Website]
+      summary: Start a call or change workspace data
+      description: |
+        Cross-site POST requests are rejected (`Sec-Fetch-Site: cross-site`).
+
+        Allowed `path` values for POST:
+        - `/v1/provisioning/tenants/{tenant_id}/calls` – start one outbound call (body below)
+        - `/workspace/connection` – save or remove the user's Voice Bot JWT
+        - `/workspace/calls/{request_id}/result` – manual review with a note
+        - `/workspace/agents/{agent_id}/result-setup`, `.../transcript-setup`, `.../general-setup` – body `{confirm, expected_revision}` only
+        - `/workspace/agents/{agent_id}/preview-token`
+        - `/workspace/campaigns/{campaign_id}/schedule`
+        - `/workspace/inbound/bind`, `/workspace/inbound/lookup`, `/workspace/inbound/events/{campaign_id}`
+      security:
+        - supabaseSession: []
+      parameters:
+        - $ref: "#/components/parameters/VoicePath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/OutboundCall"
+                - type: object
+                  description: Body for the other workspace paths.
+      responses:
+        "200":
+          description: Result. The shape depends on `path`. An outbound call returns the provider `call_id` and `status`.
+          content:
+            application/json:
+              schema: { type: object }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: Duplicate request ID, stale revision, or the Agent is not connected to the result receiver.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Call rate limit reached.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "502":
+          description: The provider result is unknown. Check the call history before calling again.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+components:
+  securitySchemes:
+    accountKey:
+      type: http
+      scheme: bearer
+      description: Account-specific key (43 characters, base64url), derived per Voice Bot account. Set as the Agent Tool credential, never in the prompt.
+    rootSecret:
+      type: http
+      scheme: bearer
+      description: Legacy only. `VOICE_RESULT_CALLBACK_SECRET` is accepted for calls created before account keys. New Tools never receive it.
+    schedulerToken:
+      type: http
+      scheme: bearer
+      description: Scheduler token stored in Supabase Vault as `voice_campaign_scheduler_token`.
+    supabaseSession:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase access token of a signed-in user.
+
+  responses:
+    BadRequest:
+      description: Invalid path, variables or body.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing or invalid credentials, or an expired session.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Account not allowed, suspended, or a cross-site request.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooLarge:
+      description: Payload too large.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotJson:
+      description: "`Content-Type: application/json` required."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unavailable:
+      description: Server not configured, or storage or provider unavailable. Retry later.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  parameters:
+    VoicePath:
+      name: path
+      in: query
+      required: true
+      description: Target path, starting with `/`. May include its own query string, for example `/logs/call_logs_platform?limit=20`.
+      schema: { type: string, example: /agents }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+        fields:
+          type: array
+          items: { type: string }
+        expected: { type: object }
+
+    Received:
+      type: object
+      properties:
+        received: { type: boolean, example: true }
+        duplicate: { type: boolean }
+
+    CallResult:
+      type: object
+      additionalProperties: false
+      required: [request_id, agent_id, call_result, needs_agent, evidence]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+          description: Exact `{{vc_call_reference}}` of this call. Never invent it or ask the recipient.
+        agent_id:
+          type: string
+          pattern: "^agt_[a-zA-Z0-9_-]+$"
+          description: Exact Agent ID of the call.
+        call_result:
+          type: string
+          enum: [CONFIRMED, DECLINED, CALLBACK_REQUESTED, REQUEST_AGENT, WRONG_PERSON, NO_ANSWER, UNDETERMINED]
+          description: |
+            `NO_ANSWER` exists for verified sources. An Agent in a conversation should not guess it.
+        needs_agent:
+          type: boolean
+          nullable: true
+          description: JSON true or false; null only if unknown. Not a quoted string.
+        evidence:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: The recipient's actual words behind the result, or why the result is undetermined.
+
+    Transcript:
+      type: object
+      additionalProperties: false
+      required: [request_id, agent_id, transcript]
+      properties:
+        request_id: { type: string, format: uuid }
+        agent_id: { type: string, pattern: "^agt_[a-zA-Z0-9_-]+$" }
+        transcript: { type: string, minLength: 1, maxLength: 10000 }
+
+    RecordingLink:
+      type: object
+      additionalProperties: false
+      required: [request_id, call_id, agent_id, file_path]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+          description: "`metadata.voice_request_id` sent in the call request."
+        call_id: { type: string, description: Call ID created by Botnoi for this request. }
+        agent_id: { type: string, pattern: "^agt_[a-zA-Z0-9_-]+$" }
+        file_path:
+          type: string
+          description: Recording file of this Call ID, readable through `GET /logs/audio?file_path=...`.
+          example: agt_example/2026-10-14_19-38-55_33333333-3333-4333-8333-333333333333_0.wav
+
+    EventLookup:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [no_match, choose_event, event_details]
+        events:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              event_date: { type: string, example: "2026-11-15" }
+              event_time: { type: string, example: "09:00" }
+              location: { type: string, description: Only with an exact event_id. }
+              details: { type: string, description: Only with an exact event_id. }
+        has_more:
+          type: boolean
+          description: More than 20 events matched.
+
+    OutboundCall:
+      type: object
+      required: [destination, agent_id, request_id, consent]
+      properties:
+        destination: { type: string, pattern: "^\\+?[0-9]{8,15}$", example: "0812345678" }
+        agent_id: { type: string }
+        request_id:
+          type: string
+          format: uuid
+          description: Client-generated ID. Reusing it never dials twice.
+        consent: { type: boolean, enum: [true] }
+        metadata:
+          type: object
+          properties:
+            variables:
+              type: object
+              maxProperties: 50
+              description: |
+                Values for `{{variable}}` placeholders in the Agent prompt. String values, at most 2,000 characters each.
+                The server sets `vc_call_reference` and `vc_record_conversation` itself.
+              additionalProperties: { type: string, maxLength: 2000 }
+              example: { customer_name: Somchai, event_name: Product Launch 2026, event_date: "2026-11-15", event_time: "09:00" }
+            campaign_id:
+              type: string
+              format: uuid
+              description: With a campaign, the server replaces destination and variables with the saved CSV row.
