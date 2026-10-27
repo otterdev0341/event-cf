@@ -370,6 +370,11 @@ div:has(> .app-header) > main .rd-profile h1 { margin: 0 0 4px; font-size: 26px;
 .rd-table .smooth-select-wrap { min-width: 200px; }
 label > .smooth-select-wrap { margin-top: 2px; }
 
+/* Login: the inputs are white now, so the autofill cover must be white too */
+.auth-field > input:-webkit-autofill, .password-input input:-webkit-autofill { -webkit-box-shadow: 0 0 0 1000px #fff inset; }
+.password-toggle { border-radius: 8px; color: var(--color-muted); }
+.password-toggle:hover, .password-toggle[aria-pressed="true"] { color: var(--color-primary); background: var(--color-primary-tint); }
+
 /* Campaign wizard stepper */
 .campaign-steps { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: 8px; width: 100%; height: auto !important; margin: 0; padding: 14px !important; list-style: none; background: #fff !important; border: 1px solid var(--color-border-light) !important; border-radius: 16px !important; box-shadow: 0 1px 2px #1111150a; }
 .campaign-steps__item { display: flex; align-items: center; padding: 6px 8px; border-radius: 12px; }
