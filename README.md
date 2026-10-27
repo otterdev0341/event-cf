@@ -18,11 +18,12 @@ Requires Node 22 and Go 1.26.
 1. Install dependencies with `npm ci`.
 2. Copy `.env.example` to `.env`, configure Supabase and server-only Voice Bot credentials.
 3. Follow [Backend and database setup](docs/BACKEND_SETUP.md) to apply the migrations and approve Supabase login accounts.
-4. Start the Go API with the `.env` variables exported. The server does not read `.env` itself:
+4. Start the Go API with the `.env` variables exported. The server does not read `.env` itself. The simplest way, on any shell, is `npm run dev:backend`: it loads `.env` in Node and runs `go run .` in `backend/` on `ADDR=127.0.0.1:8080`. To run it by hand instead:
    ```bash
    set -a; . ./.env; set +a
    cd backend && ADDR=127.0.0.1:8080 go run .
    ```
+   In Git Bash on Windows, prefix the command with `MSYS_NO_PATHCONV=1`. Otherwise Git Bash rewrites values that start with `/` (possible in base64 keys) into Windows paths, and the backend reports "ผู้ดูแลยังตั้งค่าระบบเชื่อมบัญชีไม่ครบ".
 5. Start the frontend with `npm run dev` and open `http://127.0.0.1:5173/event-confirm/`. Vite proxies `/event-confirm/api` to the Go server (override with `API_ORIGIN`).
 
 ## Server configuration
@@ -33,6 +34,7 @@ Requires Node 22 and Go 1.26.
 | `SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY` | Publishable key used to validate browser sessions. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only. Callbacks, scheduler and Agent setup audits. |
 | `VOICE_CONNECTION_ENCRYPTION_KEY` | Server-only AES-256 key (32 bytes, Base64) for stored personal Voice Bot JWTs. |
+| `VOICE_BOT_ACCESS_TOKEN` | Optional team account. When set, every signed-in user uses this Voice Bot Session JWT and personal connections are disabled. Renew it here when it expires. |
 | `VOICE_BOT_BASE_URL` | Voice Bot API origin. |
 | `VOICE_BOT_LOGS_BASE_URL` | Optional Voice Bot log/audio origin. |
 | `VOICE_RESULT_CALLBACK_URL`, `VOICE_RESULT_CALLBACK_SECRET` | Public result receiver URL and root callback secret (min. 32 characters). New Agent Tools receive account-specific derived keys, never the root secret. |
@@ -54,7 +56,10 @@ Never put server-only values in `VITE_` variables. Callback endpoints return HTT
 
 OpenAPI spec: [`public/openapi.yaml`](public/openapi.yaml), rendered with ReDoc at `/event-confirm/api-docs.html` (`https://otterdev.xyz/event-confirm/api-docs.html`).
 
-The browser sends only its Supabase session. The backend validates the session, confirmed email (members mode), account, Agent and permitted endpoint. Each member uses their own connected Voice Bot JWT, which the server stores encrypted and never returns to the browser ([connection](docs/PERSONAL_VOICE_BOT_CONNECTION.md)). Supabase workspace data is owner-scoped. Telephony administration operations are not exposed.
+The browser sends only its Supabase session. The backend validates the session, confirmed email (members mode), account, Agent and permitted endpoint. With `VOICE_BOT_ACCESS_TOKEN` set, everyone uses that team account. Otherwise each member uses their own connected Voice Bot JWT, which the server stores encrypted and never returns to the browser ([connection](docs/PERSONAL_VOICE_BOT_CONNECTION.md)). Supabase workspace data is owner-scoped. Users with `app_metadata.role = "dev"` can also use the bot test page, Agent setup (result, transcript and general-information Tools), inbound number binding, the Voice Bot account card, and test calls outside a campaign. The server returns 403 for these to everyone else; the frontend only hides them. Grant the role in the Supabase SQL editor, then have the user sign in again:
+```sql
+update auth.users set raw_app_meta_data = raw_app_meta_data || '{"role":"dev"}' where email = 'dev@example.com';
+``` Telephony administration operations are not exposed.
 
 ## Campaigns and calls
 

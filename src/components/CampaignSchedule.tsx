@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from './Button';
+import { SmoothSelect } from './ui/smooth-select';
 import { botnoiFetch } from '../services/botnoi/client';
 import { activeSchedule, firstScheduleTime, scheduleLabel } from '../../shared/campaign-schedule.mjs';
 import './CampaignSchedule.css';
@@ -61,7 +62,7 @@ export function CampaignSchedule({campaignId,onActive,configure=false,version,ro
         </div>
         <label className="schedule-date"><span>{recurrence==='once'?'วันที่โทร':'เริ่มตั้งแต่วันที่'}</span><input type="date" required value={date} disabled={busy} onChange={e=>{setDate(e.target.value);setConsent(false);}}/></label>
         {recurrence==='weekly'&&<fieldset className="schedule-weekdays"><legend>วันที่โทรซ้ำ</legend><div>{days.map(day=><button type="button" key={day.id} aria-label={day.name} aria-pressed={weekdays.includes(day.id)} disabled={busy} onClick={()=>{setWeekdays(old=>old.includes(day.id)?old.filter(v=>v!==day.id):[...old,day.id]);setConsent(false);}}>{day.label}</button>)}</div></fieldset>}
-        <label className="schedule-target"><span>รายชื่อที่จะโทร · {count} คน{rows!==null?'ที่เลือกไว้':''}</span><select value={redial?'all':'pending'} disabled={busy} onChange={e=>{setRedial(e.target.value==='all');setConsent(false);}}><option value="pending">เฉพาะรายชื่อที่ยังไม่จบการโทร</option><option value="all">โทรทุกคนในแต่ละรอบ รวมคนที่เคยจบสาย</option></select></label>
+        <label className="schedule-target"><span>รายชื่อที่จะโทร · {count} คน{rows!==null?'ที่เลือกไว้':''}</span><SmoothSelect value={redial?'all':'pending'} disabled={busy} onChange={v=>{setRedial(v==='all');setConsent(false);}} options={[{value:'pending',label:'เฉพาะรายชื่อที่ยังไม่จบการโทร'},{value:'all',label:'โทรทุกคนในแต่ละรอบ รวมคนที่เคยจบสาย'}]}/></label>
         {!count&&<p className="workspace-note">ไม่มีรายชื่อที่ยังไม่จบการโทร หากต้องการโทรซ้ำ ให้เลือก “โทรทุกคนในแต่ละรอบ”</p>}
         <div className="schedule-next" role="status"><span>เริ่มรอบถัดไป</span><strong>{next?`${scheduleLabel(next)} น.`:'เลือกวันและเวลาในอนาคตให้ครบ'}</strong><small>ปิดเว็บหรือปิดคอมได้ · ระบบตรวจคิวทุกนาที</small></div>
         {redial&&<p className="workspace-alert">การตั้งค่านี้จะโทรออกใหม่ถึงคนที่เคยจบสายแล้ว{recurrence!=='once'?'ในทุกรอบที่ตั้งไว้':''}</p>}

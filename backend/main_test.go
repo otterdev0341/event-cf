@@ -47,6 +47,29 @@ func TestServerRoutes(t *testing.T) {
 	}
 }
 
+func TestSecurityHeaders(t *testing.T) {
+	static := fstest.MapFS{"index.html": {Data: []byte("app")}, "api-docs.html": {Data: []byte("docs")}}
+	h := newServer("/event-confirm", static, &App{cfg: Config{SupabaseURL: "https://abc.supabase.co"}})
+	csp := func(url string) string {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", url, nil))
+		if rec.Header().Get("X-Frame-Options") != "DENY" || rec.Header().Get("X-Content-Type-Options") != "nosniff" {
+			t.Errorf("%s missing hardening headers: %v", url, rec.Header())
+		}
+		return rec.Header().Get("Content-Security-Policy")
+	}
+	app := csp("/event-confirm/campaigns")
+	if !strings.Contains(app, "script-src 'self';") || !strings.Contains(app, "https://abc.supabase.co wss://abc.supabase.co") || strings.Contains(app, "jsdelivr") {
+		t.Errorf("app CSP = %q", app)
+	}
+	if docs := csp("/event-confirm/api-docs.html"); !strings.Contains(docs, "script-src https://cdn.jsdelivr.net;") {
+		t.Errorf("docs CSP = %q", docs)
+	}
+	if api := csp("/event-confirm/api/voice-result"); !strings.Contains(api, "frame-ancestors 'none'") {
+		t.Errorf("API CSP = %q", api)
+	}
+}
+
 func TestRootOnDisk(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "index.html"), []byte("app"), 0o644)

@@ -14,7 +14,7 @@ ARG VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_AGENT_WEDDING_ID VITE_A
 RUN test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" && npm run build
 
 # API server and static file host.
-FROM golang:1.26-alpine AS api
+FROM golang:1.26.10-alpine AS api
 WORKDIR /src
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download

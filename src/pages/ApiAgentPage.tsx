@@ -3,6 +3,7 @@ import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { CampaignStepIndicator } from '../components/CampaignStepIndicator';
 import { AgentResultSetup } from '../components/AgentResultSetup';
+import { useIsDev } from '../components/WorkspaceGate';
 import { useAgents, useAgentDetail } from '../hooks/useBotnoiData';
 import { getDraft, saveDraft, mappingForAgent } from '../lib/campaigns';
 import { routes } from '../routes';
@@ -14,7 +15,9 @@ export function ApiAgentPage() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const [recordConversation, setRecordConversation] = useState(draft?.recordConversation === true);
+  const isDev = useIsDev();
+  // Recording connects a Tool to the shared Agent, so only devs may turn it on.
+  const [recordConversation, setRecordConversation] = useState(isDev && draft?.recordConversation === true);
   const [connectionMessage, setConnectionMessage] = useState('');
   const { agents, loading, error, refetch } = useAgents();
   const selected = agents.find(a => a.agent_id === agentId);
@@ -41,26 +44,45 @@ export function ApiAgentPage() {
       window.location.assign(routes.dataMapping);
     } catch (err) { setConnectionMessage(''); setMessage((err as Error).message); } finally { setSaving(false); }
   }
+  const locked = loading || saving || connecting;
+  const pick = (id: string) => { setAgentId(id); setMessage(''); };
   return <div className="api-agent-page"><AppHeader /><main className="api-agent-main page-shell">
-    <header className="api-agent-title"><span className="ui-kicker">ขั้นตอนที่ 2 จาก 4</span><h1>เลือก Agent และเชื่อมระบบรับผล</h1><p>เลือกบอท แล้วกดเชื่อมระบบรับผลในขั้นตอนนี้ ก่อนจับคู่ข้อมูลจาก CSV</p></header>
+    <header className="rd-head"><div><a className="rd-back" href={routes.createCampaign}>← ย้อนกลับ: ตั้งค่าแคมเปญ</a><h1>เลือก Agent สำหรับแคมเปญ</h1><p>เลือกบอท แล้วเชื่อมระบบรับผลในขั้นตอนนี้ ก่อนจับคู่ข้อมูลจาก CSV</p></div></header>
     <CampaignStepIndicator activeStep={2} />
     {!draft ? <section className="workspace-empty"><h2>ยังไม่มีฉบับร่าง</h2><p>ตั้งค่าแคมเปญและอัปโหลด CSV ก่อนเลือก Agent</p><Button href={routes.createCampaign}>สร้างแคมเปญ</Button></section> : <>
-      <section className="api-preview-panel"><header className="api-preview-panel__header"><div><h2>{draft.name}</h2><p>{draft.csv.rows.length.toLocaleString()} รายชื่อ · {draft.fileName}</p></div></header>
-        <label className="campaign-form__field"><span>Voice Agent</span><select className="workspace-select" value={agentId} onChange={e => { setAgentId(e.target.value); setMessage(''); }} disabled={loading || saving || connecting}><option value="">เลือก Agent สำหรับแคมเปญ</option>{agentId && !selected && <option value={agentId}>Agent เดิม ({agentId}) — ยังไม่พบในรายการ</option>}{agents.map(a => <option key={a.agent_id} value={a.agent_id}>{a.name}</option>)}</select></label>
-        {error && <p className="workspace-alert" role="alert">โหลดรายชื่อ Agent ไม่สำเร็จ: {error}</p>}
-        {!loading && !error && !agents.length && <p role="status">บัญชีนี้ยังไม่มี Agent</p>}
-        <Button variant="secondary" size="compact" disabled={loading || saving || connecting} onClick={refetch}>{loading ? 'กำลังโหลด Agent…' : 'รีเฟรชรายชื่อ Agent'}</Button>
-        {!selected && <p className="workspace-note">เมื่อเลือก Agent ระบบจะตรวจการเชื่อมรับผลให้ หากยังไม่เชื่อม คุณกดเชื่อมได้ที่นี่</p>}
-        {selected && <AgentResultSetup key={agentId} agentId={agentId} onConnected={detail.refetch} onBusy={setConnecting} />}
-        <section className={`campaign-conversation-option${recordConversation ? ' enabled' : ''}`} aria-label="การบันทึกบทสนทนา"><label><input type="checkbox" checked={recordConversation} disabled={saving || connecting} onChange={event => { setRecordConversation(event.target.checked); setMessage(''); }} /><span><strong>บันทึกบทสนทนา</strong><small>เก็บข้อความที่ผู้รับกับบอทคุยกัน ให้เปิดอ่านย้อนหลังในรายละเอียดแต่ละสาย</small></span></label><p>{recordConversation ? 'เมื่อกดถัดไป ระบบจะสร้างหรือเชื่อม Tool ให้ Agent ที่เลือกอัตโนมัติ และเปิดการบันทึกสำหรับแคมเปญนี้' : 'ติ๊กเพื่อให้ระบบเชื่อม Tool บันทึกบทสนทนาอัตโนมัติในขั้นตอนนี้'}</p><p className="workspace-note">บันทึกเป็นข้อความที่บอทส่งกลับ หากวางสายก่อนส่งบันทึกอาจไม่มีข้อมูล · การบันทึกไฟล์เสียงเป็นอีกบริการหนึ่ง</p>{connectionMessage && <p role="status">{connectionMessage}</p>}</section>
-        {selected && <div className="wizard-agent-detail" aria-live="polite"><h3>ตัวแปรจาก {selected.name}</h3>
-          {detail.loading ? <p role="status">กำลังอ่านบทสนทนาล่าสุด…</p> : detail.error ? <p className="workspace-alert" role="alert">{detail.error}</p> : <><div className="wizard-variable-list">{detail.variables.map(v => <code key={v}>{v}</code>)}</div>{!detail.variables.length && <p>ไม่พบตัวแปรในบทสนทนา จับคู่หมายเลขโทรศัพท์ได้ในขั้นตอนถัดไป</p>}<p className="workspace-note">อ่านจากข้อความทักทายและ Prompt ตัวแปรที่พบอาจมีทั้งข้อมูลก่อนโทรและผลลัพธ์หลังสนทนา</p></>}
-          <Button variant="secondary" size="compact" disabled={detail.loading || saving || connecting} onClick={detail.refetch}>อ่านตัวแปรใหม่</Button>
-        </div>}
-        {draft.agentId && draft.agentId !== agentId && <p className="workspace-notice">เมื่อเปลี่ยน Agent ระบบจะเก็บการจับคู่ที่ตัวใหม่รองรับ และให้คุณตรวจอีกครั้งในขั้นตอนถัดไป</p>}
-      </section>
+      <div className="rd-split">
+        <section className="rd-stack" aria-labelledby="agent-list-title">
+          <div className="rd-filters" style={{justifyContent:'space-between'}}><div><h2 id="agent-list-title" className="rd-section-title">Voice Agent ในบัญชีของคุณ</h2><span className="rd-muted">{draft.name} · {draft.csv.rows.length.toLocaleString()} รายชื่อ · {draft.fileName}</span></div><Button variant="secondary" size="compact" disabled={locked} onClick={refetch}>{loading ? 'กำลังโหลด…' : 'รีเฟรช'}</Button></div>
+          {error && <p className="workspace-alert" role="alert">โหลดรายชื่อ Agent ไม่สำเร็จ: {error}</p>}
+          {!loading && !error && !agents.length && <p className="rd-card rd-empty" role="status">บัญชีนี้ยังไม่มี Agent</p>}
+          <div className="rd-choices" role="radiogroup" aria-label="Voice Agent">
+            {agentId && !selected && !loading && <button type="button" role="radio" aria-checked className="rd-choice" disabled={locked}><span className="rd-choice__ring" aria-hidden="true"/><span className="rd-choice__body"><strong>Agent เดิม</strong><span>{agentId} — ยังไม่พบในรายการ</span></span></button>}
+            {agents.map(a => <button key={a.agent_id} type="button" role="radio" aria-checked={a.agent_id === agentId} className="rd-choice" disabled={locked} onClick={() => pick(a.agent_id)}>
+              <span className="rd-choice__ring" aria-hidden="true"/>
+              <span className="rd-choice__body"><strong>{a.name}</strong><span>{a.agent_id}</span></span>
+              {a.agent_id === agentId && !detail.loading && !detail.error && <span className="rd-chip rd-chip--info rd-chip--plain">{detail.variables.length} ตัวแปร</span>}
+            </button>)}
+          </div>
+          {draft.agentId && draft.agentId !== agentId && <p className="workspace-notice">เมื่อเปลี่ยน Agent ระบบจะเก็บการจับคู่ที่ตัวใหม่รองรับ และให้คุณตรวจอีกครั้งในขั้นตอนถัดไป</p>}
+        </section>
+
+        <aside className="rd-aside rd-stack">
+          <section className="rd-card rd-pad rd-stack" aria-live="polite">
+            <div className="rd-filters" style={{justifyContent:'space-between'}}><h2 className="rd-section-title" style={{fontSize:16}}>ตัวแปร Agent</h2>{selected && <button className="rd-link" type="button" disabled={detail.loading || saving || connecting} onClick={detail.refetch}>อ่านตัวแปรใหม่</button>}</div>
+            {!selected ? <p className="rd-muted" style={{margin:0}}>เลือก Agent เพื่ออ่านตัวแปรจาก Prompt</p>
+              : detail.loading ? <p className="rd-muted" role="status" style={{margin:0}}>กำลังอ่านบทสนทนาล่าสุด…</p>
+              : detail.error ? <p className="workspace-alert" role="alert">{detail.error}</p>
+              : <><span className="rd-muted">อ่านจาก Prompt ของ “{selected.name}”</span><div className="rd-codes">{detail.variables.map(v => <code key={v}>{v}</code>)}</div>{!detail.variables.length && <p className="rd-muted" style={{margin:0}}>ไม่พบตัวแปรในบทสนทนา จับคู่หมายเลขโทรศัพท์ได้ในขั้นตอนถัดไป</p>}<p className="rd-stat__note">ตัวแปรที่พบอาจมีทั้งข้อมูลก่อนโทรและผลลัพธ์หลังสนทนา</p></>}
+          </section>
+          <section className="rd-card rd-pad rd-stack">
+            <h2 className="rd-section-title" style={{fontSize:16}}>ระบบรับผลหลังโทร</h2>
+            {!isDev ? <p className="rd-muted" style={{margin:0}}>ทีมพัฒนาเป็นผู้เชื่อมระบบรับผลให้ Agent หากโทรไม่ได้เพราะยังไม่เชื่อม กรุณาแจ้งทีมพัฒนา</p> : selected ? <AgentResultSetup key={agentId} agentId={agentId} onConnected={detail.refetch} onBusy={setConnecting} /> : <p className="rd-muted" style={{margin:0}}>เมื่อเลือก Agent ระบบจะตรวจการเชื่อมรับผลให้ หากยังไม่เชื่อม คุณกดเชื่อมได้ที่นี่</p>}
+          </section>
+          {isDev && <section className={`rd-card rd-pad campaign-conversation-option${recordConversation ? ' enabled' : ''}`} aria-label="การบันทึกบทสนทนา"><label className="rd-toggle-row"><input type="checkbox" checked={recordConversation} disabled={saving || connecting} onChange={event => { setRecordConversation(event.target.checked); setMessage(''); }} /><span><strong>บันทึกบทสนทนา</strong><small>เก็บข้อความที่ผู้รับกับบอทคุยกัน ให้เปิดอ่านย้อนหลังในรายละเอียดแต่ละสาย</small></span></label><p className="rd-stat__note">{recordConversation ? 'เมื่อกดถัดไป ระบบจะสร้างหรือเชื่อม Tool ให้ Agent ที่เลือกอัตโนมัติ และเปิดการบันทึกสำหรับแคมเปญนี้' : 'ติ๊กเพื่อให้ระบบเชื่อม Tool บันทึกบทสนทนาอัตโนมัติในขั้นตอนนี้'} · หากวางสายก่อนส่งบันทึกอาจไม่มีข้อมูล · การบันทึกไฟล์เสียงเป็นอีกบริการหนึ่ง</p>{connectionMessage && <p role="status" className="rd-muted">{connectionMessage}</p>}</section>}
+        </aside>
+      </div>
       {message && <p className="workspace-alert" role="alert">{message}</p>}
-      <section className="api-agent-actions"><Button href={routes.createCampaign} size="compact" variant="secondary">ย้อนกลับ: ตั้งค่าแคมเปญ</Button><Button size="compact" disabled={saving || !ready} onClick={next}>{saving ? recordConversation ? 'กำลังเชื่อมและบันทึก…' : 'กำลังบันทึก…' : 'ถัดไป: จับคู่ข้อมูล →'}</Button></section>
+      <footer className="rd-wizard-foot"><Button href={routes.createCampaign} variant="secondary">← ย้อนกลับ</Button><div><span className="rd-muted">ขั้นตอนที่ 2 จาก 4</span><Button disabled={saving || !ready} onClick={next}>{saving ? recordConversation ? 'กำลังเชื่อมและบันทึก…' : 'กำลังบันทึก…' : 'ถัดไป: จับคู่ข้อมูล →'}</Button></div></footer>
     </>}
   </main></div>;
 }

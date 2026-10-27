@@ -27,7 +27,7 @@ type setupFixture struct {
 
 const setupAgentID = "agt_fixture"
 
-var setupUser = obj{"id": "11111111-1111-4111-8111-111111111111", "email": "admin@example.invalid", "email_confirmed_at": "confirmed"}
+var setupUser = obj{"id": "11111111-1111-4111-8111-111111111111", "email": "admin@example.invalid", "email_confirmed_at": "confirmed", "app_metadata": obj{"role": "dev"}}
 
 var setupEnv = map[string]string{"SUPABASE_URL": "https://setup-db.invalid", "SUPABASE_SERVICE_ROLE_KEY": "service-fixture",
 	"VOICE_RESULT_CALLBACK_SECRET": "callback-fixture-secret-longer-than-32", "VOICE_RESULT_CALLBACK_URL": "https://receiver.invalid/api/voice-result"}
@@ -167,7 +167,7 @@ func TestAgentSetup(t *testing.T) {
 		check(t, len(s.calls) == 0, "calls made before refusal")
 	})
 	run("Unconfirmed email cannot configure", func(t *testing.T, s *setupFixture) {
-		user := obj{"id": setupUser["id"], "email": "admin@example.invalid", "email_confirmed_at": nil}
+		user := obj{"id": setupUser["id"], "email": "admin@example.invalid", "email_confirmed_at": nil, "app_metadata": obj{"role": "dev"}}
 		check(t, s.invoke(setupCall{user: user}).status == 403, "unconfirmed user allowed")
 	})
 	run("Confirmation and revision are required; arbitrary endpoint and secrets rejected", func(t *testing.T, s *setupFixture) {
@@ -279,7 +279,7 @@ func TestAgentSetup(t *testing.T) {
 		check(t, released >= 0 && sent > released, "lock released at %d, response at %d", released, sent)
 	})
 	run("A linked member configures only their own account with scoped audits and locks", func(t *testing.T, s *setupFixture) {
-		member := obj{"id": setupUser["id"], "email": "member@example.invalid", "email_confirmed_at": "confirmed"}
+		member := obj{"id": setupUser["id"], "email": "member@example.invalid", "email_confirmed_at": "confirmed", "app_metadata": obj{"role": "dev"}}
 		r := s.invoke(setupCall{user: member})
 		check(t, r.status == 200 && r.data["can_manage"] == true && r.data["connected"] == true, "member connect = %d %v", r.status, r.data)
 		check(t, get(s.tools[0], "name") == "vc_result_v2_fixture" && strings.Contains(strOr(get(s.tools[0], "description")), "Voice Confirm account:account_fixture v2"), "tool not account scoped")
