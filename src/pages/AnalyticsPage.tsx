@@ -10,8 +10,8 @@ const dayValue = (value: string) => new Date(value).toLocaleDateString('th-TH', 
 
 export function AnalyticsPage() {
   const [period, setPeriod] = useState<'7-days' | 'month'>('month');
-  const [source, setSource] = useState<'all' | 'outbound' | 'inbound'>(() => new URLSearchParams(window.location.search).get('source') === 'inbound' ? 'inbound' : 'all');
-  const usage = useCallUsage(period, source);
+  // The workspace only places outbound confirmation calls.
+  const usage = useCallUsage(period, 'outbound');
   const report = usage.report;
   const series = report?.series || [];
   const total = series.reduce((sum, row) => sum + row.call_count, 0);
@@ -21,7 +21,6 @@ export function AnalyticsPage() {
   const seconds = series.reduce((sum, row) => sum + row.duration_seconds, 0);
   const durationCount = series.reduce((sum, row) => sum + row.duration_count, 0);
   const range = report ? `${dayValue(report.window.start_at)} – ${dayValue(report.window.end_at)}` : period === 'month' ? 'เดือนนี้จนถึงปัจจุบัน' : '7 วันรวมวันนี้';
-  const typeLabel = source === 'all' ? 'สายโทรเข้าและโทรออก' : source === 'outbound' ? 'เฉพาะสายโทรออก' : 'เฉพาะสายโทรเข้า';
   const minutes = (duration: number, known: number) => known ? numberValue(duration / 60) : '—';
 
   const peak = Math.max(1, ...series.map(row => row.call_count));
@@ -30,8 +29,7 @@ export function AnalyticsPage() {
     <header className="rd-head"><div><span className="ui-kicker">CALL USAGE</span><h1>การใช้งาน Voice Bot</h1><p>นับจากประวัติสายโทรศัพท์จริงของบัญชี Voice Bot ที่เชื่อมอยู่ รวมสายจากแคมเปญ สายโทรทดสอบ และสายที่โทรผ่าน Voice Bot โดยตรง</p></div><div className="rd-head__actions"><a className="rd-link" href={routes.dashboard}>ภาพรวมการโทร →</a><Button variant="secondary" onClick={usage.refetch} disabled={usage.loading}>รีเฟรชประวัติสาย</Button></div></header>
     <div className="rd-filters">
       <SmoothSelect aria-label="ช่วงเวลา" value={period} onChange={setPeriod} options={[{ value: 'month', label: 'เดือนนี้' }, { value: '7-days', label: '7 วันรวมวันนี้' }]} />
-      <SmoothSelect aria-label="ประเภทสาย" value={source} onChange={setSource} options={[{ value: 'all', label: 'โทรเข้าและโทรออก' }, { value: 'outbound', label: 'เฉพาะสายโทรออก' }, { value: 'inbound', label: 'เฉพาะสายโทรเข้า' }]} />
-      <span className="rd-muted">{range} · {typeLabel} · เขตเวลาไทย</span>
+      <span className="rd-muted">{range} · สายโทรออก · เขตเวลาไทย</span>
     </div>
     {usage.loading ? <p className="rd-card rd-empty" role="status">กำลังโหลดประวัติสายจริง…</p> : usage.error ? <p role="alert" className="workspace-alert">{usage.error}</p> : report && <>
       <section className="rd-stats" aria-label="สรุปการโทรในช่วงที่เลือก">
