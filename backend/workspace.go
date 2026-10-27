@@ -80,11 +80,25 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 		if text != "" {
 			logState = "available"
 		}
+		agentID, callID := jsString(record["agent_id"]), jsString(record["call_id"])
+		key, keyRead := "", false
+		conversationKey := func() string {
+			if !keyRead {
+				key, keyRead = v.conversationKey(agentID, callID), true
+			}
+			return key
+		}
 		if terminalCall(status) && text == "" {
 			logState = "not_available"
-			files, err := v.get("/logs/list_file/?agent_id=" + escapeComponent(jsString(record["agent_id"])))
+			// Log files are named by conversation UUID, not call ID; the provider's exact link names the file directly.
+			var err error
+			if logPath = conversationKey(); logPath == "" {
+				var files any
+				if files, err = v.get("/logs/list_file/?agent_id=" + escapeComponent(agentID)); err == nil {
+					logPath = matchingLogPath(files, call)
+				}
+			}
 			if err == nil {
-				logPath = matchingLogPath(files, call)
 				if logPath != "" {
 					if log, err = v.get("/logs/read_log/?file_path=" + escapeComponent(logPath)); err == nil {
 						text = transcriptText(log)
@@ -100,6 +114,11 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 		outcome := providerOutcome(call, log)
 		// Preserve already retrieved evidence if the provider temporarily stops returning it.
 		previous := get(response, "followup")
+		if outcome["source"] == "unavailable" && terminalCall(status) && !truthy(get(response, "callback")) && get(previous, "outcome", "source") != "provider" {
+			if analysed := v.analysisOutcome(agentID, callID, conversationKey()); analysed != nil {
+				outcome = analysed
+			}
+		}
 		chosen := any(outcome)
 		if outcome["source"] == "unavailable" && get(previous, "outcome", "source") == "provider" {
 			chosen = get(previous, "outcome")
@@ -135,6 +154,71 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 	out := maps.Clone(record)
 	out["status"], out["response"] = status, response
 	return v.send(200, out)
+}
+
+var conversationKeyRe = regexp.MustCompile(`_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+\.txt$`)
+
+// analysisOutcome reads Botnoi's post-call analysis (fields call_result, needs_agent and evidence on the agent's
+// analysis config), so a result appears even when the agent skipped the result tool during the call.
+// Outputs are keyed by the call ID for some calls and by the transcript's conversation UUID for others; ask for both.
+func (v *voiceRequest) analysisOutcome(agentID, callID, key string) obj {
+	root := "/analytics/v1/agents/" + escapeComponent(agentID)
+	config, err := v.get(root + "/config")
+	version, ok := get(config, "version").(float64)
+	if err != nil || !ok || get(config, "enabled") != true {
+		return nil
+	}
+	ids := []any{callID}
+	if m := conversationKeyRe.FindStringSubmatch(key); m != nil {
+		ids = append(ids, m[1])
+	}
+	result, err := v.upstream(root+"/outputs/query", obj{"config_version": version, "conversation_ids": ids}, "POST")
+	if err != nil {
+		return nil
+	}
+	return analysisResult(result)
+}
+
+// conversationKey is the transcript key Botnoi links exactly to this call and agent, or "".
+func (v *voiceRequest) conversationKey(agentID, callID string) string {
+	detail, err := v.get("/calls/" + escapeComponent(callID))
+	if err != nil || !jsSame(get(detail, "id"), callID) {
+		return ""
+	}
+	conversation := get(detail, "conversation")
+	key, _ := get(conversation, "key").(string)
+	if get(conversation, "linked_by") != "exact" || !jsSame(get(conversation, "agent_id"), agentID) {
+		return ""
+	}
+	return key
+}
+
+// analysisResult picks the first succeeded analysis that extracted a known call_result.
+func analysisResult(result any) obj {
+	items, _ := get(result, "items").([]any)
+	for _, item := range items {
+		if get(item, "analysis_status") != "succeeded" {
+			continue
+		}
+		fields := obj{}
+		list, _ := get(item, "analysis", "field_results").([]any)
+		for _, f := range list {
+			if id, ok := get(f, "field_id").(string); ok && get(f, "status") == "extracted" {
+				fields[id] = f
+			}
+		}
+		callResult, _ := get(fields, "call_result", "option_id").(string)
+		if !isOutcome(callResult) {
+			continue
+		}
+		var needs any
+		if b, ok := get(fields, "needs_agent", "value").(bool); ok {
+			needs = b
+		}
+		evidence, _ := get(fields, "evidence", "value").(string)
+		return obj{"call_result": callResult, "needs_agent": needs, "evidence": jsSlice(jsTrim(evidence), 2000), "source": "provider"}
+	}
+	return nil
 }
 
 func orNull(v any) any {
