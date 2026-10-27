@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { clearWorkspace } from "@/lib/campaigns";
 import { currentPath, routes } from "@/routes";
+import { useIsDev } from "@/components/WorkspaceGate";
 
 // Change Here
 const docs = import.meta.env.BASE_URL;
@@ -55,6 +56,7 @@ function runItem(item: (typeof menuItems)[number]) {
 }
 
 export function TwentyTwelveOne() {
+  const isDev = useIsDev();
   const [isOpen, setIsOpen] = useState(false);
   const [activeItem, setActiveItem] = useState(pathItem);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -154,7 +156,7 @@ export function TwentyTwelveOne() {
             }}
           >
             <ul className="flex flex-col gap-0.5 m-0! p-0! list-none!">
-              {menuItems.map((item, index) => {
+              {menuItems.filter(item => item.id !== "upgrade" || isDev).map((item, index) => {
                 if (item.id === "divider") {
                   return (
                     <motion.hr
