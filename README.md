@@ -18,7 +18,7 @@ Requires Node 22 and Go 1.26.
 1. Install dependencies with `npm ci`.
 2. Copy `.env.example` to `.env`, configure Supabase and server-only Voice Bot credentials.
 3. Follow [Backend and database setup](docs/BACKEND_SETUP.md) to apply the migrations and approve Supabase login accounts.
-4. Start the Go API with the `.env` variables exported. The server does not read `.env` itself:
+4. Start the Go API with the `.env` variables exported. The server does not read `.env` itself. The simplest way, on any shell, is `npm run dev:backend`: it loads `.env` in Node and runs `go run .` in `backend/` on `ADDR=127.0.0.1:8080`. To run it by hand instead:
    ```bash
    set -a; . ./.env; set +a
    cd backend && ADDR=127.0.0.1:8080 go run .
