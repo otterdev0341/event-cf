@@ -60,7 +60,8 @@ func securityHeaders(base, supabaseURL string, next http.Handler) http.Handler {
 		connect += " " + u.Scheme + "://" + u.Host + " " + ws + "://" + u.Host
 	}
 	common := "; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-	app := "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:" +
+	// index.html loads Google Sans from Google Fonts.
+	app := "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com" +
 		"; media-src 'self' blob:; worker-src 'self'; connect-src " + connect + common
 	// ReDoc loads its pinned bundle (SRI-checked) from jsDelivr, injects styles and runs search in a blob worker.
 	docs := "default-src 'none'; script-src https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src 'self' data:" +
