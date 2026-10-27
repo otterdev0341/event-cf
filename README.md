@@ -52,6 +52,8 @@ Never put server-only values in `VITE_` variables. Callback endpoints return HTT
 | `POST /event-confirm/api/voice-events` | Agent HTTP Tool | Public event information for inbound calls ([inbound](docs/INBOUND.md)). |
 | `POST /event-confirm/api/voice-scheduler` | Supabase cron | Campaign worker tick ([scheduler](SCHEDULER_SETUP.md)). |
 
+OpenAPI spec: [`public/openapi.yaml`](public/openapi.yaml), rendered with ReDoc at `/event-confirm/api-docs.html` (`https://otterdev.xyz/event-confirm/api-docs.html`).
+
 The browser sends only its Supabase session. The backend validates the session, confirmed email (members mode), account, Agent and permitted endpoint. Each member uses their own connected Voice Bot JWT, which the server stores encrypted and never returns to the browser ([connection](docs/PERSONAL_VOICE_BOT_CONNECTION.md)). Supabase workspace data is owner-scoped. Telephony administration operations are not exposed.
 
 ## Campaigns and calls
