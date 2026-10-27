@@ -19,6 +19,7 @@ export const routes = {
   contactDetailWithId: (id: number | string) => `${base}/contacts/${encodeURIComponent(String(id))}`,
   analytics: `${base}/analytics`,
   settings: `${base}/settings`,
+  apiDocs: `${base}/api-docs`,
 } as const;
 
 /** The current pathname without trailing slashes, comparable with the values in routes. */

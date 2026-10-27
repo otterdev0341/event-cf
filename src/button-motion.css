@@ -1,0 +1,30 @@
+/* Spring hover/tap on every button, same feel as smooth-dropdown. Uses the `scale` property so existing transforms keep working. */
+@media (prefers-reduced-motion: no-preference) {
+  :is(button, .button, [role="button"]):not(:disabled):not([aria-disabled="true"]) {
+    transition: all .2s ease, scale .5s linear(0, .22 6%, .72 15%, 1.05 25%, 1.12 32%, 1.04 48%, .99 62%, 1 80%, 1);
+    scale: 1;
+  }
+  :is(button, .button, [role="button"]):not(:disabled):not([aria-disabled="true"]):hover { scale: 1.03; }
+  :is(button, .button, [role="button"]):not(:disabled):not([aria-disabled="true"]):active { scale: .95; transition-duration: .1s, .12s; }
+}
+
+/* Sliding hover pill across button groups; position set by InterfaceMotion. */
+:is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub) { position: relative; }
+:is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub) > :is(a, button) { position: relative; z-index: 1; }
+:is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub)::before {
+  content: ""; position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; opacity: 0;
+  width: var(--sl-w, 0); height: var(--sl-h, 0); border-radius: 10px;
+  background: #5a3cc41f; transform: translate(var(--sl-x, 0), var(--sl-y, 0));
+}
+.app-nav::before { background: #ffffff1f; }
+:is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub)[data-slide="on"]::before { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  :is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub)::before { transition: opacity .15s; }
+  :is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub)[data-slide="on"]::before {
+    transition: opacity .15s, transform .5s linear(0, .3 8%, .78 18%, 1.06 30%, 1.05 40%, .99 58%, 1 80%, 1), width .5s linear(0, .3 8%, .78 18%, 1.06 30%, 1.05 40%, .99 58%, 1 80%, 1), height .3s ease;
+  }
+}
+.pk-grid::before, .pk-col::before, .pk-sub::before { border-radius: 9px; }
+.pk-grid button:hover, .pk-col button:hover, .pk-sub button:hover { background: transparent; }
+.pk-grid button[aria-pressed="true"], .pk-col button[aria-selected="true"] { z-index: 2; }
+.pk-cal .pk-sub { position: absolute; }

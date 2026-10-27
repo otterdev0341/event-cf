@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { AppHeader } from "../components/AppHeader";
 import { Button } from "../components/Button";
+import { DatePicker, TimePicker } from "../components/Pickers";
 import { CampaignStepIndicator } from "../components/CampaignStepIndicator";
 import { routes } from "../routes";
 
@@ -78,22 +79,11 @@ export function CreateCampaignPage() {
 
             <div className="campaign-form__row">
               <CampaignField label="วันที่จัดงาน">
-                <span className="campaign-form__control">
-                  <input
-                    type="date" defaultValue={draft?.eventDate}
-                    name="eventDate"
-                    placeholder="วว / ดด / ปปปป"
-                    inputMode="numeric"
-                  />
-                  <img src={import.meta.env.BASE_URL + "assets/create-campaign/calendar.svg"} width="20" height="20" alt="" />
-                </span>
+                <DatePicker name="eventDate" label="วันที่จัดงาน" defaultValue={draft?.eventDate} />
               </CampaignField>
 
               <CampaignField label="เวลาจัดงาน">
-                <span className="campaign-form__control">
-                  <input type="time" name="eventTime" defaultValue={draft?.eventTime || "09:00"} inputMode="numeric" />
-                  <img src={import.meta.env.BASE_URL + "assets/create-campaign/clock.svg"} width="20" height="20" alt="" />
-                </span>
+                <TimePicker name="eventTime" label="เวลาจัดงาน" defaultValue={draft?.eventTime || "09:00"} />
               </CampaignField>
             </div>
 
