@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"maps"
 	"net/url"
 	"strings"
 	"testing"
@@ -208,4 +209,24 @@ func TestConnectionAPI(t *testing.T) {
 		check(t, !mine && theirs, "wrong credential removed")
 		check(t, c.invoke(nil, "/me").status == 428, "disconnected account still used")
 	})
+}
+
+func TestSharedTeamAccount(t *testing.T) {
+	c := newConnFixture(t)
+	env := maps.Clone(connEnv)
+	env["VOICE_BOT_ACCESS_TOKEN"] = validJWT("TEAM")
+	app := newApp(c.fixture, env)
+	connection := func(body any) response {
+		method, raw := "GET", ""
+		if body != nil {
+			method, raw = "POST", jsonBody(body)
+		}
+		return serveHTTP(app, method, "/event-confirm/api/voice?path="+url.QueryEscape("/workspace/connection"), map[string]string{"Authorization": "Bearer fixture-session"}, raw)
+	}
+	r := connection(nil)
+	check(t, r.data["shared"] == true && r.data["account_id"] == "tenant_TEAM" && !strings.Contains(string(r.raw), env["VOICE_BOT_ACCESS_TOKEN"]), "GET %s", r.raw)
+	c.user = connOther
+	check(t, serveHTTP(app, "GET", "/event-confirm/api/voice?path=%2Fme", map[string]string{"Authorization": "Bearer fixture-session"}, "").data["_id"] == "tenant_TEAM", "second user not on team account")
+	check(t, connection(obj{"action": "verify", "token": validJWT("A")}).status == 403 && len(c.records) == 0, "personal connection allowed in shared mode")
+	check(t, c.count(func(r call) bool { return r.Path == "/me" && r.Host == "voice.invalid" }) == 2, "team /me not cached")
 }

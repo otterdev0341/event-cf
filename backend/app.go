@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -20,6 +21,7 @@ type Config struct {
 	PublishableKey  string // SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_PUBLISHABLE_KEY
 	ServiceRoleKey  string
 	EncryptionKey   string // VOICE_CONNECTION_ENCRYPTION_KEY
+	SharedToken     string // VOICE_BOT_ACCESS_TOKEN: team Voice Bot account for every user
 	CallbackSecret  string // VOICE_RESULT_CALLBACK_SECRET
 	CallbackURL     string // VOICE_RESULT_CALLBACK_URL
 	VoiceBotBaseURL string
@@ -46,6 +48,7 @@ func configFrom(getenv func(string) string) Config {
 		PublishableKey:  first("SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_PUBLISHABLE_KEY"),
 		ServiceRoleKey:  getenv("SUPABASE_SERVICE_ROLE_KEY"),
 		EncryptionKey:   getenv("VOICE_CONNECTION_ENCRYPTION_KEY"),
+		SharedToken:     getenv("VOICE_BOT_ACCESS_TOKEN"),
 		CallbackSecret:  getenv("VOICE_RESULT_CALLBACK_SECRET"),
 		CallbackURL:     getenv("VOICE_RESULT_CALLBACK_URL"),
 		VoiceBotBaseURL: getenv("VOICE_BOT_BASE_URL"),
@@ -60,6 +63,9 @@ func configFrom(getenv func(string) string) Config {
 type App struct {
 	cfg    Config
 	client *http.Client
+
+	sharedMu      sync.Mutex
+	sharedAccount obj // cached /me of cfg.SharedToken
 }
 
 // httpError is the Go form of the Node HttpError/fail(): its message goes to the client.

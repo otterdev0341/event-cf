@@ -453,6 +453,9 @@ func (v *voiceRequest) serve(endpoint string) error {
 		noAccount := ""
 		return v.handleCallResult(resultRoute[1], nil, &noAccount)
 	}
+	if v.conn == nil && a.cfg.SharedToken != "" {
+		return fail(503, "บัญชี Voice Bot ของทีมใช้ไม่ได้ ผู้ดูแลต้องตรวจ VOICE_BOT_ACCESS_TOKEN")
+	}
 	if v.conn == nil {
 		return fail(428, "ยังไม่ได้เชื่อมบัญชี Voice Bot ไปที่ตั้งค่าแล้วใส่ Session JWT ของคุณ")
 	}

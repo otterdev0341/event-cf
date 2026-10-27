@@ -34,6 +34,7 @@ Requires Node 22 and Go 1.26.
 | `SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY` | Publishable key used to validate browser sessions. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only. Callbacks, scheduler and Agent setup audits. |
 | `VOICE_CONNECTION_ENCRYPTION_KEY` | Server-only AES-256 key (32 bytes, Base64) for stored personal Voice Bot JWTs. |
+| `VOICE_BOT_ACCESS_TOKEN` | Optional team account. When set, every signed-in user uses this Voice Bot Session JWT and personal connections are disabled. Renew it here when it expires. |
 | `VOICE_BOT_BASE_URL` | Voice Bot API origin. |
 | `VOICE_BOT_LOGS_BASE_URL` | Optional Voice Bot log/audio origin. |
 | `VOICE_RESULT_CALLBACK_URL`, `VOICE_RESULT_CALLBACK_SECRET` | Public result receiver URL and root callback secret (min. 32 characters). New Agent Tools receive account-specific derived keys, never the root secret. |
@@ -55,7 +56,7 @@ Never put server-only values in `VITE_` variables. Callback endpoints return HTT
 
 OpenAPI spec: [`public/openapi.yaml`](public/openapi.yaml), rendered with ReDoc at `/event-confirm/api-docs.html` (`https://otterdev.xyz/event-confirm/api-docs.html`).
 
-The browser sends only its Supabase session. The backend validates the session, confirmed email (members mode), account, Agent and permitted endpoint. Each member uses their own connected Voice Bot JWT, which the server stores encrypted and never returns to the browser ([connection](docs/PERSONAL_VOICE_BOT_CONNECTION.md)). Supabase workspace data is owner-scoped. Telephony administration operations are not exposed.
+The browser sends only its Supabase session. The backend validates the session, confirmed email (members mode), account, Agent and permitted endpoint. With `VOICE_BOT_ACCESS_TOKEN` set, everyone uses that team account. Otherwise each member uses their own connected Voice Bot JWT, which the server stores encrypted and never returns to the browser ([connection](docs/PERSONAL_VOICE_BOT_CONNECTION.md)). Supabase workspace data is owner-scoped. Telephony administration operations are not exposed.
 
 ## Campaigns and calls
 

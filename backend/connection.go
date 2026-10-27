@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"log"
 	"maps"
 	"net/url"
 	"regexp"
@@ -120,6 +121,9 @@ func (a *App) connectionStore(ctx context.Context) (*db, error) {
 
 // loadConnection returns the caller's stored connection with its decrypted "token", or nil.
 func (a *App) loadConnection(store *db, user obj) (obj, error) {
+	if a.cfg.SharedToken != "" {
+		return a.sharedConnection(store.ctx, user), nil
+	}
 	userID := strOr(user["id"])
 	row, err := store.MaybeSingle("voice_bot_connections", "*", eq("owner_id", userID))
 	if err != nil {
@@ -135,6 +139,25 @@ func (a *App) loadConnection(store *db, user obj) (obj, error) {
 	conn := maps.Clone(row)
 	conn["token"] = token
 	return conn, nil
+}
+
+// sharedConnection gives every signed-in user the team account in VOICE_BOT_ACCESS_TOKEN.
+// Its /me identity is cached until the token expires. A failed lookup returns nil, so saved
+// results stay readable and the next request retries.
+func (a *App) sharedConnection(ctx context.Context, user obj) obj {
+	a.sharedMu.Lock()
+	defer a.sharedMu.Unlock()
+	if a.sharedAccount == nil || expired(a.sharedAccount["expires_at"]) {
+		account, err := a.verifyVoiceToken(ctx, a.cfg.SharedToken)
+		if err != nil {
+			log.Printf("shared Voice Bot token unusable: %v", err)
+			return nil
+		}
+		a.sharedAccount = account
+	}
+	conn := maps.Clone(a.sharedAccount)
+	conn["owner_id"], conn["token"], conn["shared"], conn["updated_at"] = user["id"], a.cfg.SharedToken, true, nil
+	return conn
 }
 
 func orBlank(v any) any {
@@ -267,7 +290,14 @@ func onlyKeys(body obj, allowed ...string) bool {
 
 func (a *App) handleConnection(v *voiceRequest, body any) error {
 	if v.method == "GET" {
-		return v.send(200, publicConnection(v.conn))
+		public := publicConnection(v.conn)
+		if a.cfg.SharedToken != "" {
+			public["shared"] = true
+		}
+		return v.send(200, public)
+	}
+	if a.cfg.SharedToken != "" {
+		return fail(403, "ระบบใช้บัญชี Voice Bot ของทีม เปลี่ยนได้ที่ VOICE_BOT_ACCESS_TOKEN บนเซิร์ฟเวอร์เท่านั้น")
 	}
 	b, ok := body.(obj)
 	if !ok {

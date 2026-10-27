@@ -1,5 +1,7 @@
 # Personal Voice Bot accounts
 
+> **Team account mode:** when `VOICE_BOT_ACCESS_TOKEN` is set on the server, every signed-in user uses that Voice Bot account, the settings card is read-only, and personal connect/disconnect requests return 403. Stored personal connections are ignored, not deleted. The rest of this page describes per-user mode (token empty).
+
 Users connect their own Voice Bot Session JWT at `/settings`. The verify action calls the configured Voice Bot `/me`; saving rechecks the identity and requires the reviewed account ID plus the current connection revision. JWT claims alone never authorize an account. Expiry claims are used only to reject expired tokens and display renewal guidance; revoked tokens are rejected by the provider.
 
 Credentials are stored in `voice_bot_connections` using AES-256-GCM, randomized nonces and authenticated owner-specific additional data. Set `VOICE_CONNECTION_ENCRYPTION_KEY` to a Base64-encoded 32-byte random key on the server. Back up this key securely; changing it requires reconnecting stored accounts unless credentials are re-encrypted first. Never prefix it with `VITE_`. Browser/anonymous database roles cannot read or write this table. The authenticated API checks the website owner on every request and returns only connection metadata.
