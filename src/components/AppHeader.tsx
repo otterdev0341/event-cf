@@ -9,7 +9,7 @@ const navigation = [
   { key: "campaigns", label: "แคมเปญ", href: routes.campaigns, path: "M4 5h16v14H4zM8 9h8M8 13h5" },
   { key: "contacts", label: "ผู้ติดต่อ", href: routes.contacts, path: "M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" },
   { key: "live", label: "ทดสอบ Agent", href: routes.liveAgent, path: "M4 10v4M8 5v14M12 8v8M16 3v18M20 9v6" },
-  { key: "inbound", label: "สายเข้า", href: routes.inbound, path: "M20 4l-7 7M13 4v7h7M6 3H3v4c0 8 6 14 14 14h4v-3l-5-2-2 2c-4-1-7-4-8-8l2-2-2-5Z" },
+  { key: "inbound", label: "สายออก", href: routes.inbound, path: "M20 4l-7 7M13 4v7h7M6 3H3v4c0 8 6 14 14 14h4v-3l-5-2-2 2c-4-1-7-4-8-8l2-2-2-5Z" },
   { key: "reports", label: "สถิติการใช้งาน", href: routes.analytics, path: "M4 3v18h17M9 16v-4M14 16V8M19 16V5" },
 ];
 function NavIcon({path}:{path:string}) { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={path}/></svg>; }
