@@ -383,6 +383,7 @@ func TestVoiceAPI(t *testing.T) {
 		}
 		check(t, reserve >= 0 && reserve < dial, "reserve %d dial %d", reserve, dial)
 		check(t, get(b.dials()[0].Body, "metadata", "variables", "guest_name") == "Fixture", "variables not sent")
+		check(t, get(b.dials()[0].Body, "metadata", "guest_name") == "Fixture", "flat variable not sent")
 		check(t, get(b.last().Body, "call_id") == "oc_fixture", "call ID not persisted")
 	})
 	run("Timeout marks request unknown and never retries the dial", func(t *testing.T, b *backendFixture) {
@@ -414,6 +415,14 @@ func TestVoiceAPI(t *testing.T) {
 		sent := b.dials()[0].Body
 		check(t, get(sent, "destination") == "0898765432" && get(sent, "metadata", "variables", "guest_name") == "CSV Two", "CSV values not used: %v", sent)
 		check(t, !has(get(sent, "metadata", "variables"), "call_result") && get(sent, "metadata", "campaign_version") == "version-1", "outputs or version wrong: %v", sent)
+	})
+	run("Batch fills <<name>> placeholders and <<destination>> from the phone column", func(t *testing.T, b *backendFixture) {
+		b.opt["campaign"], b.opt["prompt"] = csvCampaign(), "<<guest_name>> <<destination>> {{call_result}}"
+		r := b.invoke(callPath, batchPayload())
+		check(t, r.status == 200, "= %d %v", r.status, r.data)
+		sent := b.dials()[0].Body
+		check(t, get(sent, "metadata", "guest_name") == "CSV Two" && get(sent, "metadata", "destination") == get(sent, "metadata", "variables", "destination") &&
+			get(sent, "metadata", "destination") != nil && get(sent, "metadata", "campaign_id") != nil, "variables: %v", sent)
 	})
 	run("Batch rejects stale campaign version before reserving or dialing", func(t *testing.T, b *backendFixture) {
 		b.opt["campaign"] = csvCampaign()
