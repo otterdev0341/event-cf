@@ -8,6 +8,8 @@ const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), 
 const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, Math.min(d.getDate(), new Date(d.getFullYear(), d.getMonth() + n + 1, 0).getDate()));
 const th = (d: Date, o: Intl.DateTimeFormatOptions) => d.toLocaleDateString('th-TH', o);
 const WEEKDAYS = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+const MONTHS = Array.from({ length: 12 }, (_, i) => th(new Date(2000, i, 1), { month: 'long' }));
+const yearsAround = (y: number) => { const now = new Date().getFullYear(), from = Math.min(now - 10, y), to = Math.max(now + 15, y); return Array.from({ length: to - from + 1 }, (_, i) => from + i); };
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 const Icon = ({ d }: { d: string }) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
@@ -37,6 +39,7 @@ export function DatePicker({ name, label, disabled, ...rest }: PickerProps) {
   const [cursor, setCursor] = useState(() => picked ?? new Date());
   const { open, setOpen, root, trigger, layer, close, onKeyDown } = usePopover();
   const focusGrid = useRef(false);
+  const [pane, setPane] = useState<'month' | 'year' | null>(null);
   const id = useId();
 
   useEffect(() => { // only keyboard moves and opening pull focus into the grid, so the month buttons stay clickable
@@ -56,14 +59,18 @@ export function DatePicker({ name, label, disabled, ...rest }: PickerProps) {
   const today = iso(new Date());
   return <div className="ov-dd" ref={root} data-open={open} onKeyDown={onKeyDown}>
     {name && <input type="hidden" name={name} value={value} />}
-    <button ref={trigger} type="button" className="ov-dd__trigger" disabled={disabled} aria-haspopup="dialog" aria-expanded={open} aria-controls={`${id}-pop`} aria-label={`${label}: ${picked ? th(picked, { dateStyle: 'long' }) : 'ยังไม่ได้เลือก'}`} onClick={() => { if (open) setOpen(false); else { setCursor(picked ?? new Date()); focusGrid.current = true; setOpen(true); } }}>
+    <button ref={trigger} type="button" className="ov-dd__trigger" disabled={disabled} aria-haspopup="dialog" aria-expanded={open} aria-controls={`${id}-pop`} aria-label={`${label}: ${picked ? th(picked, { dateStyle: 'long' }) : 'ยังไม่ได้เลือก'}`} onClick={() => { if (open) setOpen(false); else { setCursor(picked ?? new Date()); setPane(null); focusGrid.current = true; setOpen(true); } }}>
       <span className={picked ? '' : 'pk-ph'}>{picked ? th(picked, { dateStyle: 'long' }) : 'เลือกวันที่'}</span>
       <Icon d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" />
     </button>
     <Layer open={open} trigger={trigger} layerRef={layer}><div id={`${id}-pop`} className="pk-pop pk-cal" role="dialog" aria-label={label}>
       <div className="pk-cal__head">
         <button type="button" className="pk-nav" aria-label="เดือนก่อนหน้า" onClick={() => setCursor(addMonths(cursor, -1))}><Icon d="m15 6-6 6 6 6" /></button>
-        <strong aria-live="polite">{th(cursor, { month: 'long', year: 'numeric' })}</strong>
+        <span className="pk-cal__sel">
+          {(['month', 'year'] as const).map(kind => <button key={kind} type="button" className="pk-sel" aria-haspopup="listbox" aria-expanded={pane === kind} onClick={() => setPane(pane === kind ? null : kind)}>
+            {kind === 'month' ? MONTHS[cursor.getMonth()] : cursor.getFullYear() + 543}<Icon d="m6 9 6 6 6-6" />
+          </button>)}
+        </span>
         <button type="button" className="pk-nav" aria-label="เดือนถัดไป" onClick={() => setCursor(addMonths(cursor, 1))}><Icon d="m9 6 6 6-6 6" /></button>
       </div>
       <div className="pk-days" aria-hidden="true">{WEEKDAYS.map(w => <span key={w}>{w}</span>)}</div>
@@ -72,6 +79,10 @@ export function DatePicker({ name, label, disabled, ...rest }: PickerProps) {
           const key = iso(d), here = key === iso(cursor);
           return <button key={key} type="button" tabIndex={here ? 0 : -1} data-cursor={here} data-out={d.getMonth() !== cursor.getMonth()} data-today={key === today} aria-label={th(d, { dateStyle: 'full' })} aria-pressed={key === value} onClick={() => choose(d)}>{d.getDate()}</button>;
         })}
+      </div>
+      <div className="pk-sub" data-open={pane !== null} data-kind={pane ?? ''} role="listbox" aria-label={pane === 'year' ? 'ปี' : 'เดือน'} onKeyDown={e => { if (e.key === 'Escape' && pane) { e.stopPropagation(); setPane(null); } }}>
+        {pane === 'month' && MONTHS.map((m, i) => <button key={m} type="button" role="option" aria-selected={i === cursor.getMonth()} onClick={() => { setCursor(addMonths(cursor, i - cursor.getMonth())); setPane(null); }}>{m}</button>)}
+        {pane === 'year' && yearsAround(cursor.getFullYear()).map(y => <button key={y} type="button" role="option" aria-selected={y === cursor.getFullYear()} ref={y === cursor.getFullYear() ? (el => el?.scrollIntoView({ block: 'center' })) : undefined} onClick={() => { setCursor(addMonths(cursor, 12 * (y - cursor.getFullYear()))); setPane(null); }}>{y + 543}</button>)}
       </div>
       <div className="pk-foot"><button type="button" onClick={() => choose(new Date())}>วันนี้</button><button type="button" onClick={() => { setValue(''); close(); }}>ล้างวันที่</button></div>
     </div></Layer>

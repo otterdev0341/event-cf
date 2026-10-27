@@ -1,8 +1,8 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { AppHeader } from "../components/AppHeader";
 import { Button } from "../components/Button";
-import { CampaignStepIndicator } from "../components/CampaignStepIndicator";
 import { DatePicker, TimePicker } from "../components/Pickers";
+import { CampaignStepIndicator } from "../components/CampaignStepIndicator";
 import { routes } from "../routes";
 
 import { getDraft, saveDraft, parseCsv, suggestMapping, downloadCsvTemplate, type CsvData } from "../lib/campaigns";
@@ -10,17 +10,14 @@ import { getDraft, saveDraft, parseCsv, suggestMapping, downloadCsvTemplate, typ
 interface CampaignFieldProps {
   children: ReactNode;
   label: string;
-  /** A popover inside a <label> would re-click its trigger on every inner click, so pickers use a div. */
-  group?: boolean;
 }
 
-function CampaignField({ children, label, group }: CampaignFieldProps) {
-  const Tag = group ? "div" : "label";
+function CampaignField({ children, label }: CampaignFieldProps) {
   return (
-    <Tag className="campaign-form__field">
+    <label className="campaign-form__field">
       <span>{label}</span>
       {children}
-    </Tag>
+    </label>
   );
 }
 
@@ -64,13 +61,13 @@ export function CreateCampaignPage() {
       <AppHeader />
 
       <main className="create-campaign-main page-shell">
-        <header className="form-page-heading"><a href={routes.campaigns}>← กลับไปแคมเปญ</a><h1>{draft ? "ตั้งค่าแคมเปญ" : "สร้างแคมเปญใหม่"}</h1><p>เริ่มจากรายละเอียดงานและรายชื่อที่ต้องการยืนยัน</p></header>
+        <header className="rd-head"><div><a className="rd-back" href={routes.campaigns}>← กลับไปแคมเปญ</a><h1>{draft ? "ตั้งค่าแคมเปญ" : "สร้างแคมเปญใหม่"}</h1><p>เริ่มจากรายละเอียดงานและรายชื่อที่ต้องการยืนยัน</p></div></header>
 
         <CampaignStepIndicator />
 
-        <form className="create-campaign-form" onSubmit={handleSubmit}>
+        <form className="create-campaign-form rd-wizard-form" onSubmit={handleSubmit}>
           <section className="campaign-form-panel" aria-labelledby="campaign-details-title">
-            <h2 id="campaign-details-title"><span className="section-marker" aria-hidden="true">01</span> ข้อมูลแคมเปญ</h2>
+            <div className="rd-panel-head"><h2 id="campaign-details-title">ข้อมูลแคมเปญ</h2><span className="rd-muted">ชื่อและวันเวลาจะใช้เป็นตัวแปรในบทสนทนาได้</span></div>
 
             <CampaignField label="ชื่อแคมเปญ *">
               <input
@@ -81,11 +78,11 @@ export function CreateCampaignPage() {
             </CampaignField>
 
             <div className="campaign-form__row">
-              <CampaignField label="วันที่จัดงาน" group>
+              <CampaignField label="วันที่จัดงาน">
                 <DatePicker name="eventDate" label="วันที่จัดงาน" defaultValue={draft?.eventDate} />
               </CampaignField>
 
-              <CampaignField label="เวลาจัดงาน" group>
+              <CampaignField label="เวลาจัดงาน">
                 <TimePicker name="eventTime" label="เวลาจัดงาน" defaultValue={draft?.eventTime || "09:00"} />
               </CampaignField>
             </div>
@@ -93,33 +90,32 @@ export function CreateCampaignPage() {
           </section>
 
           <section className="campaign-upload-panel" aria-labelledby="campaign-upload-title">
-            <h2 id="campaign-upload-title"><span className="section-marker" aria-hidden="true">02</span> รายชื่อผู้ติดต่อ</h2>
+            <div className="rd-panel-head rd-panel-head--row"><div><h2 id="campaign-upload-title">รายชื่อผู้ติดต่อ</h2><span className="rd-muted">ไฟล์ CSV ต้องมีคอลัมน์เบอร์โทร</span></div>
+              <button className="rd-link" type="button" onClick={downloadCsvTemplate}>ดาวน์โหลดไฟล์ตัวอย่าง (.csv)</button></div>
 
             <label className={`campaign-dropzone${dragging ? ' campaign-dropzone--dragging' : ''}`} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); void importFile(e.dataTransfer.files[0]); }}>
-              <input type="file" name="contacts" accept=".csv,text/csv" disabled={reading} onChange={e => void importFile(e.target.files?.[0])} />
+              <input id="campaign-csv" type="file" name="contacts" accept=".csv,text/csv" disabled={reading} onChange={e => void importFile(e.target.files?.[0])} />
               <span className="campaign-dropzone__icon" aria-hidden="true">
-                <img src="/assets/create-campaign/cloud-upload.svg" width="24" height="24" alt="" />
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9a4 4 0 0 1 0 9M12 12v8M9 15l3-3 3 3"/></svg>
               </span>
               <span className="campaign-dropzone__copy">
-                <strong>{reading ? "กำลังอ่านไฟล์..." : fileName || "ลากไฟล์ CSV มาวางที่นี่"}</strong>
-                <span>{csv ? `${csv.rows.length.toLocaleString()} รายชื่อ · ${csv.headers.length} คอลัมน์ · คลิกเพื่อเปลี่ยนไฟล์` : "CSV ไม่เกิน 2 MB / 5,000 รายชื่อ"}</span>
+                <strong>{reading ? "กำลังอ่านไฟล์..." : <>ลากไฟล์ CSV มาวาง หรือ <span className="rd-accent">เลือกไฟล์</span></>}</strong>
+                <span>CSV ไม่เกิน 2 MB / 5,000 รายชื่อ</span>
               </span>
             </label>
 
-            <button className="campaign-template-link" type="button" onClick={downloadCsvTemplate}>
-              <img src="/assets/create-campaign/file-down.svg" width="18" height="18" alt="" />
-              ดาวน์โหลด Template สำหรับแคมเปญ (.csv)
-            </button>
+            {csv && <div className="rd-file">
+              <span className="rd-file__icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8ZM14 3v5h5"/></svg></span>
+              <span className="rd-file__name"><strong>{fileName}</strong><span>{csv.rows.length.toLocaleString()} รายชื่อ · {csv.headers.length} คอลัมน์</span></span>
+              <label className="button button--secondary button--compact" htmlFor="campaign-csv">เปลี่ยนไฟล์</label>
+            </div>}
           </section>
 
-          <p className="workspace-note">บันทึกแคมเปญแล้วกดเริ่มคิวโทรจากรายชื่อ CSV ได้</p>
           {error && <p className="workspace-alert" role="alert">{error}</p>}
-          <footer className="create-campaign-actions"><span className="form-step-note">ขั้นตอนที่ 1 จาก 4</span>
-            <a href={routes.campaigns}>ยกเลิกการสร้างแคมเปญ</a>
-            <Button className="create-campaign-next" type="submit" disabled={reading || saving}>
-              เลือก Agent
-              <img src="/assets/create-campaign/arrow-right.svg" width="14" height="14" alt="" />
-            </Button>
+          <footer className="rd-wizard-foot">
+            <a className="button button--secondary" href={routes.campaigns}>ยกเลิกการสร้างแคมเปญ</a>
+            <div><span className="rd-muted">ขั้นตอนที่ 1 จาก 4 · บันทึกฉบับร่างอัตโนมัติเมื่อไปขั้นถัดไป</span>
+              <Button type="submit" disabled={reading || saving}>{saving ? 'กำลังบันทึก…' : 'ถัดไป: เลือก Agent →'}</Button></div>
           </footer>
         </form>
       </main>
