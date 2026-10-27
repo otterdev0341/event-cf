@@ -11043,6 +11043,39 @@
     null
    ],
    "value": []
+  },
+  {
+   "input": [
+    {
+     "agent_id": "agt_llm",
+     "bot_name": "LLM",
+     "agent_data": {
+      "select_agent": "llm_agent",
+      "system_prompt": "{{customer_name}} {{event_name}}",
+      "greeting_text": "Hi {{customer_name}}"
+     }
+    }
+   ],
+   "value": [
+    "customer_name",
+    "event_name"
+   ]
+  },
+  {
+   "input": [
+    {
+     "agent_id": "agt_llm2",
+     "agent_data": {
+      "select_agent": "llm_agent",
+      "system_prompt": "<<customer_name>> <<destination>> {{event_name}} <<customer_name>>"
+     }
+    }
+   ],
+   "value": [
+    "customer_name",
+    "destination",
+    "event_name"
+   ]
   }
  ],
  "scheduledTime": [

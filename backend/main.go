@@ -32,6 +32,7 @@ func newServer(base string, static fs.FS, a *App) http.Handler {
 	mux.HandleFunc(base+"/api/voice-recording", a.handleRecordingCallback)
 	mux.HandleFunc(base+"/api/voice-events", a.handleGeneralEventTool)
 	mux.HandleFunc(base+"/api/voice-scheduler", a.handleScheduler)
+	mux.HandleFunc(base+"/api/voice-webhook", a.handleAgentWebhook)
 	mux.HandleFunc(base+"/api/", func(w http.ResponseWriter, r *http.Request) {
 		setJSONHeaders(w)
 		send(w, http.StatusNotFound, obj{"error": "Not found"})

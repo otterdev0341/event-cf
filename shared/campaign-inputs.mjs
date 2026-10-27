@@ -1,6 +1,6 @@
 export function promptVariables(agent) {
-  const text = `${agent?.agent_data?.greeting_text || ''} ${agent?.agent_data?.system_instruction || ''}`;
-  return [...new Set([...text.matchAll(/\{\{([a-zA-Z0-9_-]+)\}\}/g)].map(m => m[1]).filter(name => !['vc_call_reference', 'vc_record_conversation'].includes(name)))];
+  const text = `${agent?.agent_data?.greeting_text || ''} ${agent?.agent_data?.system_instruction ?? agent?.agent_data?.system_prompt ?? ''}`;
+  return [...new Set([...text.matchAll(/\{\{([a-zA-Z0-9_-]+)\}\}|<<([a-zA-Z0-9_-]+)>>/g)].map(m => m[1] ?? m[2]).filter(name => !['vc_call_reference', 'vc_record_conversation'].includes(name)))];
 }
 
 export function campaignBindings(campaign, variables) {
@@ -10,7 +10,7 @@ export function campaignBindings(campaign, variables) {
     const saved = campaign?.variableBindings?.[variable];
     if (saved) return [variable, saved];
     const column = headers.find(h => campaign?.mapping?.[h] === variable)
-      || (['phone_number', 'phone'].includes(variable) ? phone : undefined)
+      || (['phone_number', 'phone', 'destination'].includes(variable) ? phone : undefined)
       || headers.find(h => h.trim().toLowerCase() === variable.toLowerCase()) || '';
     return [variable, { source: 'csv', column }];
   }));
