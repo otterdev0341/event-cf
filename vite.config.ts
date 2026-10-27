@@ -6,5 +6,5 @@ const base = '/event-confirm/';
 export default defineConfig({
   base,
   plugins: [react()],
-  server: { host: '127.0.0.1', proxy: { [`${base}api`]: process.env.API_ORIGIN || 'http://127.0.0.1:8080' } },
+  server: { host: '127.0.0.1', proxy: { [`${base}api/`]: process.env.API_ORIGIN || 'http://127.0.0.1:8080' } },
 });

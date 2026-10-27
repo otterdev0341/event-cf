@@ -23,6 +23,7 @@ Requires Node 22 and Go 1.26.
    set -a; . ./.env; set +a
    cd backend && ADDR=127.0.0.1:8080 go run .
    ```
+   In Git Bash on Windows, prefix the command with `MSYS_NO_PATHCONV=1`. Otherwise Git Bash rewrites values that start with `/` (possible in base64 keys) into Windows paths, and the backend reports "ผู้ดูแลยังตั้งค่าระบบเชื่อมบัญชีไม่ครบ".
 5. Start the frontend with `npm run dev` and open `http://127.0.0.1:5173/event-confirm/`. Vite proxies `/event-confirm/api` to the Go server (override with `API_ORIGIN`).
 
 ## Server configuration
