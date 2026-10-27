@@ -6,32 +6,57 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import useMeasure from "react-use-measure";
 import {
   UserIcon,
-  CreditCardIcon,
+  Link01Icon,
   FolderIcon,
   File01Icon,
   SettingsIcon,
-  HelpCircleIcon,
   LogoutIcon,
   MoreHorizontalCircle01Icon,
 } from "@hugeicons/core-free-icons";
+import { supabase } from "@/lib/supabase";
+import { clearWorkspace } from "@/lib/campaigns";
+import { currentPath, routes } from "@/routes";
 
 // Change Here
+const docs = import.meta.env.BASE_URL;
 const menuItems = [
-  { id: "profile", label: "Profile", icon: UserIcon },
-  { id: "upgrade", label: "Upgrade", icon: CreditCardIcon },
-  { id: "projects", label: "Projects", icon: FolderIcon },
-  { id: "documentation", label: "Documentation", icon: File01Icon },
+  { id: "profile", label: "บัญชีของฉัน", icon: UserIcon, href: `${routes.settings}#account` },
+  { id: "upgrade", label: "การเชื่อมต่อ Voice Bot", icon: Link01Icon, href: `${routes.settings}#voicebot` },
+  { id: "projects", label: "แคมเปญของฉัน", icon: FolderIcon, href: routes.campaigns },
+  { id: "documentation", label: "เอกสาร API", icon: File01Icon, href: `${docs}api-docs.html`, external: true },
   { id: "divider", label: "", icon: null },
-  { id: "settings", label: "Settings", icon: SettingsIcon },
-  { id: "help", label: "Get Help", icon: HelpCircleIcon },
-  { id: "logout", label: "Logout", icon: LogoutIcon },
+  { id: "settings", label: "ตั้งค่า", icon: SettingsIcon, href: routes.settings },
+  { id: "logout", label: "ออกจากระบบ", icon: LogoutIcon },
 ];
 
 const easeOutQuint: [number, number, number, number] = [0.23, 1, 0.32, 1];
 
+function pathItem() {
+  const path = currentPath();
+  if (path === routes.settings) return "settings";
+  if (path.startsWith(routes.campaigns)) return "projects";
+  return "";
+}
+
+async function logout() {
+  if (supabase) {
+    const { error } = await supabase.auth.signOut();
+    if (error) return;
+  }
+  clearWorkspace();
+  window.location.assign(routes.login);
+}
+
+function runItem(item: (typeof menuItems)[number]) {
+  if (item.id === "logout") { void logout(); return; }
+  if (!item.href) return;
+  if (item.external) window.open(item.href, "_blank", "noopener,noreferrer");
+  else window.location.assign(item.href);
+}
+
 export function TwentyTwelveOne() {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState("profile");
+  const [activeItem, setActiveItem] = useState(pathItem);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -47,10 +72,18 @@ export function TwentyTwelveOne() {
       }
     };
 
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleEscape);
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [isOpen]);
 
   const openHeight = Math.max(40, Math.ceil(contentBounds.height));
@@ -81,6 +114,16 @@ export function TwentyTwelveOne() {
           }}
           transition={{ duration: 0.15 }}
           className="absolute inset-0 flex items-center justify-center"
+          role="button"
+          tabIndex={isOpen ? -1 : 0}
+          aria-label="เปิดเมนูบัญชี"
+          aria-expanded={isOpen}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setIsOpen(true);
+            }
+          }}
           style={{
             pointerEvents: isOpen ? "none" : "auto",
             willChange: "transform",
@@ -147,10 +190,19 @@ export function TwentyTwelveOne() {
                       duration: itemDuration,
                       ease: easeOutQuint,
                     }}
+                    role="menuitem"
+                    tabIndex={isOpen ? 0 : -1}
                     onClick={() => {
                       setActiveItem(item.id);
-                      if (item.id === "logout") {
+                      setIsOpen(false);
+                      runItem(item);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setActiveItem(item.id);
                         setIsOpen(false);
+                        runItem(item);
                       }
                     }}
                     onMouseEnter={() => setHoveredItem(item.id)}
