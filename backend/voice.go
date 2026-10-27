@@ -384,8 +384,8 @@ func (v *voiceRequest) serve(endpoint string) error {
 		!isPreview && !isUsage && inboundAction == "" && inboundEventAction == "" && !isSchedule {
 		return fail(405, "ไม่อนุญาตให้เรียกบริการนี้")
 	}
-	// These change the shared team Agents, account or phone numbers.
-	if (isPreview || isSetup || isConnection || inboundAction == "bind") && !isDev(v.user) {
+	// The bot test page (preview) and the Voice Bot account card are dev-only.
+	if (isPreview || isConnection) && !isDev(v.user) {
 		return fail(403, "เฉพาะทีมพัฒนาเท่านั้น")
 	}
 
