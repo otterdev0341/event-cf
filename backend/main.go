@@ -104,6 +104,10 @@ func spa(base string, static fs.FS) http.Handler {
 			http.ServeFileFS(w, r, static, "index.html")
 			return
 		}
+		if strings.HasPrefix(name, "assets/") {
+			// Vite content-hashes every file under assets/, so a cached copy never goes stale.
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		}
 		files.ServeHTTP(w, r)
 	})
 }
@@ -111,7 +115,10 @@ func spa(base string, static fs.FS) http.Handler {
 func main() {
 	base := strings.TrimRight(getenv("BASE_PATH", "/event-confirm"), "/")
 	addr := getenv("ADDR", ":80")
-	app := &App{cfg: configFromEnv(), client: newClient(http.DefaultTransport)}
+	// Pages fire parallel API calls to the same few upstream hosts; keep more TLS connections warm than the default 2.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConnsPerHost = 32
+	app := &App{cfg: configFromEnv(), client: newClient(transport)}
 	// No WriteTimeout: WAV recordings up to 16 MB stream to slow clients; handlers bound their own upstream work.
 	server := &http.Server{Addr: addr, Handler: newServer(base, os.DirFS(getenv("STATIC_DIR", "dist")), app),
 		ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 120 * time.Second, MaxHeaderBytes: 64 << 10}

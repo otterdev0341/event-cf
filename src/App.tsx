@@ -1,26 +1,29 @@
-import { CampaignCallPage } from "./pages/CampaignCallPage";
-import { CampaignSummaryPage } from "./pages/CampaignSummaryPage";
-import { AuthPage } from "./pages/AuthPage";
-import { ApiAgentPage } from "./pages/ApiAgentPage";
-import { ApiTestWorkspacePage } from "./pages/ApiTestWorkspacePage";
-import { DashboardOverviewPage } from "./pages/DashboardOverviewPage";
-import { CampaignsPage } from "./pages/CampaignsPage";
-import { CreateCampaignPage } from "./pages/CreateCampaignPage";
-import { DataMappingPage } from "./pages/DataMappingPage";
-import { LandingPage } from "./pages/LandingPage";
-import { LiveAgentPage } from "./pages/LiveAgentPage";
-import { ContactListPage } from "./pages/ContactListPage";
-import { ContactDetailPage } from "./pages/ContactDetailPage";
-import { AnalyticsPage } from "./pages/AnalyticsPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { InboundPage } from "./pages/InboundPage";
+import { lazy, Suspense } from "react";
 import { currentPath, routes } from "./routes";
-
 import { WorkspaceGate, useIsDev } from './components/WorkspaceGate';
+
+// Every navigation is a full page load, so each page ships as its own chunk.
+const CampaignCallPage = lazy(() => import("./pages/CampaignCallPage").then(m => ({ default: m.CampaignCallPage })));
+const CampaignSummaryPage = lazy(() => import("./pages/CampaignSummaryPage").then(m => ({ default: m.CampaignSummaryPage })));
+const AuthPage = lazy(() => import("./pages/AuthPage").then(m => ({ default: m.AuthPage })));
+const ApiAgentPage = lazy(() => import("./pages/ApiAgentPage").then(m => ({ default: m.ApiAgentPage })));
+const ApiTestWorkspacePage = lazy(() => import("./pages/ApiTestWorkspacePage").then(m => ({ default: m.ApiTestWorkspacePage })));
+const DashboardOverviewPage = lazy(() => import("./pages/DashboardOverviewPage").then(m => ({ default: m.DashboardOverviewPage })));
+const CampaignsPage = lazy(() => import("./pages/CampaignsPage").then(m => ({ default: m.CampaignsPage })));
+const CreateCampaignPage = lazy(() => import("./pages/CreateCampaignPage").then(m => ({ default: m.CreateCampaignPage })));
+const DataMappingPage = lazy(() => import("./pages/DataMappingPage").then(m => ({ default: m.DataMappingPage })));
+const LandingPage = lazy(() => import("./pages/LandingPage").then(m => ({ default: m.LandingPage })));
+const LiveAgentPage = lazy(() => import("./pages/LiveAgentPage").then(m => ({ default: m.LiveAgentPage })));
+const ContactListPage = lazy(() => import("./pages/ContactListPage").then(m => ({ default: m.ContactListPage })));
+const ContactDetailPage = lazy(() => import("./pages/ContactDetailPage").then(m => ({ default: m.ContactDetailPage })));
+const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage").then(m => ({ default: m.AnalyticsPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const InboundPage = lazy(() => import("./pages/InboundPage").then(m => ({ default: m.InboundPage })));
 export default function App() {
   const path = currentPath();
-  if (path === routes.home || path === routes.login) return <AppRoutes />;
-  return <WorkspaceGate><AppRoutes /></WorkspaceGate>;
+  const page = <Suspense fallback={<main className="page-shell real-data-page"><p role="status">กำลังโหลด…</p></main>}><AppRoutes /></Suspense>;
+  if (path === routes.home || path === routes.login) return page;
+  return <WorkspaceGate>{page}</WorkspaceGate>;
 }
 function AppRoutes() {
   const path = currentPath();

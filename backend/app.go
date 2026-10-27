@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"io"
@@ -66,6 +67,40 @@ type App struct {
 
 	sharedMu      sync.Mutex
 	sharedAccount obj // cached /me of cfg.SharedToken
+
+	authMu    sync.Mutex
+	authCache map[[32]byte]authEntry
+}
+
+type authEntry struct {
+	user    obj
+	expires time.Time
+}
+
+// authTTL bounds how long a signed-out, banned or re-roled session keeps its cached user.
+const authTTL = 30 * time.Second
+
+// cachedUser resolves a Supabase session at most once per authTTL; failures are never cached.
+func (a *App) cachedUser(d *db, session string) (obj, error) {
+	key := sha256.Sum256([]byte(session))
+	a.authMu.Lock()
+	entry, ok := a.authCache[key]
+	a.authMu.Unlock()
+	if ok && time.Now().Before(entry.expires) {
+		return entry.user, nil
+	}
+	user, err := d.User(session)
+	if err != nil {
+		return nil, err
+	}
+	a.authMu.Lock()
+	// ponytail: drops every entry when full; an LRU only matters past ~1000 concurrent sessions.
+	if a.authCache == nil || len(a.authCache) >= 1000 {
+		a.authCache = map[[32]byte]authEntry{}
+	}
+	a.authCache[key] = authEntry{user, time.Now().Add(authTTL)}
+	a.authMu.Unlock()
+	return user, nil
 }
 
 // httpError is the Go form of the Node HttpError/fail(): its message goes to the client.

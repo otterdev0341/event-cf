@@ -41,6 +41,9 @@ func (c *connFixture) reply(r call) reply {
 	t := c.t
 	if r.Host == "connection-db.invalid" {
 		if r.Path == "/auth/v1/user" {
+			if c.opt["badSession"] {
+				return status(401, obj{"message": "invalid"})
+			}
 			return ok(obj{"id": c.user, "email": c.user + "@example.invalid", "email_confirmed_at": "2026-01-01", "app_metadata": obj{"role": "dev"}})
 		}
 		check(t, r.Path == "/rest/v1/voice_bot_connections" && r.Header.Get("apikey") == "fixture-service", "unexpected store call %s", r.Path)
@@ -229,4 +232,19 @@ func TestSharedTeamAccount(t *testing.T) {
 	check(t, serveHTTP(app, "GET", "/event-confirm/api/voice?path=%2Fme", map[string]string{"Authorization": "Bearer fixture-session"}, "").data["_id"] == "tenant_TEAM", "second user not on team account")
 	check(t, connection(obj{"action": "verify", "token": validJWT("A")}).status == 403 && len(c.records) == 0, "personal connection allowed in shared mode")
 	check(t, c.count(func(r call) bool { return r.Path == "/me" && r.Host == "voice.invalid" }) == 2, "team /me not cached")
+}
+
+func TestAuthCacheAndServerTiming(t *testing.T) {
+	c := newConnFixture(t)
+	app := newApp(c.fixture, connEnv)
+	get := func() response {
+		return serveHTTP(app, "GET", "/event-confirm/api/voice?path=%2Fworkspace%2Fconnection", map[string]string{"Authorization": "Bearer fixture-session"}, "")
+	}
+	authCalls := func() int { return c.count(func(r call) bool { return r.Path == "/auth/v1/user" }) }
+	c.opt["badSession"] = true
+	check(t, get().status == 401 && get().status == 401 && authCalls() == 2, "failed lookups cached: %d calls", authCalls())
+	c.opt["badSession"] = false
+	r := get()
+	check(t, r.status == 200 && get().status == 200 && authCalls() == 3, "session looked up %d times", authCalls())
+	check(t, strings.Contains(r.header.Get("Server-Timing"), "auth;dur=") && strings.Contains(r.header.Get("Server-Timing"), "total;dur="), "Server-Timing = %q", r.header.Get("Server-Timing"))
 }
