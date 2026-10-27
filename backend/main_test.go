@@ -45,6 +45,11 @@ func TestServerRoutes(t *testing.T) {
 	if loc := rec.Header().Get("Location"); loc != "/event-confirm/?x=1" {
 		t.Errorf("redirect Location = %q", loc)
 	}
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "/event-confirm/assets/app.js", nil))
+	if rec.Header().Get("Cache-Control") != "public, max-age=31536000, immutable" {
+		t.Errorf("asset Cache-Control = %q", rec.Header().Get("Cache-Control"))
+	}
 }
 
 func TestSecurityHeaders(t *testing.T) {
@@ -64,6 +69,11 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 	if docs := csp("/event-confirm/api-docs.html"); !strings.Contains(docs, "script-src https://cdn.jsdelivr.net;") {
 		t.Errorf("docs CSP = %q", docs)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "/event-confirm/index.html", nil))
+	if rec.Header().Get("Cache-Control") == "public, max-age=31536000, immutable" {
+		t.Error("index.html cached as immutable")
 	}
 	if api := csp("/event-confirm/api/voice-result"); !strings.Contains(api, "frame-ancestors 'none'") {
 		t.Errorf("API CSP = %q", api)

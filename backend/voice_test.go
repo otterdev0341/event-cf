@@ -335,17 +335,18 @@ func TestVoiceAPI(t *testing.T) {
 		check(t, b.invoke("/workspace/agents/agt_other/result-setup", nil).status == 403, "not 403")
 		check(t, b.count(func(c call) bool { return c.Path == "/agents/agt_other" }) == 0, "foreign agent read")
 	})
-	run("Normal users cannot use dev-only controls or test calls", func(t *testing.T, b *backendFixture) {
+	run("Normal users cannot use the bot test page, account card or test calls", func(t *testing.T, b *backendFixture) {
 		b.opt["normalUser"] = true
 		for _, c := range []struct {
 			route string
 			body  any
-		}{{"/workspace/agents/agt_fixture/preview-token", obj{}}, {"/workspace/agents/agt_fixture/result-setup", nil},
-			{"/workspace/agents/agt_fixture/general-setup", obj{}}, {"/workspace/connection", nil}, {"/workspace/inbound/bind", obj{}}, {callPath, callPayload()}} {
+		}{{"/workspace/agents/agt_fixture/preview-token", obj{}}, {"/workspace/connection", nil}, {callPath, callPayload()}} {
 			check(t, b.invoke(c.route, c.body).status == 403, "%s allowed for normal user", c.route)
 		}
 		check(t, len(b.dials()) == 0, "normal user dialed")
 		check(t, b.invoke("/agents", nil).status == 200, "normal user cannot list Agents")
+		r := b.invoke("/workspace/agents/agt_fixture/result-setup", nil, voiceCall{env: map[string]string{"VOICE_RESULT_CALLBACK_SECRET": "fixture-callback-secret-longer-than-32"}})
+		check(t, r.status == 200 && r.data["can_manage"] == true, "normal user cannot manage Agent setup: %d %s", r.status, r.raw)
 	})
 	run("Missing consent prevents dial", func(t *testing.T, b *backendFixture) {
 		check(t, b.invoke(callPath, with(callPayload(), obj{"consent": false})).status == 400 && len(b.dials()) == 0, "dialed")

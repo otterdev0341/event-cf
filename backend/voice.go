@@ -31,6 +31,34 @@ type voiceRequest struct {
 	worker *worker
 	body   any // worker request body
 	sent   bool
+	timing *serverTiming
+}
+
+// serverTiming adds a Server-Timing header (auth, connection and upstream phases) when the response starts,
+// so slow requests can be diagnosed from the browser Network panel.
+type serverTiming struct {
+	http.ResponseWriter
+	start                time.Time
+	auth, conn, upstream time.Duration
+	calls                int
+	done                 bool
+}
+
+func (s *serverTiming) WriteHeader(code int) {
+	if !s.done {
+		s.done = true
+		ms := func(d time.Duration) string { return strconv.FormatFloat(float64(d.Microseconds())/1000, 'f', 1, 64) }
+		s.Header().Set("Server-Timing", "auth;dur="+ms(s.auth)+", conn;dur="+ms(s.conn)+", upstream;dur="+ms(s.upstream)+
+			";desc=\""+strconv.Itoa(s.calls)+" calls\", total;dur="+ms(time.Since(s.start)))
+	}
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *serverTiming) Write(b []byte) (int, error) {
+	if !s.done {
+		s.WriteHeader(http.StatusOK)
+	}
+	return s.ResponseWriter.Write(b)
 }
 
 // worker is the context the scheduler builds; it never comes from HTTP data.
@@ -80,6 +108,9 @@ func (v *voiceRequest) bodyIfPost() (any, error) {
 
 // upstream calls the Voice Bot API with the caller's connected token.
 func (v *voiceRequest) upstream(route string, body any, method string) (any, error) {
+	if v.timing != nil {
+		defer func(start time.Time) { v.timing.upstream += time.Since(start); v.timing.calls++ }(time.Now())
+	}
 	if method == "" {
 		method = "GET"
 		if body != nil {
@@ -263,7 +294,9 @@ func (a *App) accessAllowed(user obj) error {
 // handleVoice serves /api/voice for the browser (wk == nil) and for the scheduler worker.
 func (a *App) handleVoice(w http.ResponseWriter, r *http.Request, endpoint string, wk *worker, ctx context.Context, body any) {
 	setJSONHeaders(w)
-	v := &voiceRequest{app: a, ctx: ctx, w: w, worker: wk, body: body}
+	timing := &serverTiming{ResponseWriter: w, start: time.Now()}
+	w = timing
+	v := &voiceRequest{app: a, ctx: ctx, w: w, worker: wk, body: body, timing: timing}
 	if wk == nil {
 		v.r = r
 		v.method = r.Method
@@ -307,7 +340,9 @@ func (v *voiceRequest) serve(endpoint string) error {
 		}
 		session := strings.TrimPrefix(bearer, "Bearer ")
 		v.db = a.userDB(v.ctx, session)
-		user, err := v.db.User(session)
+		started := time.Now()
+		user, err := a.cachedUser(v.db, session)
+		v.timing.auth = time.Since(started)
 		if err != nil {
 			return fail(401, "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่")
 		}
@@ -384,8 +419,8 @@ func (v *voiceRequest) serve(endpoint string) error {
 		!isPreview && !isUsage && inboundAction == "" && inboundEventAction == "" && !isSchedule {
 		return fail(405, "ไม่อนุญาตให้เรียกบริการนี้")
 	}
-	// These change the shared team Agents, account or phone numbers.
-	if (isPreview || isSetup || isConnection || inboundAction == "bind") && !isDev(v.user) {
+	// The bot test page (preview) and the Voice Bot account card are dev-only.
+	if (isPreview || isConnection) && !isDev(v.user) {
 		return fail(403, "เฉพาะทีมพัฒนาเท่านั้น")
 	}
 
@@ -430,7 +465,10 @@ func (v *voiceRequest) serve(endpoint string) error {
 	if v.store, err = a.connectionStore(v.ctx); err != nil {
 		return fail(503, "ผู้ดูแลยังตั้งค่าระบบเชื่อมบัญชีไม่ครบ")
 	}
-	if v.conn, err = a.loadConnection(v.store, v.user); err != nil {
+	started := time.Now()
+	v.conn, err = a.loadConnection(v.store, v.user)
+	v.timing.conn = time.Since(started)
+	if err != nil {
 		return err
 	}
 
@@ -529,9 +567,12 @@ func (v *voiceRequest) serve(endpoint string) error {
 	}
 
 	if tenantRoute != nil {
-		account, err := v.get("/me")
-		if err != nil {
-			return err
+		// The team account was already checked against /me when its connection was cached.
+		var account any = obj{"_id": v.conn["account_id"]}
+		if v.conn["shared"] != true {
+			if account, err = v.get("/me"); err != nil {
+				return err
+			}
 		}
 		if !jsSame(get(account, "_id"), v.conn["account_id"]) || tenantRoute[1] != get(account, "_id") {
 			return fail(403, "ไม่มีสิทธิ์เข้าถึงบัญชีนี้")

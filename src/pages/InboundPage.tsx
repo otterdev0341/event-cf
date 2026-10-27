@@ -4,7 +4,6 @@ import { Button } from '../components/Button';
 import { SmoothSelect } from '../components/ui/smooth-select';
 import { InboundKnowledge } from '../components/InboundKnowledge';
 import { GeneralEventSetup } from '../components/GeneralEventSetup';
-import { useIsDev } from '../components/WorkspaceGate';
 import { AgentRecordings } from '../components/AgentRecordings';
 import { useAgents, useAgentDetail } from '../hooks/useBotnoiData';
 import { bindInboundNumber, getInboundSetup, getInboundHistory } from '../services/botnoi/inbound';
@@ -17,7 +16,6 @@ const dateText = (date: string | null) => date && Number.isFinite(Date.parse(dat
 const callStatus = (status: string | null) => ({ completed: 'จบสาย', failed: 'ไม่สำเร็จ', ringing: 'กำลังเรียก', answered: 'รับสายแล้ว', 'in-progress': 'กำลังสนทนา', 'no-answer': 'ไม่ได้รับสาย', busy: 'สายไม่ว่าง', canceled: 'ยกเลิก', cancelled: 'ยกเลิก' }[status || ''] || status || 'ไม่ระบุ');
 
 export function InboundPage() {
-  const isDev = useIsDev();
   const agents = useAgents();
   const [setup, setSetup] = useState<InboundSetup | null>(null);
   const [history, setHistory] = useState<InboundHistory | null>(null);
@@ -100,7 +98,7 @@ export function InboundPage() {
     <section className="rd-card rd-table-card"><div className="rd-table-card__head"><div className="rd-panel-head"><h2>ประวัติสายเข้าล่าสุด</h2><span className="rd-muted">สูงสุด 50 สายล่าสุดของบัญชีที่เชื่อม รวมทุกเบอร์ · เวลาไทย</span></div><a className="rd-link" href={`${routes.analytics}?source=inbound`}>ดูสถิติสายเข้า →</a></div>
       {historyLoading ? <p className="rd-empty" role="status">กำลังโหลดประวัติสายเข้า…</p> : historyError ? <p className="workspace-alert" role="alert" style={{margin:'0 20px 20px'}}>{historyError}</p> : history && <>{history.items.length ? <div className="rd-table-wrap" tabIndex={0} role="region" aria-label="ตารางประวัติสายเข้า เลื่อนแนวนอนได้"><table className="rd-table inbound-history"><thead><tr><th>ผู้โทร / เบอร์รับสาย</th><th>เวลาที่โทรเข้า</th><th>ระยะเวลา</th><th>รับสายด้วย</th><th>สถานะ</th><th><span className="sr-only">ข้อมูลของผู้โทร</span></th></tr></thead><tbody>{history.items.map(call => <tr key={call.id}><td><strong>{call.number || 'ไม่ระบุ'}</strong><span className="rd-table__sub">→ {call.phone_number || 'ไม่ระบุ'}</span></td><td>{dateText(call.started_at)}<span className="rd-table__sub">{call.id}</span></td><td>{call.duration_seconds === null ? 'ไม่ระบุ' : `${Math.floor(call.duration_seconds / 60)}:${String(Math.floor(call.duration_seconds % 60)).padStart(2, '0')}`}</td><td style={{color:'var(--color-body)'}}>{call.agent_name || agentName(call.agent_id)}</td><td><span className={`rd-chip rd-chip--${call.status === 'completed' || call.status === 'answered' ? 'ok' : call.status === 'failed' || call.status === 'no-answer' ? 'bad' : call.status === 'busy' ? 'warn' : call.status === 'in-progress' || call.status === 'ringing' ? 'info' : ''}`}>{callStatus(call.status)}</span></td><td style={{textAlign:'right'}}><button type="button" className="rd-link" onClick={() => { setLookupCallId(call.id); document.getElementById('inbound-knowledge')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); }}>ดูงานของผู้โทร</button></td></tr>)}</tbody></table></div> : <div className="rd-empty"><strong style={{display:'block',color:'var(--color-heading)',marginBottom:4}}>ยังไม่มีประวัติสายเข้า</strong>เมื่อ Voice Bot บันทึกสายเข้าแล้ว รายการจะปรากฏที่นี่หลังรีเฟรช</div>}<p className="rd-table-foot" style={{margin:0}}>{history.has_more ? 'ยังมีประวัติเก่ากว่านี้ ดูยอดรวมตามช่วงเวลาได้ที่สถิติสายเข้า · ' : ''}ตรวจล่าสุด {dateText(history.checked_at)} · สถานะจบสายไม่ได้แปลว่าผู้โทรตอบตกลง</p></>}
     </section>
-    {isDev && agentId && <GeneralEventSetup agentId={agentId} onConnected={agent.refetch} />}
+    {agentId && <GeneralEventSetup agentId={agentId} onConnected={agent.refetch} />}
     <InboundKnowledge callId={lookupCallId} />
     {agentId && <AgentRecordings key={agentId} agentId={agentId} />}
   </main></div>;

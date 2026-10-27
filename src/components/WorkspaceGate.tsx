@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { clearWorkspace, loadCampaignWorkspace } from '../lib/campaigns';
 import { Button } from './Button';
+import { LoadingScreen } from './LoadingScreen';
 import { currentPath, routes } from '../routes';
 // Dev role comes from Supabase app_metadata (server-written). The backend enforces it; this only hides UI.
 const DevRole = createContext(false);
@@ -30,9 +31,9 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
     void loadCampaignWorkspace(session.user.id).then(() => { if (active) setReadyOwner(session.user.id); }).catch(err => { if (active) setError(err.message); });
     return () => { active = false; };
   }, [session?.user.id, needsDatabase, revision]);
-  if (loading) return <main className="page-shell real-data-page"><p role="status">กำลังตรวจสอบบัญชี…</p></main>;
+  if (loading) return <LoadingScreen label="กำลังตรวจสอบบัญชี…" />;
   if (!session) return <main className="page-shell real-data-page"><h1>เข้าสู่ระบบเพื่อใช้งาน</h1><p>แคมเปญและรายชื่อจะบันทึกไว้กับบัญชีของคุณ</p>{error && <p role="alert">{error}</p>}<Button href={routes.login}>เข้าสู่ระบบ</Button></main>;
   if (error) return <main className="page-shell real-data-page"><h1>ยังเปิดพื้นที่แคมเปญไม่ได้</h1><p role="alert" className="workspace-alert">{error}</p><Button onClick={() => setRevision(v => v + 1)}>ลองโหลดใหม่</Button><Button href={routes.dashboard} variant="secondary">กลับภาพรวม</Button></main>;
-  if (readyOwner !== session.user.id) return <main className="page-shell real-data-page"><p role="status">กำลังโหลดแคมเปญของคุณ…</p></main>;
+  if (readyOwner !== session.user.id) return <LoadingScreen label="กำลังโหลดแคมเปญของคุณ…" />;
   return <DevRole.Provider value={session.user.app_metadata?.role === 'dev'}><div key={session.user.id}>{children}</div></DevRole.Provider>;
 }
