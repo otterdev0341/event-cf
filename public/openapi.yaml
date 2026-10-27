@@ -222,6 +222,68 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "503": { $ref: "#/components/responses/Unavailable" }
 
+  /api/voice-users:
+    get:
+      tags: [Website]
+      summary: List website users and their positions
+      description: |
+        Dev accounts only. Returns up to 200 users with `id`, `email`, `role` (`dev` or `admin`, anyone without a role counts as `admin`) and `last_sign_in_at`. Metadata and tokens are never returned.
+      security:
+        - supabaseSession: []
+      responses:
+        "200":
+          description: Users and the caller's own ID.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        email: { type: string, nullable: true }
+                        role: { type: string, enum: [dev, admin] }
+                        last_sign_in_at: { type: string, nullable: true }
+                  me: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Only dev accounts can list users. }
+    post:
+      tags: [Website]
+      summary: Change a user's position
+      description: |
+        Dev accounts only. Writes `app_metadata.role` with the service role. The last dev cannot be demoted (409). The affected user must sign in again before their menu changes.
+      security:
+        - supabaseSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, role]
+              properties:
+                user_id: { type: string }
+                role: { type: string, enum: [dev, admin] }
+      responses:
+        "200":
+          description: Position changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  user_id: { type: string }
+                  role: { type: string, enum: [dev, admin] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Only dev accounts can change positions. }
+        "404": { description: Unknown user. }
+        "409": { description: The last dev cannot be removed. }
+
   /api/voice:
     get:
       tags: [Website]

@@ -26,6 +26,8 @@ export const apiGroups: EndpointGroup[] = [
     endpoints: [
       { method: "GET", path: "/api/voice", tag: "อ่านข้อมูล", summary: "อ่านข้อมูล Voice Bot และ workspace", detail: "ส่ง path เป็น query เช่น /me, /agents, /dashboard/v1/overview, /workspace/usage, /logs/call_logs_platform และ /workspace/inbound รูปแบบข้อมูลที่ตอบขึ้นกับ path" },
       { method: "POST", path: "/api/voice", tag: "สั่งงาน", summary: "เริ่มการโทรหรือแก้ข้อมูล workspace", detail: "โทรออก 1 สายผ่าน /v1/provisioning/tenants/{tenant_id}/calls บันทึกการเชื่อมต่อ ตั้งเวลาแคมเปญ ผูก Agent กับเบอร์ และอื่นๆ ตาม path ที่อนุญาต ปฏิเสธคำขอข้ามไซต์ (Sec-Fetch-Site: cross-site)" },
+      { method: "GET", path: "/api/voice-users", tag: "ผู้ใช้ (dev)", summary: "ดูรายชื่อผู้ใช้เว็บไซต์พร้อมตำแหน่ง", detail: "เฉพาะผู้ใช้ตำแหน่ง dev ตอบอีเมล ตำแหน่ง (dev หรือ admin) และวันที่เข้าล่าสุดของผู้ใช้สูงสุด 200 คน ไม่ส่ง metadata หรือ token" },
+      { method: "POST", path: "/api/voice-users", tag: "ผู้ใช้ (dev)", summary: "เปลี่ยนตำแหน่งผู้ใช้เป็น dev หรือ admin", detail: "เฉพาะ dev ส่ง { user_id, role } เซิร์ฟเวอร์เขียน app_metadata.role ด้วย service role ไม่อนุญาตให้ถอดตำแหน่ง dev คนสุดท้าย (409) ผู้ใช้ที่ถูกเปลี่ยนต้องเข้าสู่ระบบใหม่เพื่อให้เมนูเปลี่ยน" },
     ],
   },
   {

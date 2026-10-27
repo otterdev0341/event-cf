@@ -32,7 +32,7 @@ function AppRoutes() {
   const isDev = useIsDev();
 
   if (path === routes.inbound) return <InboundPage />;
-  if (path === routes.apiDocs) return <ApiDocsPage />;
+  if (path === routes.apiDocs) return isDev ? <ApiDocsPage /> : <DashboardOverviewPage />;
 
   if (path === routes.login) {
     return <AuthPage />;

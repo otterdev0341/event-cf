@@ -154,7 +154,7 @@ export function TwentyTwelveOne() {
             }}
           >
             <ul className="flex flex-col gap-0.5 m-0! p-0! list-none!">
-              {menuItems.filter(item => item.id !== "upgrade" || isDev).map((item, index) => {
+              {menuItems.filter(item => (item.id !== "upgrade" && item.id !== "documentation") || isDev).map((item, index) => {
                 if (item.id === "divider") {
                   return (
                     <motion.hr
