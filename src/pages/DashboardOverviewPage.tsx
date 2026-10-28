@@ -5,12 +5,14 @@ import { SmoothSelect } from '../components/ui/smooth-select';
 import { getCampaigns } from '../lib/campaigns';
 import { supabase } from '../lib/supabase';
 import { routes } from '../routes';
-import { effectiveOutcome, outcomeLabels, type Outcome } from '../../shared/call-results.mjs';
+import { effectiveOutcome, type Outcome } from '../../shared/call-results.mjs';
+import { callResultDisplay, displayLabels } from '../../shared/call-display.mjs';
+import { shownStatus } from '../../shared/campaign-queue.mjs';
 
 type Attempt = {
   id: string; call_id: string | null; destination: string; status: string; created_at: string;
   metadata: { campaign_id?: string; campaign_name?: string; contact_row?: number; variables?: Record<string,string> };
-  response: { review?: Outcome; callback?: { outcome: Outcome }; followup?: { outcome: Outcome } } | null;
+  response: { review?: Outcome; callback?: { outcome: Outcome }; followup?: { outcome: Outcome; failure_reason?: string | null } } | null;
 };
 const labels: Record<string,string> = { completed:'จบสาย',queued:'เข้าคิว',ringing:'กำลังเรียกสาย','in-progress':'กำลังสนทนา',failed:'โทรไม่สำเร็จ',busy:'สายไม่ว่าง','no-answer':'ไม่รับสาย',cancelled:'ยกเลิก',canceled:'ยกเลิก',unknown:'รอตรวจสอบ',submitting:'กำลังส่งคำขอ' };
 const displayDate = (value:string) => Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'medium',timeStyle:'short'}) : '—';
@@ -67,13 +69,13 @@ function CampaignOverview({campaignId,days}:{campaignId:string;days:number}) {
     window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);
     return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};
   },[campaignId,days,revision]);
-  const counts=Object.fromEntries(Object.keys(outcomeLabels).map(key=>[key,items.filter(a=>effectiveOutcome(a.response).call_result===key).length]));
+  const counts=Object.fromEntries(Object.keys(displayLabels).map(key=>[key,items.filter(a=>callResultDisplay(a).key===key).length]));
   const needingAgent=items.filter(a=>effectiveOutcome(a.response).needs_agent===true).length;
-  const visible=items.filter(a=>filter==='all'||effectiveOutcome(a.response).call_result===filter);
+  const visible=items.filter(a=>filter==='all'||callResultDisplay(a).key===filter);
   const pages=Math.max(1,Math.ceil(visible.length/PAGE_SIZE));
   useEffect(()=>setPage(p=>Math.min(p,pages-1)),[pages]);
   const value=(n:number)=>!updatedAt?'—':n.toLocaleString('th-TH');
-  const colors:Record<string,string>={CONFIRMED:'#0db98a',DECLINED:'#f04452',CALLBACK_REQUESTED:'#edaa36',REQUEST_AGENT:'#7451e8',WRONG_PERSON:'#5873a5',NO_ANSWER:'#b0a4cd',UNDETERMINED:'#c5c7d4'};
+  const colors:Record<string,string>={CONFIRMED:'#0db98a',DECLINED:'#f04452',CALLBACK_REQUESTED:'#edaa36',REQUEST_AGENT:'#7451e8',WRONG_PERSON:'#5873a5',NO_ANSWER:'#b0a4cd',ENDED_WITHOUT_RESULT:'#9aa0b4',UNDETERMINED:'#c5c7d4'};
   const total=items.length, share=(n:number)=>total?Math.round(n/total*100):0;
   const breakdown=Object.entries(counts).filter(([,count])=>count>0);
   return <>
@@ -91,16 +93,16 @@ function CampaignOverview({campaignId,days}:{campaignId:string;days:number}) {
     </div>
     {updatedAt&&total>0&&<section className="rd-card rd-pad rd-stack" aria-label="ผลตอบรับแคมเปญ">
       <h2 className="rd-section-title">ผลตอบรับจากการโทร</h2>
-      <div className="rd-bar" style={{height:10,gap:2}} role="img" aria-label={breakdown.map(([key,count])=>`${outcomeLabels[key]} ${count}`).join(', ')}>{breakdown.map(([key,count])=><span key={key} style={{width:`${count/total*100}%`,background:colors[key]}}/>)}</div>
-      <ul className="rd-legend">{breakdown.map(([key,count])=><li key={key}><i style={{background:colors[key]}}/>{outcomeLabels[key]} ({count})</li>)}</ul>
+      <div className="rd-bar" style={{height:10,gap:2}} role="img" aria-label={breakdown.map(([key,count])=>`${displayLabels[key]} ${count}`).join(', ')}>{breakdown.map(([key,count])=><span key={key} style={{width:`${count/total*100}%`,background:colors[key]}}/>)}</div>
+      <ul className="rd-legend">{breakdown.map(([key,count])=><li key={key}><i style={{background:colors[key]}}/>{displayLabels[key]} ({count})</li>)}</ul>
       <p className="rd-stat__note">นับทุกคำขอโทรตามตัวกรอง รวมการโทรซ้ำและแคมเปญเวอร์ชันก่อนหน้า ผลล่าสุดต่อคนดูได้ในหน้าแคมเปญ</p>
     </section>}
     <section className="rd-card rd-table-card" aria-labelledby="recent-activity-title">
       <div className="rd-table-card__head"><div><h2 id="recent-activity-title">ประวัติการโทรจากแคมเปญ</h2><span className="rd-muted">เรียงครั้งล่าสุดก่อน แยกสถานะสายออกจากคำตอบของผู้รับ</span></div>
-        <SmoothSelect aria-label="ผลตอบรับ" value={filter} onChange={v=>{setFilter(v);setPage(0);}} options={[{value:'all',label:'ทุกผลตอบรับ'},...Object.entries(outcomeLabels).map(([key,label])=>({value:key,label}))]}/></div>
+        <SmoothSelect aria-label="ผลตอบรับ" value={filter} onChange={v=>{setFilter(v);setPage(0);}} options={[{value:'all',label:'ทุกผลตอบรับ'},...Object.entries(displayLabels).map(([key,label])=>({value:key,label}))]}/></div>
       {loading&&!updatedAt?<p className="rd-empty" role="status">กำลังโหลดประวัติ…</p>:!updatedAt?<p className="rd-empty">ยังแสดงประวัติไม่ได้ กรุณาลองรีเฟรชข้อมูล</p>:!visible.length?<p className="rd-empty">ไม่พบประวัติการโทรตามตัวกรองนี้ เลือกทุกแคมเปญหรือขยายช่วงเวลาเพื่อดูรายการอื่น</p>:<div className="rd-table-wrap"><table className="rd-table"><thead><tr><th>ผู้ติดต่อ</th><th>แคมเปญ</th><th>เวลาส่งคำขอ</th><th>สถานะสาย</th><th>ผลตอบรับ</th><th>เจ้าหน้าที่</th><th><span className="sr-only">รายละเอียด</span></th></tr></thead><tbody>{visible.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE).map(a=>{
-        const result=effectiveOutcome(a.response), campaign=campaigns.find(c=>c.id===a.metadata.campaign_id);
-        return <tr key={a.id}><td><strong>{a.metadata.variables?.applicant_name||a.metadata.variables?.guest_name||a.metadata.variables?.name||a.destination}</strong><span className="rd-table__sub">{a.destination}</span></td><td>{campaign?.name||a.metadata.campaign_name||'แคมเปญที่ไม่มีในรายการปัจจุบัน'}{Number.isInteger(a.metadata.contact_row)&&<span className="rd-table__sub">แถว {a.metadata.contact_row!+1}</span>}</td><td>{displayDate(a.created_at)}</td><td><span className="rd-chip rd-chip--plain">{labels[a.status]||'รอตรวจสอบ'}</span></td><td><span className="result-badge" data-result={result.call_result}>{outcomeLabels[result.call_result]||'รอตรวจสอบ'}</span><span className="rd-table__sub">{sourceLabel(result.source)}</span></td><td>{result.needs_agent===null?'ยังไม่ทราบ':result.needs_agent?'ต้องการ':'ไม่ต้องการ'}</td><td style={{textAlign:'right'}}>{campaign?<a className="rd-link" href={`${routes.campaignCall(campaign.id)}&request=${encodeURIComponent(a.id)}#call-results`}>ดูรายละเอียดสาย</a>:<span className="rd-table__sub">แคมเปญนี้ไม่อยู่ในรายการที่บันทึกแล้ว</span>}</td></tr>;
+        const result=effectiveOutcome(a.response), shown=callResultDisplay(a), campaign=campaigns.find(c=>c.id===a.metadata.campaign_id);
+        return <tr key={a.id}><td><strong>{a.metadata.variables?.applicant_name||a.metadata.variables?.guest_name||a.metadata.variables?.name||a.destination}</strong><span className="rd-table__sub">{a.destination}</span></td><td>{campaign?.name||a.metadata.campaign_name||'แคมเปญที่ไม่มีในรายการปัจจุบัน'}{Number.isInteger(a.metadata.contact_row)&&<span className="rd-table__sub">แถว {a.metadata.contact_row!+1}</span>}</td><td>{displayDate(a.created_at)}</td><td><span className="rd-chip rd-chip--plain">{labels[shownStatus(a.status,a.response?.followup?.failure_reason)]||'รอตรวจสอบ'}</span></td><td><span className="result-badge" data-result={shown.key}>{shown.label}</span><span className="rd-table__sub">{sourceLabel(result.source)}</span></td><td>{result.needs_agent===null?'ยังไม่ทราบ':result.needs_agent?'ต้องการ':'ไม่ต้องการ'}</td><td style={{textAlign:'right'}}>{campaign?<a className="rd-link" href={`${routes.campaignCall(campaign.id)}&request=${encodeURIComponent(a.id)}#call-results`}>ดูรายละเอียดสาย</a>:<span className="rd-table__sub">แคมเปญนี้ไม่อยู่ในรายการที่บันทึกแล้ว</span>}</td></tr>;
       })}</tbody></table></div>}
       {updatedAt&&<nav className="rd-table-foot" aria-label="หน้าประวัติการโทร"><span>{visible.length} ครั้ง</span><div><Button size="compact" variant="secondary" disabled={page===0} onClick={()=>setPage(p=>p-1)}>ย้อนกลับ</Button><span aria-live="polite">หน้า {page+1} / {pages}</span><Button size="compact" variant="secondary" disabled={page+1>=pages} onClick={()=>setPage(p=>p+1)}>ถัดไป</Button></div></nav>}
     </section>
