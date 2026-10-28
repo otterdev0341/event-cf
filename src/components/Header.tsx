@@ -2,7 +2,8 @@ import { Brand } from "./Brand";
 import { Button } from "./Button";
 import { routes } from "../routes";
 
-const navigation = ["หน้าหลัก", "แคมเปญ", "รายงาน"];
+// The home page is for visitors who are not signed in yet, so the menu jumps to its sections instead of app pages.
+const navigation = [["วิธีทำงาน", "#how"], ["ตัวอย่างงาน", "#industries"], ["ก่อนเริ่มใช้งาน", "#before"]];
 
 export function Header() {
   return (
@@ -11,19 +12,14 @@ export function Header() {
         <Brand href="#top" tone="dark" />
 
         <nav className="primary-nav" aria-label="เมนูหลัก">
-          {navigation.map((item, index) => (
-            <a
-              className={`primary-nav__link${index === 0 ? " primary-nav__link--active" : ""}`}
-              href={index === 0 ? "#top" : index === 1 ? routes.campaigns : routes.analytics}
-              key={item}
-              aria-current={index === 0 ? "page" : undefined}
-            >
+          {navigation.map(([item, href]) => (
+            <a className="primary-nav__link" href={href} key={href}>
               {item}
             </a>
           ))}
         </nav>
 
-        <Button className="site-header__login" href={routes.login} size="compact">
+        <Button className="site-header__login" href={routes.login} size="compact" variant="secondary">
           เข้าสู่ระบบ
         </Button>
       </div>
