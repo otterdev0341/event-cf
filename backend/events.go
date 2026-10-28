@@ -494,12 +494,12 @@ func (a *App) handleGeneralEventTool(w http.ResponseWriter, r *http.Request) {
 	}
 	unavailable := obj{"error": "Event lookup unavailable; do not invent an answer"}
 	store := a.serviceDB(r.Context())
-	connection, err := store.MaybeSingle("voice_bot_connections", "account_id", eq("owner_id", owner))
+	connected, err := a.connectedAccount(store, owner)
 	if err != nil {
 		send(w, 503, obj{"error": "Storage unavailable"})
 		return
 	}
-	if get(connection, "account_id") != account {
+	if connected != account {
 		send(w, 401, obj{"error": "Connection no longer active"})
 		return
 	}
