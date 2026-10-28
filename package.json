@@ -15,7 +15,6 @@
     "test:go": "cd backend && go test ./..."
   },
   "dependencies": {
-    "@fontsource/inter": "^5.2.6",
     "@fontsource/noto-sans-thai": "^5.2.6",
     "@hugeicons/core-free-icons": "^4.3.5",
     "@hugeicons/react": "^1.1.10",
