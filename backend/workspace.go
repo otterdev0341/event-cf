@@ -10,6 +10,7 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -88,8 +89,13 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 			}
 			return key
 		}
+		// An unanswered call has no conversation, so its log and analysis are not read.
+		answered := callStatus == "completed" || truthy(get(call, "answered_at"))
+		reason, _ := get(call, "reason").(string)
 		if terminalCall(status) && text == "" {
 			logState = "not_available"
+		}
+		if terminalCall(status) && text == "" && answered {
 			// Log files are named by conversation UUID, not call ID; the provider's exact link names the file directly.
 			var err error
 			if logPath = conversationKey(); logPath == "" {
@@ -114,17 +120,19 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 		outcome := providerOutcome(call, log)
 		// Preserve already retrieved evidence if the provider temporarily stops returning it.
 		previous := get(response, "followup")
-		if outcome["source"] == "unavailable" && terminalCall(status) && !truthy(get(response, "callback")) && get(previous, "outcome", "source") != "provider" {
+		if outcome["source"] == "unavailable" && terminalCall(status) && answered && !truthy(get(response, "callback")) && get(previous, "outcome", "source") != "provider" {
 			if analysed := v.analysisOutcome(agentID, callID, conversationKey()); analysed != nil {
 				outcome = analysed
 			}
+		}
+		if signal := noAnswerSignal(callStatus, reason); outcome["source"] == "unavailable" && !answered && signal != "" {
+			outcome = obj{"call_result": "NO_ANSWER", "needs_agent": nil, "evidence": "Voice Bot แจ้งว่าผู้รับไม่รับสาย (" + signal + ")", "source": "provider"}
 		}
 		chosen := any(outcome)
 		if outcome["source"] == "unavailable" && get(previous, "outcome", "source") == "provider" {
 			chosen = get(previous, "outcome")
 		}
 		endedBy, _ := get(call, "ended_by").(string)
-		reason, _ := get(call, "reason").(string)
 		followup := obj{"checked_at": nowISO(), "answered_at": orNull(get(call, "answered_at")), "completed_at": orNull(get(call, "completed_at")),
 			"ended_by": nil, "failure_reason": nil, "outcome": chosen, "log_state": logState}
 		if _, ok := get(call, "ended_by").(string); ok {
@@ -144,6 +152,12 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 		if truthy(followup["transcript"]) && text == "" {
 			followup["log_state"] = "cached"
 		}
+		// Nothing more will arrive, so the scheduler's background refresh skips this call.
+		// An answered call without a result waits 30 minutes for Botnoi's post-call analysis.
+		ended, _ := jsDateParse(firstTruthy(get(call, "completed_at"), record["created_at"]))
+		if terminalCall(status) && (get(chosen, "source") == "provider" || truthy(get(response, "callback")) || !answered || nowMS()-ended > 30*60000) {
+			followup["final"] = true
+		}
 		response["followup"] = followup
 	}
 	filters := guardedUpdate([]q{eq("id", id), eq("owner_id", v.user["id"]), eq("status", record["status"])}, original, "")
@@ -154,6 +168,19 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 	out := maps.Clone(record)
 	out["status"], out["response"] = status, response
 	return v.send(200, out)
+}
+
+// noAnswerSignal returns the provider status or failure reason saying the recipient did not pick up, or "".
+// Trunk and system failures such as unreachable are not the recipient's answer and stay undetermined.
+func noAnswerSignal(status, reason string) string {
+	reason = strings.ToLower(reason)
+	switch {
+	case status == "no-answer" || status == "busy":
+		return status
+	case status == "failed" && slices.Contains([]string{"no-answer", "busy", "rejected"}, reason):
+		return reason
+	}
+	return ""
 }
 
 var conversationKeyRe = regexp.MustCompile(`_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+\.txt$`)
