@@ -687,7 +687,7 @@ func (v *voiceRequest) placeCall(path string, agents any) error {
 			return fail(400, "กรุณาดึงตัวแปรล่าสุดและตรวจข้อมูลสำหรับโทรทดสอบอีกครั้ง")
 		}
 	}
-	usesCallback := callbackRefRe.MatchString(orEmpty(get(detail, "agent_data", "system_instruction")) + orEmpty(get(detail, "agent_data", "greeting_text")))
+	usesCallback := callbackRefRe.MatchString(orEmpty(currentPrompt(detail)) + orEmpty(get(detail, "agent_data", "greeting_text")))
 	if usesCallback && !a.callbackConfigured() {
 		return fail(503, "Agent นี้ต้องใช้ระบบรับผล ผู้ดูแลต้องตั้งค่าเซิร์ฟเวอร์รับผลก่อนโทร")
 	}
@@ -762,7 +762,15 @@ func (v *voiceRequest) placeCall(path string, agents any) error {
 		}
 		return fail(status, "ยังส่งคำขอโทรไม่ได้: อาจส่งซ้ำ เกินโควตาต่อนาที หรือยังไม่ได้ติดตั้งตารางการโทร")
 	}
-	result, err := v.upstream(path, obj{"destination": destination, "agent_id": agentID, "metadata": metadata}, "")
+	// ponytail: Botnoi has not confirmed which form fills prompts. Its console and Tero send flat keys for
+	// <<name>>, so send each variable both ways; drop the copy once a live call proves one form.
+	sent := objOr(metadata)
+	for k, value := range objOr(metadata["variables"]) {
+		if _, taken := sent[k]; !taken {
+			sent[k] = value
+		}
+	}
+	result, err := v.upstream(path, obj{"destination": destination, "agent_id": agentID, "metadata": sent}, "")
 	if err != nil {
 		v.db.Update("voice_call_requests", obj{"status": "unknown"}, "", eq("id", requestID))
 		return fail(502, "ยังยืนยันผลการส่งคำขอไม่ได้ กรุณาตรวจประวัติก่อนโทรซ้ำ")

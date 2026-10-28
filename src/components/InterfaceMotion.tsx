@@ -38,5 +38,26 @@ export function InterfaceMotion() {
     scan();
     return () => { cancelAnimationFrame(frame); observer.disconnect(); changes.disconnect(); preference.removeEventListener('change', reduce); running.forEach(animation => animation.cancel()); };
   }, []);
+  useEffect(() => {
+    // Sliding hover pill: a spring-moved ::before on button groups (see button-motion.css).
+    const groups = '.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub, .result-view-switch, .schedule-frequency > div';
+    const move = (event: PointerEvent) => {
+      const group = (event.target as Element).closest<HTMLElement>(groups);
+      const item = (event.target as Element).closest<HTMLElement>(groups.split(', ').flatMap(g => ['a', 'button', 'label'].map(t => `${g} > ${t}`)).join(', '));
+      if (!group || !item || item.parentElement !== group || (item as HTMLButtonElement).disabled) return;
+      group.style.setProperty('--sl-x', `${item.offsetLeft}px`);
+      group.style.setProperty('--sl-y', `${item.offsetTop}px`);
+      group.style.setProperty('--sl-w', `${item.offsetWidth}px`);
+      group.style.setProperty('--sl-h', `${item.offsetHeight}px`);
+      if (group.dataset.slide !== 'on') { void group.offsetWidth; group.dataset.slide = 'on'; } // reflow so the first hover fades in instead of sliding from 0,0
+    };
+    const leave = (event: PointerEvent) => {
+      const group = event.target instanceof Element ? event.target.closest<HTMLElement>(groups) : null;
+      if (group && !group.contains(event.relatedTarget as Node | null)) delete group.dataset.slide;
+    };
+    document.addEventListener('pointerover', move);
+    document.addEventListener('pointerout', leave);
+    return () => { document.removeEventListener('pointerover', move); document.removeEventListener('pointerout', leave); };
+  }, []);
   return <a className="skip-to-content" href="#main-content">ข้ามไปเนื้อหา</a>;
 }

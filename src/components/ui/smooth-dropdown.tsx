@@ -19,12 +19,11 @@ import { currentPath, routes } from "@/routes";
 import { useIsDev } from "@/components/WorkspaceGate";
 
 // Change Here
-const docs = import.meta.env.BASE_URL;
 const menuItems = [
   { id: "profile", label: "บัญชีของฉัน", icon: UserIcon, href: `${routes.settings}#account` },
   { id: "upgrade", label: "การเชื่อมต่อ Voice Bot", icon: Link01Icon, href: `${routes.settings}#voicebot` },
   { id: "projects", label: "แคมเปญของฉัน", icon: FolderIcon, href: routes.campaigns },
-  { id: "documentation", label: "เอกสาร API", icon: File01Icon, href: `${docs}api-docs.html`, external: true },
+  { id: "documentation", label: "เอกสาร API", icon: File01Icon, href: routes.apiDocs },
   { id: "divider", label: "", icon: null },
   { id: "settings", label: "ตั้งค่า", icon: SettingsIcon, href: routes.settings },
   { id: "logout", label: "ออกจากระบบ", icon: LogoutIcon },
@@ -51,8 +50,7 @@ async function logout() {
 function runItem(item: (typeof menuItems)[number]) {
   if (item.id === "logout") { void logout(); return; }
   if (!item.href) return;
-  if (item.external) window.open(item.href, "_blank", "noopener,noreferrer");
-  else window.location.assign(item.href);
+  window.location.assign(item.href);
 }
 
 export function TwentyTwelveOne() {
@@ -156,7 +154,7 @@ export function TwentyTwelveOne() {
             }}
           >
             <ul className="flex flex-col gap-0.5 m-0! p-0! list-none!">
-              {menuItems.filter(item => item.id !== "upgrade" || isDev).map((item, index) => {
+              {menuItems.filter(item => (item.id !== "upgrade" && item.id !== "documentation") || isDev).map((item, index) => {
                 if (item.id === "divider") {
                   return (
                     <motion.hr

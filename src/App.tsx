@@ -20,6 +20,7 @@ const ContactDetailPage = lazy(() => import("./pages/ContactDetailPage").then(m 
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage").then(m => ({ default: m.AnalyticsPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const InboundPage = lazy(() => import("./pages/InboundPage").then(m => ({ default: m.InboundPage })));
+const ApiDocsPage = lazy(() => import("./pages/ApiDocsPage").then(m => ({ default: m.ApiDocsPage })));
 export default function App() {
   const path = currentPath();
   const page = <Suspense fallback={<LoadingScreen />}><AppRoutes /></Suspense>;
@@ -31,6 +32,7 @@ function AppRoutes() {
   const isDev = useIsDev();
 
   if (path === routes.inbound) return <InboundPage />;
+  if (path === routes.apiDocs) return isDev ? <ApiDocsPage /> : <DashboardOverviewPage />;
 
   if (path === routes.login) {
     return <AuthPage />;

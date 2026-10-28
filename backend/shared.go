@@ -167,14 +167,15 @@ func matchingLogPath(files any, call any) string {
 
 // ---- campaign-inputs.mjs
 
-var promptVariablePattern = regexp.MustCompile(`\{\{([a-zA-Z0-9_-]+)\}\}`)
+// Agents write placeholders as {{name}} or, in Botnoi llm_agent prompts, <<name>>.
+var promptVariablePattern = regexp.MustCompile(`\{\{([a-zA-Z0-9_-]+)\}\}|<<([a-zA-Z0-9_-]+)>>`)
 
 func promptVariables(agent any) []string {
-	text := orEmpty(get(agent, "agent_data", "greeting_text")) + " " + orEmpty(get(agent, "agent_data", "system_instruction"))
+	text := orEmpty(get(agent, "agent_data", "greeting_text")) + " " + orEmpty(currentPrompt(agent))
 	seen := map[string]bool{}
 	out := []string{}
 	for _, m := range promptVariablePattern.FindAllStringSubmatch(text, -1) {
-		name := m[1]
+		name := m[1] + m[2]
 		if seen[name] || name == "vc_call_reference" || name == "vc_record_conversation" {
 			continue
 		}
@@ -221,7 +222,7 @@ func campaignBindings(campaign any, variables []string) map[string]any {
 				break
 			}
 		}
-		if column == "" && (variable == "phone_number" || variable == "phone") {
+		if column == "" && (variable == "phone_number" || variable == "phone" || variable == "destination") {
 			column = phone
 		}
 		if column == "" {

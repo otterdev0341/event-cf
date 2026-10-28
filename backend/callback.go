@@ -313,7 +313,7 @@ func findTool(tools any, match func(tool any) bool) obj {
 }
 
 func connectedTranscriptTool(agent, tools any, endpoint, accountID string) obj {
-	prompt := orEmpty(get(agent, "agent_data", "system_instruction"))
+	prompt := orEmpty(currentPrompt(agent))
 	agentID := get(agent, "agent_id")
 	return findTool(tools, func(tool any) bool {
 		return compatibleTranscriptTool(tool, agentID, endpoint, accountID) && boundTool(agent, tool) &&
@@ -344,7 +344,7 @@ func unreadableWebhook(agent any) bool {
 }
 
 func withTranscriptPrompt(agent any, name string) (string, error) {
-	previous, ok := get(agent, "agent_data", "system_instruction").(string)
+	previous, ok := currentPrompt(agent).(string)
 	if !ok || jsTrim(previous) == "" || !truthy(get(agent, "bot_name")) {
 		return "", fail(409, "Agent ต้องมีบทสนทนาก่อนเชื่อมบันทึก")
 	}

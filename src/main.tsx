@@ -12,6 +12,8 @@ import "./ui-refinement.css";
 import "./workspace-design.css";
 import "./minimal-workspace.css";
 import "./redesign.css";
+import "./pickers.css";
+import "./button-motion.css";
 import { InterfaceMotion } from './components/InterfaceMotion';
 
 createRoot(document.getElementById("root")!).render(

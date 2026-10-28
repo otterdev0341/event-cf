@@ -1,0 +1,6 @@
+.user-roles { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.user-roles li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-top: 1px solid #f0edf7; }
+.user-roles li > div { display: grid; gap: 2px; min-width: 0; }
+.user-roles li > div strong { overflow-wrap: anywhere; font-size: 14px; }
+.user-roles li > div span.rd-muted { font-size: 12px; }
+.user-roles li > :last-child { width: 200px; max-width: 100%; }

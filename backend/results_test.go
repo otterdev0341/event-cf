@@ -277,6 +277,8 @@ func (r *resultsFixture) reply(c call) reply {
 			return ok(r.log)
 		}
 		return ok(obj{"text": "user: ตกลงครับ"})
+	case strings.HasPrefix(c.Path, "/analytics/v1/agents/"):
+		return status(404, obj{"code": "ANALYTICS_CONFIG_NOT_FOUND"})
 	}
 	t.Fatalf("unexpected fixture request %s", c.Path)
 	return reply{}
@@ -480,4 +482,23 @@ func TestCallResults(t *testing.T) {
 		r.opt["failDetail"] = true
 		check(t, r.recording("").status == 502 && r.patch == nil, "failed lookup accepted")
 	})
+}
+
+func TestAnalysisResult(t *testing.T) {
+	field := func(id, status string, value, option any) any {
+		return obj{"field_id": id, "status": status, "value": value, "option_id": option}
+	}
+	result := obj{"items": []any{
+		obj{"conversation_id": "oc_x", "analysis_status": "not_analyzed", "analysis": nil},
+		obj{"conversation_id": "uuid", "analysis_status": "succeeded", "analysis": obj{"field_results": []any{
+			field("call_result", "extracted", "CONFIRMED", "CONFIRMED"), field("needs_agent", "extracted", false, nil), field("evidence", "extracted", " ไปค่ะ ", nil)}}},
+	}}
+	got := analysisResult(result)
+	if got["call_result"] != "CONFIRMED" || got["needs_agent"] != false || got["evidence"] != "ไปค่ะ" || got["source"] != "provider" {
+		t.Fatalf("analysisResult = %v", got)
+	}
+	unknown := obj{"items": []any{obj{"analysis_status": "succeeded", "analysis": obj{"field_results": []any{field("call_result", "failed", nil, "CONFIRMED")}}}}}
+	if analysisResult(unknown) != nil || analysisResult(nil) != nil {
+		t.Fatal("analysisResult must ignore fields that were not extracted")
+	}
 }

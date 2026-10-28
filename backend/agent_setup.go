@@ -56,7 +56,7 @@ func compatibleTool(tool any, agentID any, endpoint, accountID string) bool {
 }
 
 func connectedTool(agent, tools any, endpoint, accountID string) obj {
-	prompt := orEmpty(get(agent, "agent_data", "system_instruction"))
+	prompt := orEmpty(currentPrompt(agent))
 	agentID := get(agent, "agent_id")
 	return findTool(tools, func(tool any) bool {
 		return compatibleTool(tool, agentID, endpoint, accountID) && boundTool(agent, tool) &&
@@ -65,7 +65,7 @@ func connectedTool(agent, tools any, endpoint, accountID string) obj {
 }
 
 func withPrompt(agent any, name string) (string, error) {
-	previous, ok := get(agent, "agent_data", "system_instruction").(string)
+	previous, ok := currentPrompt(agent).(string)
 	if !ok || jsTrim(previous) == "" || !truthy(get(agent, "bot_name")) {
 		return "", fail(409, "Agent ต้องมีบทสนทนาก่อนเชื่อมระบบรับผล")
 	}
@@ -334,7 +334,7 @@ func (v *voiceRequest) handleAgentSetup(id string, body any, cfg Config, transcr
 		payload := configOf(latest)
 		data := objOr(get(latest, "agent_data"))
 		promptKey := "system_instruction"
-		if general && !has(get(latest, "agent_data"), "system_instruction") {
+		if !has(get(latest, "agent_data"), "system_instruction") {
 			promptKey = "system_prompt"
 		}
 		if data[promptKey], err = kind.extend(latest, jsString(tool["name"])); err != nil {
