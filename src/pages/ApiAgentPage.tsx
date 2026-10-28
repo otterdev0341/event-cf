@@ -5,7 +5,7 @@ import { CampaignStepIndicator } from '../components/CampaignStepIndicator';
 import { AgentResultSetup } from '../components/AgentResultSetup';
 import { useAgents, useAgentDetail } from '../hooks/useBotnoiData';
 import { getDraft, saveDraft, mappingForAgent } from '../lib/campaigns';
-import { routes } from '../routes';
+import { navigate, routes } from '../routes';
 import { botnoiApi } from '../services/botnoi';
 import { botnoiFetch } from '../services/botnoi/client';
 export function ApiAgentPage() {
@@ -38,7 +38,7 @@ export function ApiAgentPage() {
       const account=await botnoiApi.getAccount();
       const changed=draft.agentId!==agentId || Boolean(draft.voiceAccountId && draft.voiceAccountId!==account._id);
       await saveDraft({ ...draft, recordConversation, voiceAccountId:account._id, agentId, variables, variableBindings: changed ? {} : Object.fromEntries(Object.entries(draft.variableBindings || {}).filter(([key]) => detail.variables.includes(key))), mapping: mappingForAgent(draft.csv, draft.mapping, detail.variables, changed) });
-      window.location.assign(routes.dataMapping);
+      navigate(routes.dataMapping);
     } catch (err) { setConnectionMessage(''); setMessage((err as Error).message); } finally { setSaving(false); }
   }
   const locked = loading || saving || connecting;

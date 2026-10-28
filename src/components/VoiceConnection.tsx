@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { botnoiFetch } from '../services/botnoi/client';
 import { Button } from './Button';
+import { routes } from '../routes';
 
 type Account = {account_id:string;username:string;email:string;role:string;verified:boolean|null;expires_at:string|null};
 type Connection = Partial<Account> & {connected:boolean;updated_at?:string;expired?:boolean;shared?:boolean};
@@ -17,7 +18,7 @@ export function VoiceConnection() {
   async function save(action:'connect'|'disconnect') {
     if(!confirmed||busy||!connection||action==='connect'&&!candidate)return;
     setBusy(true);setError('');
-    try {await botnoiFetch<Connection>('/workspace/connection',{method:'POST',body:{action,confirm:true,expected_updated_at:connection.updated_at??null,...(action==='connect'?{token:token.trim(),expected_account_id:candidate!.account_id}:{})}});setToken('');setCandidate(null);window.location.assign('/settings');}
+    try {await botnoiFetch<Connection>('/workspace/connection',{method:'POST',body:{action,confirm:true,expected_updated_at:connection.updated_at??null,...(action==='connect'?{token:token.trim(),expected_account_id:candidate!.account_id}:{})}});setToken('');setCandidate(null);window.location.assign(routes.settings);}
     catch(e){setError((e as Error).message);}finally{setBusy(false);}
   }
   const shared=connection?.shared===true;

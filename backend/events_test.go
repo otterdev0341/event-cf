@@ -167,6 +167,22 @@ func TestGeneralEventTool(t *testing.T) {
 		f := setup(t, "different")
 		check(t, invoke(f, "POST", token, empty).status == 401 && len(f.calls) == 1, "old account accepted")
 	})
+	t.Run("Team account mode checks the shared account, not personal connections", func(t *testing.T) {
+		for teamAccount, want := range map[string]int{account: 200, "different": 401} {
+			f := setup(t, "unused")
+			campaigns := f.serve
+			f.serve = func(c call) reply {
+				if c.Path == "/me" {
+					return ok(obj{"_id": teamAccount})
+				}
+				check(t, !strings.HasSuffix(c.Path, "/voice_bot_connections"), "personal connection read in team mode")
+				return campaigns(c)
+			}
+			env := merge(generalEnv, map[string]string{"VOICE_BOT_ACCESS_TOKEN": validJWT("TEAM")})
+			r := serveHTTP(newApp(f, env), "POST", "/event-confirm/api/voice-events", map[string]string{"Authorization": "Bearer " + token, "Content-Type": "application/json"}, empty)
+			check(t, r.status == want, "team account %s = %d %s", teamAccount, r.status, r.raw)
+		}
+	})
 	t.Run("Caller identity and arbitrary scope cannot be supplied by the tool", func(t *testing.T) {
 		f := setup(t, account)
 		for _, body := range []obj{{"query": "", "event_id": "", "phone": "PRIVATE_PHONE"}, {"query": "", "event_id": "", "owner_id": cbOwner}, {"query": "", "event_id": "invalid"},

@@ -5,7 +5,7 @@ import { SmoothSelect } from '../components/ui/smooth-select';
 import { botnoiApi } from '../services/botnoi';
 import type { AccountProfile, TrunkStatus, TelephonyConfig, CallStatusResponse } from '../services/botnoi';
 import { getCampaigns, getDraft, saveDraft, mappingErrors, normalizePhone, formatDialDestination, DEFAULT_DIAL_FORMAT, resolveVariables } from '../lib/campaigns';
-import { routes } from '../routes';
+import { navigate, routes } from '../routes';
 import { useAgents, useAgentDetail } from '../hooks/useBotnoiData';
 type TestState = 'idle' | 'loading' | 'success' | 'error';
 export function ApiTestWorkspacePage() {
@@ -117,7 +117,7 @@ export function ApiTestWorkspacePage() {
     try {
       const issues = mappingErrors(draft.csv, draft.mapping);
       if (issues.length) { setError(issues.join(' ')); return; }
-      await saveDraft({ ...draft, agentId, variables: { ...draft.variables, ...(contactRow < 0 ? variableValues : {}) } }); window.location.assign(routes.campaignSummary);
+      await saveDraft({ ...draft, agentId, variables: { ...draft.variables, ...(contactRow < 0 ? variableValues : {}) } }); navigate(routes.campaignSummary);
     } catch (err) { setError((err as Error).message); } finally { setSaveBusy(false); }
   }
   if (campaignMode && !draft) return <div className="api-test-page"><AppHeader /><main className="page-shell real-data-page"><h1>ไม่พบแคมเปญนี้ในบัญชีของคุณ</h1><p>กลับไปเลือกแคมเปญที่ต้องการโทรอีกครั้ง</p><Button href={routes.campaigns}>กลับไปแคมเปญ</Button></main></div>;

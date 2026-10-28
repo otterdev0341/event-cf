@@ -124,6 +124,15 @@ export async function loadCampaignWorkspace(ownerId: string) {
   records = collected; workspaceOwner = ownerId;
 }
 export function getDraft(): CampaignDraft | null { const draft = records.find(r => r.state === 'editing'); return draft ? asDraft(draft) : null; }
+const NAME_KEYS = /^(name|full_name|guest_name|applicant_name|customer_name|first_name|ชื่อ.*)$/i;
+/** CSV column holding the contact's name: mapped as guest_name, else a name-like header, else the column bound to a name-like Agent variable. -1 when none. */
+export function nameColumn(campaign: Pick<CampaignDraft, 'csv' | 'mapping'>) {
+  const { headers } = campaign.csv;
+  const mapped = headers.findIndex(h => campaign.mapping[h] === 'guest_name');
+  if (mapped >= 0) return mapped;
+  const byHeader = headers.findIndex(h => NAME_KEYS.test(h.trim()));
+  return byHeader >= 0 ? byHeader : headers.findIndex(h => NAME_KEYS.test(campaign.mapping[h] || ''));
+}
 export function getCampaigns(): CampaignDraft[] { return records.filter(r => r.state === 'saved').map(asDraft); }
 async function persistCampaign(draft: CampaignDraft, state: 'editing' | 'saved') {
   if (!isDraft(draft)) throw new Error('ข้อมูลแคมเปญไม่ถูกต้อง');

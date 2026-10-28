@@ -6,6 +6,8 @@ export const routes = {
   login: `${base}/login`,
   dashboard: `${base}/dashboard`,
   liveAgent: `${base}/live-agent`,
+  outbound: `${base}/outbound`,
+  // Old address of the outbound page; App redirects it to `outbound`.
   inbound: `${base}/inbound`,
   campaigns: `${base}/campaigns`,
   createCampaign: `${base}/campaigns/new`,
@@ -26,4 +28,21 @@ export const routes = {
 export function currentPath() {
   const path = window.location.pathname.replace(/\/+$/, "");
   return path === base ? routes.home : path;
+}
+
+// Pages doing work that stops when they unmount (a running call queue) register a warning here.
+const leaveWarnings = new Set<{ message: string }>();
+export function warnBeforeLeave(message: string) {
+  const entry = { message };
+  leaveWarnings.add(entry);
+  return () => { leaveWarnings.delete(entry); };
+}
+
+/** Moves to an in-app address without reloading the page; App re-renders on popstate. */
+export function navigate(href: string) {
+  for (const { message } of leaveWarnings) if (!window.confirm(message)) return false;
+  window.history.pushState(null, "", href);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+  window.scrollTo(0, 0);
+  return true;
 }

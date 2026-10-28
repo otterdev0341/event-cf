@@ -10,8 +10,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"maps"
+	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"time"
 )
 
@@ -51,9 +54,48 @@ func (a *App) invoke(ctx context.Context, store *db, user, job obj, path string,
 	a.handleVoice(rec, nil, path, &worker{db: store, user: user, job: job}, ctx, body)
 	result, _ := decodeJSON(rec.Body.Bytes())
 	if rec.Code != 200 || truthy(get(result, "persistence_warning")) {
-		return nil, errors.New(jsString(firstTruthy(get(result, "error"), get(result, "persistence_warning"), "ตรวจบริการโทรไม่สำเร็จ")))
+		status := rec.Code
+		if status == 200 {
+			status = 502
+		}
+		return nil, &httpError{status: status, msg: jsString(firstTruthy(get(result, "error"), get(result, "persistence_warning"), "ตรวจบริการโทรไม่สำเร็จ"))}
 	}
 	return result, nil
+}
+
+// refreshCallResults finishes recent calls in the background (status, transcript, analysis result, NO_ANSWER),
+// so results appear even when nobody keeps the campaign page open. Each refresh runs as the call's owner.
+// ponytail: at most 5 random rows per tick; each costs several Voice Bot calls and a 429 would fail campaign jobs.
+func (a *App) refreshCallResults(ctx context.Context, store *db) int {
+	rows, err := store.Select("voice_call_requests", "id,owner_id", q{"call_id", "not.is.null"}, isNull("response->followup->>final"),
+		q{"created_at", "gte." + jsISO(nowMS()-48*3600000)}, order("created_at.desc"), limit(100))
+	if err != nil {
+		return 0
+	}
+	rand.Shuffle(len(rows), func(i, j int) { rows[i], rows[j] = rows[j], rows[i] })
+	users := map[string]obj{}
+	refreshed := 0
+	for _, row := range rows[:min(5, len(rows))] {
+		if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < 15*time.Second {
+			break
+		}
+		owner := jsString(row["owner_id"])
+		if users[owner] == nil {
+			user, err := store.AdminUser(owner)
+			if err != nil {
+				continue
+			}
+			users[owner] = user
+		}
+		_, err := a.invoke(ctx, store, users[owner], nil, "/workspace/calls/"+jsString(row["id"])+"/result", nil)
+		if he, ok := asHTTPError(err); ok && he.status == 429 {
+			break
+		}
+		if err == nil {
+			refreshed++
+		}
+	}
+	return refreshed
 }
 
 func sameInstant(a, b any) bool {
@@ -244,7 +286,7 @@ func (a *App) processCampaignJob(ctx context.Context, store *db, job obj) error 
 		}
 		var attempts []obj
 		for start := 0; ; start += 500 {
-			page, err := store.Select("voice_call_requests", "id,call_id,status,created_at,metadata", eq("owner_id", job["owner_id"]),
+			page, err := store.Select("voice_call_requests", "id,call_id,status,created_at,metadata,"+retryColumns, eq("owner_id", job["owner_id"]),
 				eq("metadata->>campaign_id", job["campaign_id"]), order("created_at.asc,id.asc"), offset(start), limit(500))
 			if err != nil {
 				return errors.New("อ่านประวัติการโทรไม่ได้")
@@ -267,18 +309,29 @@ func (a *App) processCampaignJob(ctx context.Context, store *db, job obj) error 
 			return errors.New("พบหลายสายยังไม่จบ กรุณาตรวจประวัติ")
 		}
 		accountID := jsString(job["account_id"])
+		// refresh saves the call's status and result as the campaign page would, so a retry sees why the call ended.
+		refresh := func(attempt obj) (bool, error) {
+			record, err := call("/workspace/calls/"+jsString(attempt["id"])+"/result", nil)
+			if he, ok := asHTTPError(err); ok && he.status == 409 {
+				// A page or receiver saved this call at the same moment; read it again next tick.
+				return false, finish("running", nil, nil)
+			}
+			if err != nil {
+				return false, err
+			}
+			maps.Copy(attempt, retryFields(record))
+			return true, nil
+		}
 		for _, attempt := range pending {
 			if !truthy(attempt["call_id"]) {
 				return errors.New("ยังยืนยันคำขอเดิมไม่ได้ คิวหยุดเพื่อป้องกันโทรซ้ำ")
 			}
-			result, err := call("/v1/provisioning/tenants/"+accountID+"/calls/"+jsString(attempt["call_id"]), nil)
-			if err != nil {
+			if ok, err := refresh(attempt); !ok {
 				return err
 			}
-			if !terminalCall(get(result, "status")) {
+			if !terminalCall(attempt["status"]) {
 				return finish("running", nil, nil)
 			}
-			attempt["status"] = get(result, "status")
 		}
 		data := campaign["data"]
 		agentID := get(data, "agentId")
@@ -299,18 +352,60 @@ func (a *App) processCampaignJob(ctx context.Context, store *db, job obj) error 
 		if len(prepared.Errors) > 0 || len(targets) == 0 {
 			return errors.New("ข้อมูล Agent หรือรายชื่อเปลี่ยนแล้ว กรุณาตรวจแคมเปญ")
 		}
-		dialedThisRun := map[int]bool{}
+		// Jobs saved before the retry migration have no max_attempts and dial each row once per run.
+		maxAttempts := 1
+		if n, ok := jsInt(job["max_attempts"]); ok && n > 1 {
+			maxAttempts = n
+		}
+		runAttempts := map[int][]obj{}
+		var runOrder []obj
 		for _, attempt := range attempts {
 			if row, ok := contactRow(attempt); ok && jsSame(get(attempt, "metadata", "schedule_job_id"), job["id"]) && jsSame(get(attempt, "metadata", "schedule_run_id"), job["run_id"]) {
-				dialedThisRun[row] = true
+				runAttempts[row] = append(runAttempts[row], attempt)
+				runOrder = append(runOrder, attempt)
 			}
 		}
+		if n := len(runOrder); maxAttempts > 1 && n >= 3 && !slices.ContainsFunc(runOrder[n-3:], func(a obj) bool { return retryKind(a) != "unreachable" }) {
+			return errors.New("โทรไม่ติด 3 สายติดต่อกัน คู่สายหรือเครือข่ายอาจมีปัญหา คิวหยุดแล้ว กรุณาตรวจคู่สาย")
+		}
 		var row *preparedRow
+		var waitUntil int64
+		refreshed, now := false, nowMS()
 		for i, r := range targets {
-			if !dialedThisRun[r.Index] && (truthy(job["redial"]) || latestAttempt(attempts, r.Index) == nil) {
+			tries := runAttempts[r.Index]
+			if len(tries) == 0 {
+				if truthy(job["redial"]) || latestAttempt(attempts, r.Index) == nil {
+					row = &targets[i]
+					break
+				}
+				continue
+			}
+			last := tries[len(tries)-1]
+			due, ok := retryDue(last, tries, maxAttempts)
+			if ok && due <= now && !truthy(last["final"]) {
+				// The saved result may be missing or stale; confirm it before calling again. One refresh per tick.
+				if refreshed {
+					return finish("running", nil, nil)
+				}
+				refreshed = true
+				if ok, err := refresh(last); !ok {
+					return err
+				}
+				due, ok = retryDue(last, tries, maxAttempts)
+			}
+			if !ok {
+				continue
+			}
+			if due <= now {
 				row = &targets[i]
 				break
 			}
+			if waitUntil == 0 || due < waitUntil {
+				waitUntil = due
+			}
+		}
+		if row == nil && waitUntil > 0 {
+			return finish("running", nil, obj{"next_run_at": jsISO(waitUntil)})
 		}
 		if row == nil {
 			completedRuns, _ := job["completed_runs"].(float64)
@@ -370,6 +465,79 @@ func (a *App) processCampaignJob(ctx context.Context, store *db, job obj) error 
 	return nil
 }
 
+// retryColumns reads only what a retry decision needs, not the transcript stored in response.
+const retryColumns = "review:response->review->>call_result,callback:response->callback->outcome->>call_result," +
+	"followup:response->followup->outcome->>call_result,reason:response->followup->>failure_reason," +
+	"answered_at:response->followup->>answered_at,completed_at:response->followup->>completed_at,final:response->followup->>final"
+
+// retryFields flattens a saved call record into the retryColumns shape.
+func retryFields(record any) obj {
+	followup := get(record, "response", "followup")
+	return obj{"status": get(record, "status"), "review": get(record, "response", "review", "call_result"),
+		"callback": get(record, "response", "callback", "outcome", "call_result"), "followup": get(followup, "outcome", "call_result"),
+		"reason": get(followup, "failure_reason"), "answered_at": get(followup, "answered_at"), "completed_at": get(followup, "completed_at"), "final": get(followup, "final")}
+}
+
+var retryDelay = map[string]time.Duration{"noanswer": 10 * time.Minute, "hangup": 10 * time.Minute, "unreachable": time.Hour, "callback": 2 * time.Hour}
+
+// retryKind says why an ended attempt may be called again, or "" when its result is final.
+// A manual review wins over the agent's tool result, which wins over the provider and post-call analysis.
+func retryKind(a obj) string {
+	result := ""
+	for _, key := range []string{"review", "callback", "followup"} {
+		if s, _ := a[key].(string); s != "" && s != "UNDETERMINED" {
+			result = s
+			break
+		}
+	}
+	reason, _ := a["reason"].(string)
+	status, _ := a["status"].(string)
+	switch {
+	case result == "CALLBACK_REQUESTED":
+		return "callback"
+	case result == "NO_ANSWER":
+		return "noanswer"
+	case result != "":
+		return ""
+	case status == "completed" || truthy(a["answered_at"]):
+		return "hangup" // answered but ended without a result
+	case noAnswerSignal(status, reason) != "":
+		return "noanswer"
+	}
+	return "unreachable"
+}
+
+// retryDue returns when the row's last attempt may be called again, and false when the row is finished.
+// An answered call that ended without a result is retried once.
+func retryDue(last obj, tries []obj, maxAttempts int) (int64, bool) {
+	kind := retryKind(last)
+	hangups := 0
+	for _, t := range tries {
+		if retryKind(t) == "hangup" {
+			hangups++
+		}
+	}
+	if kind == "" || len(tries) >= maxAttempts || (kind == "hangup" && hangups > 1) {
+		return 0, false
+	}
+	ended, _ := jsDateParse(firstTruthy(last["completed_at"], last["created_at"]))
+	return callingHours(ended + retryDelay[kind].Milliseconds()), true
+}
+
+// callingHours moves a time outside 09:00-20:00 Thailand time to the next 09:00.
+// ponytail: fixed window for retries; campaigns never save allowedStartTime/allowedEndTime/callingDays yet, use them once the editor does.
+func callingHours(ms int64) int64 {
+	t := time.UnixMilli(ms).In(bangkok)
+	start := time.Date(t.Year(), t.Month(), t.Day(), 9, 0, 0, 0, bangkok)
+	switch {
+	case t.Before(start):
+		return start.UnixMilli()
+	case t.Hour() >= 20:
+		return start.AddDate(0, 0, 1).UnixMilli()
+	}
+	return ms
+}
+
 // handleScheduler is POST /api/voice-scheduler, called by pg_cron with the derived scheduler token.
 func (a *App) handleScheduler(w http.ResponseWriter, r *http.Request) {
 	setJSONHeaders(w)
@@ -403,5 +571,5 @@ func (a *App) handleScheduler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	send(w, 200, obj{"ok": true, "processed": len(jobs)})
+	send(w, 200, obj{"ok": true, "processed": len(jobs), "refreshed": a.refreshCallResults(ctx, store)})
 }

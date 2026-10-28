@@ -10,6 +10,7 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -88,8 +89,13 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 			}
 			return key
 		}
+		// An unanswered call has no conversation, so its log and analysis are not read.
+		answered := callStatus == "completed" || truthy(get(call, "answered_at"))
+		reason, _ := get(call, "reason").(string)
 		if terminalCall(status) && text == "" {
 			logState = "not_available"
+		}
+		if terminalCall(status) && text == "" && answered {
 			// Log files are named by conversation UUID, not call ID; the provider's exact link names the file directly.
 			var err error
 			if logPath = conversationKey(); logPath == "" {
@@ -114,17 +120,19 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 		outcome := providerOutcome(call, log)
 		// Preserve already retrieved evidence if the provider temporarily stops returning it.
 		previous := get(response, "followup")
-		if outcome["source"] == "unavailable" && terminalCall(status) && !truthy(get(response, "callback")) && get(previous, "outcome", "source") != "provider" {
+		if outcome["source"] == "unavailable" && terminalCall(status) && answered && !truthy(get(response, "callback")) && get(previous, "outcome", "source") != "provider" {
 			if analysed := v.analysisOutcome(agentID, callID, conversationKey()); analysed != nil {
 				outcome = analysed
 			}
+		}
+		if signal := noAnswerSignal(callStatus, reason); outcome["source"] == "unavailable" && !answered && signal != "" {
+			outcome = obj{"call_result": "NO_ANSWER", "needs_agent": nil, "evidence": "Voice Bot แจ้งว่าผู้รับไม่รับสาย (" + signal + ")", "source": "provider"}
 		}
 		chosen := any(outcome)
 		if outcome["source"] == "unavailable" && get(previous, "outcome", "source") == "provider" {
 			chosen = get(previous, "outcome")
 		}
 		endedBy, _ := get(call, "ended_by").(string)
-		reason, _ := get(call, "reason").(string)
 		followup := obj{"checked_at": nowISO(), "answered_at": orNull(get(call, "answered_at")), "completed_at": orNull(get(call, "completed_at")),
 			"ended_by": nil, "failure_reason": nil, "outcome": chosen, "log_state": logState}
 		if _, ok := get(call, "ended_by").(string); ok {
@@ -144,6 +152,15 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 		if truthy(followup["transcript"]) && text == "" {
 			followup["log_state"] = "cached"
 		}
+		// Nothing more will arrive, so the scheduler's background refresh skips this call.
+		// An answered call waits up to 30 minutes for Botnoi's post-call analysis and its conversation log,
+		// which can land after the analysis result.
+		ended, _ := jsDateParse(firstTruthy(get(call, "completed_at"), record["created_at"]))
+		hasResult := get(chosen, "source") == "provider" || truthy(get(response, "callback"))
+		hasConversation := truthy(followup["transcript"]) || truthy(get(response, "transcript"))
+		if terminalCall(status) && (!answered || (hasResult && hasConversation) || nowMS()-ended > 30*60000) {
+			followup["final"] = true
+		}
 		response["followup"] = followup
 	}
 	filters := guardedUpdate([]q{eq("id", id), eq("owner_id", v.user["id"]), eq("status", record["status"])}, original, "")
@@ -154,6 +171,19 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 	out := maps.Clone(record)
 	out["status"], out["response"] = status, response
 	return v.send(200, out)
+}
+
+// noAnswerSignal returns the provider status or failure reason saying the recipient did not pick up, or "".
+// Trunk and system failures such as unreachable are not the recipient's answer and stay undetermined.
+func noAnswerSignal(status, reason string) string {
+	reason = strings.ToLower(reason)
+	switch {
+	case status == "no-answer" || status == "busy":
+		return status
+	case status == "failed" && slices.Contains([]string{"no-answer", "busy", "rejected"}, reason):
+		return reason
+	}
+	return ""
 }
 
 var conversationKeyRe = regexp.MustCompile(`_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+\.txt$`)
@@ -415,6 +445,15 @@ func (c *usageCounts) add(call any) {
 }
 
 // handleUsage aggregates actual telephone calls, never the separate preview-session dashboard.
+// usageAgentAllowed reports whether a call's Agent is in the allowed list; an empty list allows every call.
+func usageAgentAllowed(call any, allowed []string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	id, ok := get(call, "agent", "id").(string)
+	return ok && slices.Contains(allowed, id)
+}
+
 func (v *voiceRequest) handleUsage(query queryList) error {
 	start, _ := query.lookup("start_at")
 	end, _ := query.lookup("end_at")
@@ -434,6 +473,8 @@ func (v *voiceRequest) handleUsage(query queryList) error {
 	if source != "all" {
 		params.set("direction", source)
 	}
+	// The Voice Bot account is shared; with VOICE_ALLOWED_AGENT_IDS set, count only this app's Agents.
+	allowed := splitList(v.app.cfg.AllowedAgentIDs)
 	calls := map[string]any{}
 	var order []string
 	cursors := map[string]bool{}
@@ -455,7 +496,7 @@ func (v *voiceRequest) handleUsage(query queryList) error {
 			if !isString || !okT {
 				return fail(502, "ประวัติสายจาก Voice Bot ขาดรหัสสายหรือเวลาโทร")
 			}
-			if started >= s && started <= e && (source == "all" || get(call, "direction") == source) {
+			if started >= s && started <= e && (source == "all" || get(call, "direction") == source) && usageAgentAllowed(call, allowed) {
 				if _, seen := calls[id]; !seen {
 					order = append(order, id)
 				}

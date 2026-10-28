@@ -7,9 +7,10 @@ import { getCampaigns, saveDraft } from '../lib/campaigns';
 import { supabase } from '../lib/supabase';
 import { botnoiApi } from '../services/botnoi';
 import { useAgentDetail } from '../hooks/useBotnoiData';
-import { prepareCampaignRows, promptVariables } from '../../shared/campaign-inputs.mjs';
+import { prepareCampaignRows } from '../../shared/campaign-inputs.mjs';
+import { checkCampaignReady } from '../lib/campaign-calls';
 import { runCampaignQueue, planCampaignCalls, campaignRequestId, terminalCall, type CampaignAttempt } from '../../shared/campaign-queue.mjs';
-import { routes } from '../routes';
+import { routes, warnBeforeLeave } from '../routes';
 
 type RowState = {status:string; message:string; callId?:string};
 const stateTone = (status?:string) => status==='completed'?'ok':['failed','busy','error'].includes(status||'')?'bad':['no-answer','cancelled','canceled','unknown'].includes(status||'')?'warn':['submitting','queued','ringing','in-progress'].includes(status||'')?'info':'';
@@ -63,7 +64,7 @@ export function CampaignCallPage() {
   useEffect(() => {
     if (!running) return;
     const warn = (event:BeforeUnloadEvent) => { event.preventDefault(); event.returnValue=''; };
-    window.addEventListener('beforeunload',warn); return()=>window.removeEventListener('beforeunload',warn);
+    window.addEventListener('beforeunload',warn); const unguard=warnBeforeLeave('กำลังโทรตามคิวอยู่ ถ้าออกจากหน้านี้ คิวจะหยุดส่งรายชื่อถัดไป ต้องการออกหรือไม่'); return()=>{window.removeEventListener('beforeunload',warn);unguard();};
   },[running]);
   async function edit(path:string) {
     if (!campaign || running || busy.current || scheduledActive) return;
@@ -76,13 +77,7 @@ export function CampaignCallPage() {
     try {
       await navigator.locks.request(`voice-campaign:${campaign.id}`,{ifAvailable:true},async lock=>{
         if(!lock) throw new Error('แคมเปญนี้กำลังทำงานในอีกแท็บ');
-        const agent = await botnoiApi.getAgent(campaign.agentId);
-        const checked = prepareCampaignRows(campaign,promptVariables(agent));
-        if(checked.errors.length) throw new Error('ตัวแปร Agent เปลี่ยนแล้ว กรุณากลับไปตรวจการจับคู่ CSV');
-        const account = await botnoiApi.getAccount();
-        const overview = await botnoiApi.getProvisioningOverview(account._id,{include:'tenant,trunk_status'});
-        const config=overview.sections.tenant, trunk=overview.sections.trunk_status;
-        if(!config?.ok || !trunk?.ok || !config.data.outbound?.enabled || trunk.data.disabled_at || !config.data.readiness?.pbx?.ready || (trunk.data.mode!=='ip' && trunk.data.registration?.state!=='registered')) throw new Error('คู่สายโทรศัพท์ยังไม่พร้อม กรุณาตรวจการเชื่อมต่อ');
+        const { account, checked } = await checkCampaignReady(campaign);
         const latestHistory = await attempts();
         const chosen=planCampaignCalls(checked.rows,latestHistory,scope==='selected'?selectedRows:null,scope==='selected'&&redial);
         if(!chosen.length)throw new Error('ไม่มีรายชื่อที่ต้องโทร เลือกรายชื่อใหม่ หรือเปิดตัวเลือกโทรซ้ำหากต้องการโทรคนที่จบสายแล้ว');

@@ -423,12 +423,12 @@ func (a *App) handleRecordingCallback(w http.ResponseWriter, r *http.Request) {
 		send(w, 401, obj{"error": "Invalid recording callback credentials"})
 		return
 	}
-	connection, err := store.MaybeSingle("voice_bot_connections", "account_id", eq("owner_id", record["owner_id"]))
+	connected, err := a.connectedAccount(store, record["owner_id"])
 	if err != nil {
 		send(w, 503, obj{"error": "Connection storage unavailable; retry later"})
 		return
 	}
-	if get(connection, "account_id") != accountID {
+	if connected != accountID {
 		send(w, 401, obj{"error": "Original Voice Bot account is no longer connected"})
 		return
 	}

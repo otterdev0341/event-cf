@@ -30,6 +30,7 @@ type Config struct {
 	AccessMode      string
 	AllowedEmails   string
 	AllowedUserIDs  string
+	AllowedAgentIDs string // VOICE_ALLOWED_AGENT_IDS: the only agents the app shows and uses; empty allows all
 }
 
 func configFromEnv() Config { return configFrom(os.Getenv) }
@@ -57,6 +58,7 @@ func configFrom(getenv func(string) string) Config {
 		AccessMode:      getenv("VOICE_ACCESS_MODE"),
 		AllowedEmails:   getenv("VOICE_ALLOWED_EMAILS"),
 		AllowedUserIDs:  getenv("VOICE_ALLOWED_USER_IDS"),
+		AllowedAgentIDs: getenv("VOICE_ALLOWED_AGENT_IDS"),
 	}
 }
 
