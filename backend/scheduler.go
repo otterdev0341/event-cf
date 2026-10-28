@@ -32,7 +32,7 @@ func publicJob(job obj) any {
 		return nil
 	}
 	out := obj{}
-	for _, k := range []string{"id", "campaign_id", "campaign_version", "run_at", "status", "last_error", "updated_at", "recurrence", "weekdays", "local_time", "redial", "contact_rows", "completed_runs", "last_completed_at"} {
+	for _, k := range []string{"id", "campaign_id", "campaign_version", "run_at", "status", "last_error", "updated_at", "recurrence", "weekdays", "local_time", "redial", "contact_rows", "completed_runs", "last_completed_at", "next_run_at", "max_attempts"} {
 		if has(job, k) {
 			out[k] = job[k]
 		}
