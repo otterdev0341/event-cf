@@ -5,6 +5,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"testing"
@@ -25,7 +27,8 @@ type schedFixture struct {
 	opt      map[string]any
 	attempts []any
 	dials    []obj
-	update   obj // last voice_campaign_jobs PATCH
+	update   obj   // last voice_campaign_jobs PATCH
+	saved    []obj // voice_call_requests PATCH bodies
 	inserted []obj
 }
 
@@ -39,8 +42,17 @@ func newSchedFixture(t *testing.T, opt map[string]any) *schedFixture {
 }
 
 func schedAttempt(row int, status string, callID any) obj {
-	return obj{"id": "request" + jsString(float64(row)), "call_id": callID, "status": status, "created_at": "2026-10-17T00:0" + jsString(float64(row)) + ":00Z",
-		"metadata": obj{"campaign_id": schedCampaign, "campaign_version": schedVersion, "contact_row": float64(row), "voice_account_id": "account"}}
+	return obj{"id": fmt.Sprintf("44444444-4444-4444-8444-%012d", row), "call_id": callID, "status": status, "created_at": "2026-10-17T00:0" + jsString(float64(row)) + ":00Z",
+		"agent_id": "agt_fixture", "metadata": obj{"campaign_id": schedCampaign, "campaign_version": schedVersion, "contact_row": float64(row), "voice_account_id": "account"}}
+}
+
+// runAttempt is the n-th ended attempt of a row in the fixture job's run, with saved result fields (retryColumns).
+func runAttempt(row, n int, fields obj) obj {
+	a := schedAttempt(row, "no-answer", fmt.Sprintf("oc_%d_%d", row, n))
+	a["id"], a["created_at"], a["final"] = fmt.Sprintf("55555555-5555-4555-8555-%06d%06d", row, n), fmt.Sprintf("2026-10-17T00:%02d:00Z", row*10+n), "true"
+	a["metadata"].(obj)["schedule_job_id"], a["metadata"].(obj)["schedule_run_id"] = "job", "run1"
+	maps.Copy(a, fields)
+	return a
 }
 
 func (s *schedFixture) campaign() obj {
@@ -98,6 +110,14 @@ func (s *schedFixture) reply(c call) reply {
 			s.update = c.Body.(obj)
 			return status(204, nil)
 		case table == "voice_call_requests" && c.Method == "GET":
+			if id := strings.TrimPrefix(c.Query.Get("id"), "eq."); id != "" {
+				for _, a := range s.attempts {
+					if get(a, "id") == id {
+						return ok(a)
+					}
+				}
+				return ok(nil)
+			}
 			if id := strings.TrimPrefix(c.Query.Get("call_id"), "eq."); id != "" {
 				for _, a := range s.attempts {
 					if get(a, "call_id") == id {
@@ -123,7 +143,8 @@ func (s *schedFixture) reply(c call) reply {
 				return ok(nil)
 			}
 		case table == "voice_call_requests" && c.Method == "PATCH":
-			return status(204, nil)
+			s.saved = append(s.saved, c.Body.(obj))
+			return ok([]any{obj{"id": strings.TrimPrefix(c.Query.Get("id"), "eq.")}})
 		case table == "rpc/reserve_scheduled_voice_call":
 			check(s.t, get(c.Body, "p_lease_id") == "lease", "reservation not leased")
 			return ok(nil)
@@ -157,6 +178,10 @@ func (s *schedFixture) reply(c call) reply {
 				st = "ringing"
 			}
 			return ok(obj{"status": st, "call_id": strings.TrimPrefix(c.Path, "/v1/provisioning/tenants/account/calls/")})
+		case strings.HasPrefix(c.Path, "/calls/"), strings.HasPrefix(c.Path, "/logs/list_file/"):
+			return ok([]any{})
+		case strings.HasPrefix(c.Path, "/analytics/"):
+			return ok(obj{"enabled": false})
 		}
 	}
 	s.t.Fatalf("unexpected call %s %s%s?%s", c.Method, c.Host, c.Path, c.Query.Encode())
@@ -210,7 +235,7 @@ func TestCampaignWorker(t *testing.T) {
 			check(t, len(s.dials) == 0 && s.update["status"] == "scheduled" && next > time.Now().UnixMilli() && s.update["run_id"] != "run1", "update %v", s.update)
 		})
 	run("Redial is explicit and every run uses its previous terminal call ID", map[string]any{"attempts": []any{schedAttempt(0, "completed", "a")}}, obj{"redial": true}, func(t *testing.T, s *schedFixture) {
-		check(t, len(s.dials) == 1 && get(s.dials[0], "metadata", "campaign_redial_of") == "request0", "dials %v", s.dials)
+		check(t, len(s.dials) == 1 && get(s.dials[0], "metadata", "campaign_redial_of") == "44444444-4444-4444-8444-000000000000", "dials %v", s.dials)
 	})
 	prior := schedAttempt(0, "completed", "a")
 	prior["metadata"].(obj)["schedule_job_id"], prior["metadata"].(obj)["schedule_run_id"] = "job", "run1"
@@ -223,6 +248,53 @@ func TestCampaignWorker(t *testing.T) {
 	run("An uncertain dial stops the job", map[string]any{"timeout": true}, nil, func(t *testing.T, s *schedFixture) {
 		check(t, len(s.dials) == 1 && s.update["status"] == "failed", "dials %v update %v", s.dials, s.update)
 	})
+	retries := obj{"max_attempts": float64(3)}
+	run("A finished unanswered call is saved with its result before the next row", map[string]any{"attempts": []any{schedAttempt(0, "ringing", "oc_old")}, "status": "no-answer"}, retries,
+		func(t *testing.T, s *schedFixture) {
+			check(t, len(s.saved) == 2 && s.saved[0]["status"] == "no-answer" && get(s.saved[0], "response", "followup", "outcome", "call_result") == "NO_ANSWER", "saved %v", s.saved)
+			check(t, len(s.dials) == 1 && s.dialRow(0) == float64(1), "dials %v", s.dials)
+		})
+	noAnswer := runAttempt(0, 1, nil)
+	run("An unanswered row is called again as a retry of its last attempt", map[string]any{"attempts": []any{noAnswer}}, retries, func(t *testing.T, s *schedFixture) {
+		check(t, len(s.dials) == 1 && s.dialRow(0) == float64(0) && get(s.dials[0], "metadata", "campaign_redial_of") == noAnswer["id"], "dials %v", s.dials)
+	})
+	for _, result := range []obj{{"followup": "CONFIRMED"}, {"callback": "DECLINED", "followup": "NO_ANSWER"}, {"review": "WRONG_PERSON"}, {"followup": "REQUEST_AGENT"}} {
+		run("A final result is never called again", map[string]any{"oneRow": true, "attempts": []any{runAttempt(0, 1, maps.Clone(result))}}, retries, func(t *testing.T, s *schedFixture) {
+			check(t, len(s.dials) == 0 && s.update["status"] == "completed", "%v: dials %v update %v", result, s.dials, s.update)
+		})
+	}
+	run("A row stops after max_attempts", map[string]any{"oneRow": true, "attempts": []any{runAttempt(0, 1, nil), runAttempt(0, 2, nil), runAttempt(0, 3, nil)}}, retries, func(t *testing.T, s *schedFixture) {
+		check(t, len(s.dials) == 0 && s.update["status"] == "completed", "dials %v update %v", s.dials, s.update)
+	})
+	ended := time.Now().Add(-time.Minute).UnixMilli()
+	run("A retry that is not due yet waits without dialing", map[string]any{"oneRow": true, "attempts": []any{runAttempt(0, 1, obj{"completed_at": jsISO(ended)})}}, retries, func(t *testing.T, s *schedFixture) {
+		check(t, len(s.dials) == 0 && s.update["status"] == "running" && s.update["next_run_at"] == jsISO(callingHours(ended+10*60000)), "update %v", s.update)
+	})
+	unreachable := obj{"status": "failed", "reason": "unreachable"}
+	run("Three unreachable calls in a row pause the queue", map[string]any{"attempts": []any{runAttempt(0, 1, unreachable), runAttempt(1, 1, unreachable), runAttempt(0, 2, unreachable)}}, retries,
+		func(t *testing.T, s *schedFixture) {
+			check(t, len(s.dials) == 0 && s.update["status"] == "failed" && strings.Contains(jsString(s.update["last_error"]), "3 สาย"), "update %v", s.update)
+		})
+	run("An answered call without a result is checked again, then retried", map[string]any{"oneRow": true, "status": "completed", "attempts": []any{runAttempt(0, 1, obj{"status": "completed", "final": nil})}}, retries,
+		func(t *testing.T, s *schedFixture) {
+			check(t, len(s.saved) == 2 && s.saved[0]["status"] == "completed", "result not refreshed: %v", s.saved)
+			check(t, len(s.dials) == 1 && s.dialRow(0) == float64(0), "dials %v update %v", s.dials, s.update)
+		})
+	run("An answered call without a result is retried only once", map[string]any{"oneRow": true, "attempts": []any{runAttempt(0, 1, obj{"status": "completed"}), runAttempt(0, 2, obj{"status": "completed"})}}, retries,
+		func(t *testing.T, s *schedFixture) {
+			check(t, len(s.dials) == 0 && s.update["status"] == "completed", "dials %v update %v", s.dials, s.update)
+		})
+}
+
+func TestCallingHours(t *testing.T) {
+	at := func(s string) int64 {
+		v, _ := time.ParseInLocation("2006-01-02 15:04", s, bangkok)
+		return v.UnixMilli()
+	}
+	for in, want := range map[string]string{"2026-10-20 08:59": "2026-10-20 09:00", "2026-10-20 12:30": "2026-10-20 12:30",
+		"2026-10-20 19:59": "2026-10-20 19:59", "2026-10-20 20:00": "2026-10-21 09:00", "2026-10-20 23:50": "2026-10-21 09:00"} {
+		check(t, callingHours(at(in)) == at(want), "%s moved to %s", in, time.UnixMilli(callingHours(at(in))).In(bangkok))
+	}
 }
 
 func schedRequest(s *schedFixture, body obj) response {

@@ -588,7 +588,7 @@ func TestVoiceAPI(t *testing.T) {
 		check(t, reserved != nil && get(reserved.Body, "p_metadata", "schedule_run_id") == "occurrence_fixture" && get(reserved.Body, "p_lease_id") == fixtureUser, "reservation %v", reserved)
 	})
 	run("A worker cannot redial or select rows outside its saved alarm", func(t *testing.T, b *backendFixture) {
-		b.opt["campaign"] = csvCampaign()
+		b.opt["campaign"], b.opt["prompt"] = csvCampaign(), "{{guest_name}} {{call_result}}"
 		b.opt["lastAttempt"] = obj{"id": fixtureUser, "status": "completed", "call_id": "old"}
 		body := batchPayload()
 		meta(body)["campaign_redial_of"] = fixtureUser
@@ -602,5 +602,16 @@ func TestVoiceAPI(t *testing.T) {
 			check(t, statusOf(b.invoke(callPath, body, voiceCall{worker: wk})) == 403, "worker allowed with %v", changes)
 		}
 		check(t, len(b.dials()) == 0, "dialed")
+	})
+	run("A worker without redial may retry its own attempt of the current run", func(t *testing.T, b *backendFixture) {
+		b.opt["campaign"], b.opt["prompt"] = csvCampaign(), "{{guest_name}} {{call_result}}"
+		b.opt["lastAttempt"] = obj{"id": fixtureUser, "status": "no-answer", "call_id": "old", "metadata": obj{"schedule_job_id": fixtureUser, "schedule_run_id": "occurrence"}}
+		body := batchPayload()
+		meta(body)["campaign_redial_of"] = fixtureUser
+		body["request_id"] = campaignRequestID(fixtureUser, "version-1", 1, fixtureUser)
+		job := obj{"id": fixtureUser, "lease_id": fixtureUser, "run_id": "occurrence", "owner_id": fixtureUser, "campaign_id": fixtureUser, "account_id": "tenant_fixture"}
+		wk := &worker{user: obj{"id": fixtureUser, "email": "fixture@example.invalid", "email_confirmed_at": "2026-01-01"}, job: job}
+		r := b.invoke(callPath, body, voiceCall{worker: wk})
+		check(t, r.status == 200 && len(b.dials()) == 1, "= %d %v", r.status, r.data)
 	})
 }

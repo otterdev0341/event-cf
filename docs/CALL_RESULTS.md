@@ -44,3 +44,22 @@ Each scheduler tick (`/api/voice-scheduler`, called by pg_cron every minute) ref
 - Unanswered calls skip log and analysis reads, because they have no conversation.
 - The analysis fallback needs Botnoi analysis enabled on the Agent, with a `call_result` field whose option IDs are the outcome IDs, plus `needs_agent` and `evidence`.
 - An answered call that stays ambiguous or ends in a hang-up remains UNDETERMINED. Nothing infers a result from transcript text.
+
+## Automatic retries in scheduled runs (2026-10-28)
+Apply `supabase/migrations/202610280001_campaign_retries.sql` in Supabase first. It adds `voice_campaign_jobs.max_attempts` (default 3, existing jobs included) and lets a run reserve up to that many attempts per contact row. Until it is applied, the worker sees no `max_attempts` and dials each row once per run, as before.
+
+Each scheduled run decides per row from the row's last attempt in that run. A manual review wins over the Agent Tool result, which wins over the provider or analysis result; UNDETERMINED counts as no result.
+
+| Last attempt | Next attempt |
+| --- | --- |
+| CONFIRMED, DECLINED, WRONG_PERSON, REQUEST_AGENT | none |
+| NO_ANSWER, or not answered with a no-answer/busy/rejected signal | after 10 minutes |
+| CALLBACK_REQUESTED | after 2 hours |
+| Answered but ended without a result (hang-up) | after 10 minutes, once per run |
+| Any other unanswered failure (`unreachable`, `cancelled`, ...) | after 60 minutes |
+
+- A row gets at most `max_attempts` attempts per run, counting the first dial.
+- A retry that falls outside 09:00-20:00 Thailand time moves to the next 09:00. First dials still start at the user's chosen time. Campaign calling hours are not used yet, because the editor never saves them.
+- The worker saves each call's status and result through `/workspace/calls/:requestId/result` when the call ends. Before a retry of a call whose result is not final, it reads the result once more, so a result that arrived by then stops the retry. Botnoi analysis can take up to 30 minutes, but a hang-up is retried after 10, so an analysis result that arrives later does not stop that retry.
+- If the three most recent attempts of the run were all unreachable-type failures, the job stops as `failed` with a message to check the trunk.
+- While retries wait, the job stays `running` with `next_run_at` set to the earliest due retry. Manual calls for that campaign stay blocked until the job finishes or is cancelled.
