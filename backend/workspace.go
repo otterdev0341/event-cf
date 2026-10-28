@@ -175,8 +175,9 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 
 // noAnswerSignal returns the provider status or failure reason saying the recipient did not pick up, or "".
 // Trunk and system failures such as unreachable are not the recipient's answer and stay undetermined.
+// Botnoi reports the reason as no_answer, so underscores count as hyphens.
 func noAnswerSignal(status, reason string) string {
-	reason = strings.ToLower(reason)
+	reason = strings.ReplaceAll(strings.ToLower(reason), "_", "-")
 	switch {
 	case status == "no-answer" || status == "busy":
 		return status

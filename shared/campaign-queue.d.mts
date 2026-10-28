@@ -1,7 +1,9 @@
 import type { PreparedContact } from './campaign-inputs.mjs';
-export interface CampaignAttempt { id: string; call_id: string | null; status: string; created_at: string; metadata: { contact_row?: number; campaign_id?: string; campaign_version?: string } }
+export interface CampaignAttempt { id: string; call_id: string | null; status: string; created_at: string; metadata: { contact_row?: number; campaign_id?: string; campaign_version?: string }; review?: string | null; callback?: string | null; followup?: string | null; reason?: string | null }
 export function terminalCall(status: string): boolean;
+export function shownStatus(status: string, reason?: string | null): string;
 export function latestAttempt(attempts:CampaignAttempt[],index:number):CampaignAttempt|undefined;
+export function unansweredRows(rows:PreparedContact[],attempts:CampaignAttempt[]):number[];
 export function planCampaignCalls(rows:PreparedContact[],attempts:CampaignAttempt[],indexes:number[]|null,redial?:boolean):(PreparedContact & {redialOf?:string})[];
 export function campaignRequestId(campaignId:string,version:string,row:number,redialOf?:string):Promise<string>;
 export function runCampaignQueue(options: {
