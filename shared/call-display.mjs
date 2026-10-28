@@ -7,7 +7,7 @@ export function callResultDisplay(attempt) {
     return {key:'NO_ANSWER',label:'ไม่รับสาย',note:'โทรไม่สำเร็จ หรือไม่มีผู้รับสาย'};
   }
   if(outcome.call_result==='UNDETERMINED'&&attempt.status==='completed') {
-    return {key:'ENDED_WITHOUT_RESULT',label:'ตัดสาย',note:'สายสิ้นสุดแล้ว โดยไม่มีผลตอบรับ'};
+    return {key:'ENDED_WITHOUT_RESULT',label:'จบสายโดยไม่ได้คำตอบ',note:'สายถูกรับแล้วจบโดยไม่มีผลตอบรับ เช่น ผู้รับวางสายทันที หรือข้อความแจ้งของเครือข่ายเมื่อปิดเครื่อง'};
   }
   return {key:outcome.call_result,label:outcomeLabels[outcome.call_result]||'รอตรวจสอบ',note:null};
 }
