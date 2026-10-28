@@ -8,7 +8,7 @@ import { botnoiApi } from '../services/botnoi';
 import { botnoiFetch } from '../services/botnoi/client';
 import { useAgentDetail } from '../hooks/useBotnoiData';
 import { prepareCampaignRows } from '../../shared/campaign-inputs.mjs';
-import { runCampaignQueue, planCampaignCalls, campaignRequestId, terminalCall, type CampaignAttempt } from '../../shared/campaign-queue.mjs';
+import { runCampaignQueue, planCampaignCalls, campaignRequestId, terminalCall, shownStatus, type CampaignAttempt } from '../../shared/campaign-queue.mjs';
 import { effectiveOutcome, latestContactCalls, type Outcome } from '../../shared/call-results.mjs';
 import { callResultDisplay } from '../../shared/call-display.mjs';
 import { activeSchedule } from '../../shared/campaign-schedule.mjs';
@@ -19,7 +19,7 @@ import { routes, warnBeforeLeave } from '../routes';
 
 type Attempt = CampaignAttempt & {
   destination?: string;
-  response?: { review?: Outcome; callback?: { outcome: Outcome }; followup?: { outcome: Outcome }; transcript?: { text: string } } | null;
+  response?: { review?: Outcome; callback?: { outcome: Outcome }; followup?: { outcome: Outcome; failure_reason?: string | null }; transcript?: { text: string } } | null;
 };
 type Live = { status: string; callId?: string };
 type ColumnId = 'pending' | 'calling' | 'confirmed' | 'declined' | 'followup' | 'noresult';
@@ -319,7 +319,7 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
           <section className="rd-stack" style={{ gap: 8 }}>
             <h3>สถานะล่าสุด</h3>
             {openCard.attempt || openCard.state ? <>
-              <div className="rd-kv"><span>สถานะสาย</span><strong>{STATUS_LABELS[openCard.state?.status ?? openCard.attempt!.status] || openCard.attempt?.status}</strong></div>
+              <div className="rd-kv"><span>สถานะสาย</span><strong>{STATUS_LABELS[openCard.state?.status ?? shownStatus(openCard.attempt!.status, openCard.attempt!.response?.followup?.failure_reason)] || openCard.attempt?.status}</strong></div>
               {openCard.attempt && <>
                 <div className="rd-kv"><span>ผลตอบรับ</span><strong>{callResultDisplay(openCard.attempt).label}</strong></div>
                 <div className="rd-kv"><span>ต้องการเจ้าหน้าที่</span><strong>{(() => { const n = effectiveOutcome(openCard.attempt!.response).needs_agent; return n === null ? 'ยังไม่ทราบ' : n ? 'ต้องการ' : 'ไม่ต้องการ'; })()}</strong></div>

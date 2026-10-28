@@ -9,11 +9,11 @@ import { botnoiApi } from '../services/botnoi';
 import { useAgentDetail } from '../hooks/useBotnoiData';
 import { prepareCampaignRows } from '../../shared/campaign-inputs.mjs';
 import { checkCampaignReady } from '../lib/campaign-calls';
-import { runCampaignQueue, planCampaignCalls, unansweredRows, campaignRequestId, terminalCall, type CampaignAttempt } from '../../shared/campaign-queue.mjs';
+import { runCampaignQueue, planCampaignCalls, unansweredRows, campaignRequestId, terminalCall, shownStatus, type CampaignAttempt } from '../../shared/campaign-queue.mjs';
 import { routes, warnBeforeLeave } from '../routes';
 
 type RowState = {status:string; message:string; callId?:string};
-const stateTone = (status?:string) => status==='completed'?'ok':['failed','busy','error'].includes(status||'')?'bad':['no-answer','cancelled','canceled','unknown'].includes(status||'')?'warn':['submitting','queued','ringing','in-progress'].includes(status||'')?'info':'';
+const stateTone = (status?:string) => status==='completed'?'ok':['failed','error'].includes(status||'')?'bad':['no-answer','busy','cancelled','canceled','unknown'].includes(status||'')?'warn':['submitting','queued','ringing','in-progress'].includes(status||'')?'info':'';
 const labels: Record<string,string> = {waiting:'รอส่ง',submitting:'กำลังส่งคำขอ',queued:'เข้าคิวแล้ว',ringing:'กำลังเรียกสาย','in-progress':'กำลังสนทนา',completed:'จบสาย',failed:'โทรไม่สำเร็จ',busy:'สายไม่ว่าง','no-answer':'ไม่รับสาย',cancelled:'ยกเลิก',canceled:'ยกเลิก',unknown:'รอตรวจสอบ'};
 export function CampaignCallPage() {
   const [campaign] = useState(() => getCampaigns().find(c => c.id === new URLSearchParams(window.location.search).get('campaign')));
@@ -49,7 +49,7 @@ export function CampaignCallPage() {
     if (!supabase || !campaign) throw new Error('ไม่พบแคมเปญ');
     const all: CampaignAttempt[] = [];
     for (let offset=0;;offset+=500) {
-      const {data,error} = await supabase.from('voice_call_requests').select('id,call_id,status,created_at,metadata,review:response->review->>call_result,callback:response->callback->outcome->>call_result,followup:response->followup->outcome->>call_result').eq('metadata->>campaign_id',campaign.id).order('created_at').order('id').range(offset,offset+499);
+      const {data,error} = await supabase.from('voice_call_requests').select('id,call_id,status,created_at,metadata,review:response->review->>call_result,callback:response->callback->outcome->>call_result,followup:response->followup->outcome->>call_result,reason:response->followup->>failure_reason').eq('metadata->>campaign_id',campaign.id).order('created_at').order('id').range(offset,offset+499);
       if (error) throw new Error('อ่านประวัติคำขอไม่ได้ จึงยังเริ่มคิวไม่ได้');
       all.push(...data as unknown as CampaignAttempt[]); if (data.length<500) {
         if (all.some(a => a.metadata.campaign_version !== campaign.updatedAt)) throw new Error('แคมเปญนี้มีคำขอจากเวอร์ชันก่อนหน้า กรุณาตรวจประวัติ หากต้องการโทรชุดใหม่ให้สร้างแคมเปญใหม่ เพื่อไม่โทรรายชื่อเดิมซ้ำ');
@@ -60,7 +60,7 @@ export function CampaignCallPage() {
   useEffect(() => { mounted.current=true; return () => { mounted.current=false; stopped.current=true; }; },[]);
   useEffect(() => {
     let active=true; setHistoryReady(false);
-    void attempts().then(data => { if (!active) return; setHistory(data);setStates(Object.fromEntries(data.filter(a=>Number.isInteger(a.metadata.contact_row)).map(a=>[a.metadata.contact_row!,{status:a.status,message:'คำขอที่บันทึกไว้ · ดูผลล่าสุดในส่วนผลตอบรับด้านล่าง',callId:a.call_id || undefined}]))); setHistoryReady(true); }).catch(e=>{if(active)setError(e.message);});
+    void attempts().then(data => { if (!active) return; setHistory(data);setStates(Object.fromEntries(data.filter(a=>Number.isInteger(a.metadata.contact_row)).map(a=>[a.metadata.contact_row!,{status:shownStatus(a.status,a.reason),message:'คำขอที่บันทึกไว้ · ดูผลล่าสุดในส่วนผลตอบรับด้านล่าง',callId:a.call_id || undefined}]))); setHistoryReady(true); }).catch(e=>{if(active)setError(e.message);});
     return()=>{active=false;};
   },[historyRevision]);
   useEffect(() => {
@@ -100,7 +100,7 @@ export function CampaignCallPage() {
   if(!campaign) return <div><AppHeader /><main className="page-shell real-data-page call-workspace"><h1>ไม่พบแคมเปญในบัญชีนี้</h1><Button href={routes.campaigns}>กลับไปแคมเปญ</Button></main></div>;
   const total=prepared.rows.length;
   const tally=(names:string[])=>prepared.rows.filter(r=>names.includes(states[r.index]?.status)).length;
-  const done=tally(['completed']), failed=tally(['failed','busy']), missed=tally(['no-answer','cancelled','canceled']);
+  const done=tally(['completed']), failed=tally(['failed']), missed=tally(['no-answer','busy','cancelled','canceled']);
   const ended=prepared.rows.filter(r=>terminalCall(states[r.index]?.status)).length;
   const pct=(n:number)=>total?`${n/total*100}%`:'0%';
   return <div><AppHeader /><main className="page-shell real-data-page call-workspace">
@@ -109,8 +109,8 @@ export function CampaignCallPage() {
     <section className="rd-card rd-pad rd-queue" aria-label="ความคืบหน้าคิว">
       <div className="rd-queue__body">
         <div className="rd-progress__label" style={{fontSize:14}}><span>ความคืบหน้าคิว</span><strong>{historyReady?`${ended.toLocaleString()} / ${total.toLocaleString()} สาย`:'…'}</strong></div>
-        <div className="rd-bar" style={{height:8,gap:2}} role="img" aria-label={`จบสาย ${done} ไม่สำเร็จ ${failed} ไม่รับหรือยกเลิก ${missed} จาก ${total}`}><span style={{width:pct(done),background:'#10b981'}}/><span style={{width:pct(missed),background:'#ffc300'}}/><span style={{width:pct(failed),background:'#ef4444'}}/></div>
-        <ul className="rd-legend"><li><i style={{background:'#10b981'}}/>จบสาย {done}</li><li><i style={{background:'#ffc300'}}/>ไม่รับสาย / ยกเลิก {missed}</li><li><i style={{background:'#ef4444'}}/>โทรไม่สำเร็จ {failed}</li></ul>
+        <div className="rd-bar" style={{height:8,gap:2}} role="img" aria-label={`จบสาย ${done} ไม่สำเร็จ ${failed} ไม่รับสาย สายไม่ว่าง หรือยกเลิก ${missed} จาก ${total}`}><span style={{width:pct(done),background:'#10b981'}}/><span style={{width:pct(missed),background:'#ffc300'}}/><span style={{width:pct(failed),background:'#ef4444'}}/></div>
+        <ul className="rd-legend"><li><i style={{background:'#10b981'}}/>จบสาย {done}</li><li><i style={{background:'#ffc300'}}/>ไม่รับสาย / สายไม่ว่าง / ยกเลิก {missed}</li><li><i style={{background:'#ef4444'}}/>โทรไม่สำเร็จ {failed}</li></ul>
       </div>
       <div className="rd-head__actions">{running ? <Button variant="secondary" onClick={()=>{stopped.current=true;setConsent(false);setMessage('กำลังหยุดส่งรายชื่อถัดไป สายที่ส่งแล้วจะไม่ถูกยกเลิก');}}>หยุดคิว</Button> : <Button href="#call-selection">เลือกรายชื่อที่จะโทร</Button>}</div>
     </section>

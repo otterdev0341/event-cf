@@ -1,4 +1,10 @@
 export const terminalCall = status => ['completed','failed','busy','no-answer','cancelled','canceled'].includes(status);
+// Botnoi reports a missed call as failed with reason no_answer, busy or rejected; show the recipient-side status instead.
+export function shownStatus(status, reason) {
+  const r=String(reason||'').toLowerCase().replaceAll('_','-');
+  if(status!=='failed')return status;
+  return r==='busy'?'busy':['no-answer','rejected'].includes(r)?'no-answer':status;
+}
 
 export function latestAttempt(attempts, index) {
   return attempts.filter(a=>a.metadata?.contact_row===index).sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)||String(b.id).localeCompare(String(a.id)))[0];
@@ -60,7 +66,8 @@ export async function runCampaignQueue({ rows, attempts, submit, readStatus, sho
     for (let poll = 0; poll < maxPolls; poll++) {
       if (shouldStop()) return 'paused';
       const status = await readStatus(callId);
-      onUpdate(row.index, status.status, status.reason || status.error || '', callId);
+      const shown = shownStatus(status.status, status.reason);
+      onUpdate(row.index, shown, shown !== status.status ? '' : status.reason || status.error || '', callId);
       if (terminalCall(status.status)) { terminal = true; break; }
       await wait(3000);
     }
