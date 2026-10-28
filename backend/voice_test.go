@@ -121,7 +121,11 @@ func (b *backendFixture) reply(c call) reply {
 		case c.Path == "/me":
 			return ok(obj{"_id": "tenant_fixture", "username": "fixture", "access_token": "hidden", "password": "hidden"})
 		case c.Path == "/agents":
-			return ok([]any{obj{"agent_id": "agt_fixture", "name": "Fixture"}})
+			agents := []any{obj{"agent_id": "agt_fixture", "name": "Fixture"}}
+			if b.on("extraAgent") {
+				agents = append(agents, obj{"agent_id": "agt_other", "name": "Other"})
+			}
+			return ok(agents)
 		case c.Path == "/platform-config/tools":
 			tools := []any{}
 			if b.on("connectedReceiver") {
@@ -307,6 +311,22 @@ func TestVoiceAPI(t *testing.T) {
 	})
 	run("Agent mismatch is forbidden", func(t *testing.T, b *backendFixture) {
 		check(t, b.invoke("/agents/agt_other", nil).status == 403, "not 403")
+	})
+	run("Only allowed agents are listed or usable", func(t *testing.T, b *backendFixture) {
+		b.opt["extraAgent"] = true
+		ids := func(r response) string {
+			list, _ := decodeJSON(r.raw)
+			var out []string
+			for _, agent := range list.([]any) {
+				out = append(out, strOr(get(agent, "agent_id")))
+			}
+			return strings.Join(out, ",")
+		}
+		check(t, ids(b.invoke("/agents", nil)) == "agt_fixture,agt_other", "empty allowlist hid agents")
+		only := voiceCall{env: map[string]string{"VOICE_ALLOWED_AGENT_IDS": "agt_fixture"}}
+		check(t, ids(b.invoke("/agents?limit=5", nil, only)) == "agt_fixture", "hidden agent listed")
+		check(t, b.invoke("/agents/agt_other", nil, only).status == 403, "hidden agent readable")
+		check(t, b.invoke(callPath, with(callPayload(), obj{"agent_id": "agt_other"}), only).status == 400 && len(b.dials()) == 0, "hidden agent dialed")
 	})
 	run("Query tokens are rejected; log limit capped", func(t *testing.T, b *backendFixture) {
 		check(t, b.invoke("/me?token=foo", nil).status == 400, "token query accepted")
