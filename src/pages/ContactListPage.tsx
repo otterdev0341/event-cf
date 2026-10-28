@@ -4,7 +4,7 @@ import { Button } from '../components/Button';
 import { getImportedContacts } from '../data/contacts';
 import { routes } from '../routes';
 export function ContactListPage() {
-  const [contacts, setContacts] = useState(getImportedContacts);
+  const [contacts] = useState(getImportedContacts);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const filtered = contacts.filter(contact => `${contact.name} ${contact.phone} ${contact.campaign}`.toLowerCase().includes(query.toLowerCase()));

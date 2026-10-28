@@ -1,11 +1,10 @@
-/* Spring hover/tap on every button, same feel as smooth-dropdown. Uses the `scale` property so existing transforms keep working. */
+/* Gentle press on every button. Uses the `scale` property so existing transforms keep working. */
 @media (prefers-reduced-motion: no-preference) {
   :is(button, .button, [role="button"], .schedule-frequency label):not(:disabled):not([aria-disabled="true"]) {
-    transition: all .2s ease, scale .5s linear(0, .22 6%, .72 15%, 1.05 25%, 1.12 32%, 1.04 48%, .99 62%, 1 80%, 1);
+    transition: all .2s ease, scale .18s cubic-bezier(.2, .8, .2, 1);
     scale: 1;
   }
-  :is(button, .button, [role="button"], .schedule-frequency label):not(:disabled):not([aria-disabled="true"]):hover { scale: 1.03; }
-  :is(button, .button, [role="button"], .schedule-frequency label):not(:disabled):not([aria-disabled="true"]):active { scale: .95; transition-duration: .1s, .12s; }
+  :is(button, .button, [role="button"], .schedule-frequency label):not(:disabled):not([aria-disabled="true"]):active { scale: .99; transition-duration: .1s, .08s; }
 }
 
 /* Sliding hover pill across button groups; position set by InterfaceMotion. */
@@ -21,7 +20,7 @@
 @media (prefers-reduced-motion: no-preference) {
   :is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub, .result-view-switch, .schedule-frequency > div)::before { transition: opacity .15s; }
   :is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub, .result-view-switch, .schedule-frequency > div)[data-slide="on"]::before {
-    transition: opacity .15s, transform .5s linear(0, .3 8%, .78 18%, 1.06 30%, 1.05 40%, .99 58%, 1 80%, 1), width .5s linear(0, .3 8%, .78 18%, 1.06 30%, 1.05 40%, .99 58%, 1 80%, 1), height .3s ease;
+    transition: opacity .15s, transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.2, .8, .2, 1), height .3s ease;
   }
 }
 .pk-grid::before, .pk-col::before, .pk-sub::before { border-radius: 9px; }
