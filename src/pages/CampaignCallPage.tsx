@@ -9,7 +9,7 @@ import { botnoiApi } from '../services/botnoi';
 import { useAgentDetail } from '../hooks/useBotnoiData';
 import { prepareCampaignRows } from '../../shared/campaign-inputs.mjs';
 import { checkCampaignReady } from '../lib/campaign-calls';
-import { runCampaignQueue, planCampaignCalls, campaignRequestId, terminalCall, type CampaignAttempt } from '../../shared/campaign-queue.mjs';
+import { runCampaignQueue, planCampaignCalls, unansweredRows, campaignRequestId, terminalCall, type CampaignAttempt } from '../../shared/campaign-queue.mjs';
 import { routes, warnBeforeLeave } from '../routes';
 
 type RowState = {status:string; message:string; callId?:string};
@@ -31,14 +31,16 @@ export function CampaignCallPage() {
   const [message,setMessage] = useState('');
   const [page,setPage] = useState(0);
   const [history,setHistory]=useState<CampaignAttempt[]>([]);
-  const [scope,setScope]=useState<'pending'|'selected'>('pending');
+  const [scope,setScope]=useState<'pending'|'unanswered'|'selected'>('pending');
   const [selectedRows,setSelectedRows]=useState<number[]>([]);
   const [redial,setRedial]=useState(false);
   const wasScheduled = useRef(false);
   useEffect(()=>{if(wasScheduled.current && !scheduledActive)setHistoryRevision(v=>v+1);wasScheduled.current=scheduledActive;},[scheduledActive]);
   const stopped = useRef(false), mounted = useRef(true), busy = useRef(false);
   const invalid = prepared.rows.filter(r => r.errors.length);
-  const planned=planCampaignCalls(prepared.rows,history,scope==='selected'?selectedRows:null,scope==='selected'&&redial);
+  const scopeRows=(list:CampaignAttempt[],rows=prepared.rows)=>scope==='selected'?selectedRows:scope==='unanswered'?unansweredRows(rows,list):null;
+  const redialing=scope==='unanswered'||(scope==='selected'&&redial);
+  const planned=planCampaignCalls(prepared.rows,history,scopeRows(history),redialing);
   const valid = !!detail.agent && !detail.loading && !detail.error && !prepared.errors.length && planned.length>0 && planned.every(row=>!row.errors.length);
   const repeatCount=planned.filter(row=>row.redialOf).length;
   function changeSelection(index:number){setConsent(false);setSelectedRows(old=>old.includes(index)?old.filter(i=>i!==index):[...old,index]);}
@@ -47,9 +49,9 @@ export function CampaignCallPage() {
     if (!supabase || !campaign) throw new Error('ไม่พบแคมเปญ');
     const all: CampaignAttempt[] = [];
     for (let offset=0;;offset+=500) {
-      const {data,error} = await supabase.from('voice_call_requests').select('id,call_id,status,created_at,metadata').eq('metadata->>campaign_id',campaign.id).order('created_at').order('id').range(offset,offset+499);
+      const {data,error} = await supabase.from('voice_call_requests').select('id,call_id,status,created_at,metadata,review:response->review->>call_result,callback:response->callback->outcome->>call_result,followup:response->followup->outcome->>call_result').eq('metadata->>campaign_id',campaign.id).order('created_at').order('id').range(offset,offset+499);
       if (error) throw new Error('อ่านประวัติคำขอไม่ได้ จึงยังเริ่มคิวไม่ได้');
-      all.push(...data as CampaignAttempt[]); if (data.length<500) {
+      all.push(...data as unknown as CampaignAttempt[]); if (data.length<500) {
         if (all.some(a => a.metadata.campaign_version !== campaign.updatedAt)) throw new Error('แคมเปญนี้มีคำขอจากเวอร์ชันก่อนหน้า กรุณาตรวจประวัติ หากต้องการโทรชุดใหม่ให้สร้างแคมเปญใหม่ เพื่อไม่โทรรายชื่อเดิมซ้ำ');
         return all;
       }
@@ -79,7 +81,7 @@ export function CampaignCallPage() {
         if(!lock) throw new Error('แคมเปญนี้กำลังทำงานในอีกแท็บ');
         const { account, checked } = await checkCampaignReady(campaign);
         const latestHistory = await attempts();
-        const chosen=planCampaignCalls(checked.rows,latestHistory,scope==='selected'?selectedRows:null,scope==='selected'&&redial);
+        const chosen=planCampaignCalls(checked.rows,latestHistory,scopeRows(latestHistory,checked.rows),redialing);
         if(!chosen.length)throw new Error('ไม่มีรายชื่อที่ต้องโทร เลือกรายชื่อใหม่ หรือเปิดตัวเลือกโทรซ้ำหากต้องการโทรคนที่จบสายแล้ว');
         if(chosen.some(row=>row.errors.length))throw new Error('ข้อมูลของรายชื่อที่เลือกยังไม่ครบ กรุณาตรวจ CSV');
         if(chosen.some(row=>row.redialOf!==planned.find(p=>p.index===row.index)?.redialOf))throw new Error('ประวัติการโทรเปลี่ยนแล้ว กรุณาตรวจและยืนยันใหม่');
@@ -113,7 +115,7 @@ export function CampaignCallPage() {
       <div className="rd-head__actions">{running ? <Button variant="secondary" onClick={()=>{stopped.current=true;setConsent(false);setMessage('กำลังหยุดส่งรายชื่อถัดไป สายที่ส่งแล้วจะไม่ถูกยกเลิก');}}>หยุดคิว</Button> : <Button href="#call-selection">เลือกรายชื่อที่จะโทร</Button>}</div>
     </section>
     {message && <p className="workspace-notice" role="status">{message}</p>}{error && <p className="workspace-alert" role="alert">{error}</p>}
-    <CampaignSchedule campaignId={campaign.id} onActive={setScheduledActive} configure version={campaign.updatedAt} rows={scope==='selected'?selectedRows:null} total={prepared.rows.length} pendingCount={redial?planCampaignCalls(prepared.rows,history,scope==='selected'?selectedRows:null,false).length:planned.length} disabled={running || editing || !historyReady || detail.loading || !!detail.error} />
+    <CampaignSchedule campaignId={campaign.id} onActive={setScheduledActive} configure version={campaign.updatedAt} rows={scopeRows(history)} total={prepared.rows.length} pendingCount={redialing?planCampaignCalls(prepared.rows,history,scopeRows(history),false).length:planned.length} disabled={running || editing || !historyReady || detail.loading || !!detail.error} />
     <section className="rd-card rd-pad rd-stack call-preflight" id="call-preflight">
       <div className="rd-filters" style={{justifyContent:'space-between'}}><div className="rd-panel-head"><h2>ตรวจความพร้อมก่อนเริ่ม</h2><span className="rd-muted">{campaign.fileName} · หนึ่งแถวต่อหนึ่งผู้ติดต่อ · ใช้ข้อมูลของแถวนั้นในการโทร</span></div><span role="status" className={`rd-chip ${detail.loading?'':invalid.length||prepared.errors.length?'rd-chip--warn':'rd-chip--ok'}`}>{detail.loading?"กำลังอ่าน Agent…":`ข้อมูลครบ ${prepared.errors.length?0:total-invalid.length} / ${total} รายชื่อ`}</span></div>
       <details><summary className="rd-link">ดูการจับคู่ตัวแปรและคอลัมน์ CSV</summary><div className="rd-codes" style={{marginTop:10}}>{detail.variables.map(v=><code key={v}>{v} ← {prepared.bindings[v]?.source==='output'?'ผลลัพธ์หลังโทร':(prepared.bindings[v] as {column?:string})?.column || 'ยังไม่เลือกคอลัมน์'}</code>)}</div></details>
@@ -122,11 +124,12 @@ export function CampaignCallPage() {
       <p className="rd-stat__note">ตัวแปรที่เป็นผลลัพธ์หลังสนทนาให้กำหนดในหน้าจับคู่ ระบบจะไม่เติมค่าจำลองให้</p>
       <div className="rd-head__actions"><Button size="compact" variant="secondary" disabled={running || editing || scheduledActive} onClick={()=>{detail.refetch();setHistoryRevision(v=>v+1);setError('');setConsent(false);}}>ตรวจข้อมูลล่าสุด</Button><Button size="compact" variant="secondary" disabled={running || editing || scheduledActive} onClick={()=>edit(routes.dataMapping)}>แก้ไขการจับคู่</Button><Button size="compact" variant="secondary" disabled={running || editing || scheduledActive} onClick={()=>edit(routes.createCampaign)}>เปลี่ยนไฟล์ CSV</Button></div>
     </section>
-    <section className="rd-card rd-pad rd-stack" id="call-selection"><div className="rd-panel-head"><h2>เลือกรายชื่อที่จะโทร</h2><span className="rd-muted">โทรเรียงทีละคน รอจบสายก่อนส่งคนถัดไป เว้นคำขออย่างน้อย 13 วินาที กรุณาเปิดหน้านี้และให้เครื่องทำงานไว้</span></div>
+    <section className="rd-card rd-pad rd-stack" id="call-selection"><div className="rd-panel-head"><h2>เลือกรายชื่อที่จะโทร</h2><span className="rd-muted">โทรเรียงทีละคน รอจบสายก่อนส่งคนถัดไป เว้นคำขออย่างน้อย 13 วินาที กรุณาเปิดหน้านี้และให้เครื่องทำงานไว้ การโทรแบบนี้ไม่โทรซ้ำให้เอง ถ้าต้องการให้ระบบโทรซ้ำคนที่ไม่รับสายอัตโนมัติ ให้ใช้การตั้งเวลาโทร</span></div>
       <div className="rd-filters" style={{justifyContent:'space-between'}}>
-        <div className="rd-segment" role="group" aria-label="ขอบเขตการโทร"><button type="button" aria-pressed={scope==='pending'} disabled={running} onClick={()=>{setScope('pending');setRedial(false);setConsent(false);}}>รายชื่อที่ยังไม่จบทั้งหมด</button><button type="button" aria-pressed={scope==='selected'} disabled={running} onClick={()=>{setScope('selected');setConsent(false);}}>เลือกเฉพาะบางคน</button></div>
+        <div className="rd-segment" role="group" aria-label="ขอบเขตการโทร"><button type="button" aria-pressed={scope==='pending'} disabled={running} onClick={()=>{setScope('pending');setRedial(false);setConsent(false);}}>รายชื่อที่ยังไม่จบทั้งหมด</button><button type="button" aria-pressed={scope==='unanswered'} disabled={running} onClick={()=>{setScope('unanswered');setRedial(false);setConsent(false);}}>โทรซ้ำคนที่ยังไม่ได้คำตอบ</button><button type="button" aria-pressed={scope==='selected'} disabled={running} onClick={()=>{setScope('selected');setConsent(false);}}>เลือกเฉพาะบางคน</button></div>
         {scope==='selected'&&<div className="rd-head__actions"><button type="button" className="rd-link" disabled={running||!historyReady} onClick={()=>{setSelectedRows(prepared.rows.filter(row=>!row.errors.length).map(row=>row.index));setConsent(false);}}>เลือกทุกคนที่ข้อมูลครบ</button><button type="button" className="rd-link" disabled={running||!selectedRows.length} onClick={()=>{setSelectedRows([]);setConsent(false);}}>ล้างการเลือก</button></div>}
       </div>
+      {scope==='unanswered'&&<p className="rd-muted" style={{margin:0}}>เลือกคนที่สายล่าสุดไม่รับสาย สายไม่ว่าง จบสายโดยไม่ได้คำตอบ ติดต่อไม่ได้ หรือขอให้โทรกลับ ไม่รวมคนที่ตอบตกลง ปฏิเสธ ผิดคน หรือขอคุยเจ้าหน้าที่แล้ว</p>}
       {scope==='selected'&&<><p className="rd-muted" style={{margin:0}}>ติ๊กเลือกผู้ติดต่อในตารางด้านล่าง เลือกข้ามหน้าได้</p><label className="rd-toggle-row"><input type="checkbox" checked={redial} disabled={running} onChange={e=>{setRedial(e.target.checked);setConsent(false);}}/><span><small>โทรซ้ำรายชื่อที่เลือกและจบสายแล้ว</small></span></label></>}
       <div className="rd-summary rd-card--tint" style={{borderRadius:12,padding:'14px 16px'}} role="status"><span>รายชื่อที่จะดำเนินการ{scope==='selected'?` · เลือกไว้ ${selectedRows.length} คน`:''}{repeatCount?` · โทรซ้ำ ${repeatCount} คน`:''}</span><strong>{historyReady?planned.length:'…'}</strong></div>
       {scope==='selected'&&!redial&&selectedRows.some(index=>terminalCall(states[index]?.status))&&<p className="rd-stat__note">รายชื่อที่จบสายแล้วจะถูกข้าม เปิดตัวเลือกโทรซ้ำหากต้องการโทรอีกครั้ง</p>}

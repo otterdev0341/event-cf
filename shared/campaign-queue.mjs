@@ -3,6 +3,15 @@ export const terminalCall = status => ['completed','failed','busy','no-answer','
 export function latestAttempt(attempts, index) {
   return attempts.filter(a=>a.metadata?.contact_row===index).sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)||String(b.id).localeCompare(String(a.id)))[0];
 }
+// Rows whose last call ended without a final answer, with the same precedence and final results as the scheduler's retryKind.
+const finalResults=['CONFIRMED','DECLINED','WRONG_PERSON','REQUEST_AGENT'];
+export function unansweredRows(rows, attempts) {
+  return rows.filter(row=>{
+    const last=latestAttempt(attempts,row.index);
+    if(!last||!terminalCall(last.status))return false;
+    return !finalResults.includes([last.review,last.callback,last.followup].find(r=>r&&r!=='UNDETERMINED'));
+  }).map(row=>row.index);
+}
 export function planCampaignCalls(rows, attempts, indexes, redial=false) {
   return rows.filter(row=>indexes===null || indexes.includes(row.index)).flatMap(row=>{
     const previous=latestAttempt(attempts,row.index);
