@@ -160,6 +160,21 @@ func (a *App) sharedConnection(ctx context.Context, user obj) obj {
 	return conn
 }
 
+// connectedAccount returns the Voice Bot account an owner is connected to now, or "" when none.
+// The team account has no voice_bot_connections row, so it is compared against the cached /me.
+func (a *App) connectedAccount(store *db, ownerID any) (string, error) {
+	if a.cfg.SharedToken != "" {
+		// A failed /me lookup is temporary: report it as unavailable so the provider retries.
+		conn := a.sharedConnection(store.ctx, obj{"id": ownerID})
+		if conn == nil {
+			return "", errors.New("team Voice Bot account unavailable")
+		}
+		return strOr(conn["account_id"]), nil
+	}
+	row, err := store.MaybeSingle("voice_bot_connections", "account_id", eq("owner_id", ownerID))
+	return strOr(get(row, "account_id")), err
+}
+
 func orBlank(v any) any {
 	if truthy(v) {
 		return v
