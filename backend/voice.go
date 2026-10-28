@@ -806,7 +806,7 @@ func (v *voiceRequest) applyCampaign(body, bodyMeta, metadata obj, variables *ob
 		rows, hasRows := job["contact_rows"].([]any)
 		contact := bodyMeta["contact_row"]
 		if job == nil || !jsSame(job["owner_id"], userID) || !jsSame(job["campaign_id"], campaign["id"]) || job["account_id"] != accountID ||
-			bodyMeta["campaign_batch"] != true || (truthy(bodyMeta["campaign_redial_of"]) && !truthy(job["redial"])) ||
+			bodyMeta["campaign_batch"] != true ||
 			(hasRows && !slices.ContainsFunc(rows, func(r any) bool { return jsSame(r, contact) })) {
 			return fail(403, "คิวไม่ตรงกับแคมเปญ")
 		}
@@ -868,6 +868,11 @@ func (v *voiceRequest) applyCampaign(body, bodyMeta, metadata obj, variables *ob
 		retry, hasRetry := bodyMeta["campaign_redial_of"]
 		if hasRetry && (last == nil || !jsSame(retry, last["id"]) || !truthy(last["call_id"]) || !terminalCall(last["status"])) {
 			return fail(409, "สายเดิมยังไม่จบหรือประวัติเปลี่ยนแล้ว กรุณาตรวจและยืนยันใหม่")
+		}
+		// A job without redial may only retry its own attempt of this run.
+		if wk := v.worker; wk != nil && hasRetry && !truthy(wk.job["redial"]) &&
+			(!jsSame(get(last, "metadata", "schedule_job_id"), wk.job["id"]) || !jsSame(get(last, "metadata", "schedule_run_id"), wk.job["run_id"])) {
+			return fail(403, "คิวไม่ตรงกับแคมเปญ")
 		}
 		if last != nil && !truthy(retry) {
 			return fail(409, "แถวนี้มีคำขอแล้ว กรุณาตรวจประวัติ หรือเลือกโทรซ้ำพร้อมยืนยัน")
