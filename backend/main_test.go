@@ -80,6 +80,27 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 }
 
+func TestHTTPSRedirect(t *testing.T) {
+	h := newServer("/event-confirm", fstest.MapFS{"index.html": {Data: []byte("app")}}, &App{})
+	serve := func(method, visitor string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, "http://otterdev.xyz/event-confirm/campaigns?x=1", nil)
+		if visitor != "" {
+			req.Header.Set("CF-Visitor", visitor)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := serve("GET", `{"scheme":"http"}`); rec.Code != 308 || rec.Header().Get("Location") != "https://otterdev.xyz/event-confirm/campaigns?x=1" {
+		t.Errorf("http visitor = %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+	for _, c := range []struct{ method, visitor string }{{"GET", `{"scheme":"https"}`}, {"GET", ""}, {"POST", `{"scheme":"http"}`}} {
+		if rec := serve(c.method, c.visitor); rec.Code == 308 {
+			t.Errorf("%s %q redirected", c.method, c.visitor)
+		}
+	}
+}
+
 func TestRootOnDisk(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "index.html"), []byte("app"), 0o644)

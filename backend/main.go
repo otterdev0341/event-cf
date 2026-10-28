@@ -46,7 +46,21 @@ func newServer(base string, static fs.FS, a *App) http.Handler {
 		}
 		http.Redirect(w, r, target, http.StatusPermanentRedirect)
 	})
-	return securityHeaders(base, a.cfg.SupabaseURL, mux)
+	return securityHeaders(base, a.cfg.SupabaseURL, httpsOnly(mux))
+}
+
+// httpsOnly sends page loads that reached Cloudflare over plain HTTP to HTTPS, so the app and its
+// bearer token never run over HTTP. CF-Visitor carries the visitor's scheme, so an HTTPS visitor can
+// never loop. Server-to-server POSTs (callbacks, scheduler) are left alone in case one is set up on HTTP.
+func httpsOnly(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		visitor := strings.ReplaceAll(r.Header.Get("CF-Visitor"), " ", "")
+		if (r.Method == "GET" || r.Method == "HEAD") && strings.Contains(visitor, `"scheme":"http"`) {
+			http.Redirect(w, r, "https://"+r.Host+r.URL.RequestURI(), http.StatusPermanentRedirect)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // securityHeaders sets browser hardening headers on every response.
