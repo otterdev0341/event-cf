@@ -445,6 +445,15 @@ func (c *usageCounts) add(call any) {
 }
 
 // handleUsage aggregates actual telephone calls, never the separate preview-session dashboard.
+// usageAgentAllowed reports whether a call's Agent is in the allowed list; an empty list allows every call.
+func usageAgentAllowed(call any, allowed []string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	id, ok := get(call, "agent", "id").(string)
+	return ok && slices.Contains(allowed, id)
+}
+
 func (v *voiceRequest) handleUsage(query queryList) error {
 	start, _ := query.lookup("start_at")
 	end, _ := query.lookup("end_at")
@@ -464,6 +473,8 @@ func (v *voiceRequest) handleUsage(query queryList) error {
 	if source != "all" {
 		params.set("direction", source)
 	}
+	// The Voice Bot account is shared; with VOICE_ALLOWED_AGENT_IDS set, count only this app's Agents.
+	allowed := splitList(v.app.cfg.AllowedAgentIDs)
 	calls := map[string]any{}
 	var order []string
 	cursors := map[string]bool{}
@@ -485,7 +496,7 @@ func (v *voiceRequest) handleUsage(query queryList) error {
 			if !isString || !okT {
 				return fail(502, "ประวัติสายจาก Voice Bot ขาดรหัสสายหรือเวลาโทร")
 			}
-			if started >= s && started <= e && (source == "all" || get(call, "direction") == source) {
+			if started >= s && started <= e && (source == "all" || get(call, "direction") == source) && usageAgentAllowed(call, allowed) {
 				if _, seen := calls[id]; !seen {
 					order = append(order, id)
 				}

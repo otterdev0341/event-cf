@@ -16,18 +16,26 @@ try {
   await db.exec(readFileSync(new URL('../supabase/migrations/202610090001_voice_workspace.sql',import.meta.url),'utf8'));
   await test('Scheduler migration installs and can be reapplied',async()=>{const sql=readFileSync(new URL('../supabase/migrations/202610170001_campaign_jobs.sql',import.meta.url),'utf8');await db.exec(sql);await db.exec(sql);});
   await test('Recurring migration installs and is repeatable',async()=>{const sql=readFileSync(new URL('../supabase/migrations/202610170002_optional_recurring_schedules.sql',import.meta.url),'utf8');await db.exec(sql);await db.exec(sql);});
+  await test('Retry migration installs and is repeatable',async()=>{const sql=readFileSync(new URL('../supabase/migrations/202610280001_campaign_retries.sql',import.meta.url),'utf8');await db.exec(sql);await db.exec(sql);});
   await db.query("insert into voice_campaigns(id,owner_id,state,data) values($1,$2,'saved',$3)",[campaignId,owner,JSON.stringify({agentId:'agt_fixture'})]);
   const version=(await db.query('select updated_at from voice_campaigns')).rows[0].updated_at;
   await db.query("insert into voice_campaign_jobs(owner_id,campaign_id,campaign_version,account_id,run_at,next_run_at) values($1,$2,$3,'account',now()+interval '1 day',now())",[owner,campaignId,version]);
   await test('A future job cannot be claimed',async()=>assert.equal((await db.query('select * from claim_voice_campaign_job()')).rows.length,0));
   await db.exec("update voice_campaign_jobs set run_at=now()-interval '1 second'");
-  await test('Only one worker can claim a due job',async()=>{job=(await db.query('select * from claim_voice_campaign_job()')).rows[0];assert.ok(job.lease_id);assert.equal((await db.query('select * from claim_voice_campaign_job()')).rows.length,0);});
+  await test('Only one worker can claim a due job',async()=>{job=(await db.query('select * from claim_voice_campaign_job()')).rows[0];assert.ok(job.lease_id);assert.equal(job.max_attempts,3);assert.equal((await db.query('select * from claim_voice_campaign_job()')).rows.length,0);});
   const reserve=(lease=job.lease_id,overrides={})=>db.query("select reserve_scheduled_voice_call($1,$2,$3,'0812345678','agt_fixture',$4)",[job.id,lease,'44444444-4444-4444-8444-444444444444',JSON.stringify({campaign_id:campaignId,campaign_version:version,voice_account_id:'account',schedule_run_id:job.run_id,contact_row:0,...overrides})]);
   await test('A stale worker cannot reserve a call',async()=>assert.rejects(reserve(other),/job_not_active/));
   await test('Cancellation after claim prevents the next reservation',async()=>{await db.exec("update voice_campaign_jobs set status='cancelled'");await assert.rejects(reserve(),/job_not_active/);await db.exec("update voice_campaign_jobs set status='running'");});
   await test('Editing a campaign invalidates the confirmed job',async()=>{await db.exec("update voice_campaigns set updated_at=updated_at+interval '1 second'");await assert.rejects(reserve(),/campaign_changed/);await db.query('update voice_campaigns set updated_at=$1',[version]);});
   await test('Only the current occurrence and authorized rows can reserve calls',async()=>{await assert.rejects(reserve(job.lease_id,{schedule_run_id:other}),/invalid_call/);await db.exec('update voice_campaign_jobs set contact_rows=ARRAY[1]');await assert.rejects(reserve(),/invalid_call/);await db.exec('update voice_campaign_jobs set contact_rows=null');await assert.rejects(reserve(job.lease_id,{campaign_redial_of:other}),/invalid_call/);});
   await test('Durable reservation prevents a duplicate dial after retry',async()=>{await reserve();await assert.rejects(reserve(),/duplicate key|row_already_dispatched/);assert.equal((await db.query('select * from voice_call_requests')).rows.length,1);});
+  await test('A run retries its own attempt of the same row at most max_attempts times',async()=>{
+    const again=(n,overrides={})=>db.query("select reserve_scheduled_voice_call($1,$2,$3,'0812345678','agt_fixture',$4)",[job.id,job.lease_id,`66666666-6666-4666-8666-${String(n).padStart(12,'0')}`,JSON.stringify({campaign_id:campaignId,campaign_version:version,voice_account_id:'account',schedule_run_id:job.run_id,contact_row:0,campaign_redial_of:'44444444-4444-4444-8444-444444444444',...overrides})]);
+    await assert.rejects(again(1,{contact_row:1}),/invalid_call/);
+    await again(2);await again(3);
+    await assert.rejects(again(4),/row_already_dispatched/);
+    assert.equal((await db.query('select * from voice_call_requests')).rows.length,3);
+  });
   await test('Expired worker lease cannot reserve another call',async()=>{await db.exec("update voice_campaign_jobs set lease_until=now()-interval '1 second'");await assert.rejects(reserve(),/job_not_active/);});
   await test('A cancelled alarm can be replaced without editing the campaign version',async()=>{await db.exec("update voice_campaign_jobs set status='cancelled'");await db.query("insert into voice_campaign_jobs(owner_id,campaign_id,campaign_version,account_id,run_at,next_run_at) values($1,$2,$3,'account',now()+interval '1 day',now()+interval '1 day')",[owner,campaignId,version]);await assert.rejects(db.query("insert into voice_campaign_jobs(owner_id,campaign_id,campaign_version,account_id,run_at,next_run_at) values($1,$2,$3,'account',now(),now())",[owner,campaignId,version]),/duplicate key/);});
   await test('Other users cannot read jobs, modify them or invoke worker RPCs',async()=>{

@@ -352,6 +352,18 @@ func TestRecordingCallback(t *testing.T) {
 		check(t, r.invoke(recPayload(), "", cbCall{env: map[string]string{"VOICE_RESULT_CALLBACK_SECRET": ""}}).status == 503, "unconfigured accepted")
 		check(t, len(r.calls) == 0, "database called")
 	})
+	run("Team account mode links recordings without a personal connection", func(t *testing.T, r *recFixture) {
+		database := r.serve
+		r.serve = func(c call) reply {
+			if c.Path == "/me" {
+				return ok(obj{"_id": recAccount})
+			}
+			check(t, !strings.HasSuffix(c.Path, "/voice_bot_connections"), "personal connection read in team mode")
+			return database(c)
+		}
+		res := r.invoke(recPayload(), "", cbCall{env: map[string]string{"VOICE_BOT_ACCESS_TOKEN": validJWT("TEAM")}})
+		check(t, res.status == 200 && r.patches == 1, "team recording = %d %s", res.status, res.raw)
+	})
 	run("Recording credentials are separate from result credentials and reject malformed auth", func(t *testing.T, r *recFixture) {
 		root := recordingEnv["VOICE_RESULT_CALLBACK_SECRET"]
 		result, _ := accountCallbackSecret(recAccount, root)
