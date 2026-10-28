@@ -104,7 +104,7 @@ export function AuthPage() {
             <ul className="trust-points">
               {trustPoints.map((point) => (
                 <li key={point}>
-                  <img src="/assets/circle-check.svg" width="18" height="18" alt="" />
+                  <img src={import.meta.env.BASE_URL + "assets/circle-check.svg"} width="18" height="18" alt="" />
                   <span>{point}</span>
                 </li>
               ))}
@@ -179,7 +179,11 @@ export function AuthPage() {
                     aria-pressed={showPassword}
                     onClick={() => setShowPassword((visible) => !visible)}
                   >
-                    <img src="/assets/eye.svg" width="20" height="20" alt="" />
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      {showPassword
+                        ? <path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7c1.9 0 3.6-.6 5-1.5M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+                        : <><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" /><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" /></>}
+                    </svg>
                   </button>
                 </div>
               </FormField>

@@ -1,32 +1,13 @@
 # Event Confirm documentation
 
-เอกสารปัจจุบัน:
-
-- [AI Agent integration handoff](AGENT_API_HANDOFF.md)
-- [P6–P9 execution status](plans/PHASE_6_9_EXECUTION.md)
-
 เริ่มอ่านก่อน refactor:
 
-- [ผลส่งมอบ Phase 0–5](PHASE_0_5_DELIVERY.md) · [วิธีรัน frontend preview](../frontend/README.md)
-
-- [Implementation phases — ntex และ async gates](plans/IMPLEMENTATION_PHASES.md)
-
-- [ผลการโทร 3 แบบและกติกา retry/ticket ล่าสุด](plans/CALL_OUTCOME_MODEL.md)
-- [สถาปัตยกรรมใหม่ — JPG](diagrams/target-architecture.jpg) · [PlantUML](diagrams/target-architecture.puml)
-- [Call outcome / retry flow — JPG](diagrams/call-outcome-flow.jpg) · [PlantUML](diagrams/call-outcome-flow.puml)
-
-- [แผน refactor และ implementation — frontend ก่อน](plans/REFACTOR_IMPLEMENTATION_PLAN.md)
-- [รายละเอียด template รายชื่อ, โทรซ้ำ และ org/event credentials](plans/CALLING_IMPORT_CREDENTIAL_PLAN.md)
-- [Queue แบบเรียบง่ายและความพร้อมสำหรับ Lightsail](plans/QUEUE_LIGHTSAIL_DESIGN.md)
-- [คิว New/Fail สัดส่วน X:1 และ Groovy API test plan](plans/WEIGHTED_QUEUE_GROOVY_TEST_PLAN.md)
-- [Queue/Lightsail diagram — JPG](diagrams/queue-lightsail.jpg)
-- [Design specification](../DESIGN.md) และ [กฎ engineering / 300 บรรทัด](../AGENTS.md)
 - [สถาปัตยกรรมและขอบเขตระบบปัจจุบัน](ARCHITECTURE.md)
 - [Application architecture — JPG](diagrams/application-architecture.jpg)
 - [Deployment foundation — JPG](diagrams/deployment-foundation.jpg)
 - [การ deploy บน Otter host และนโยบาย resource/cleanup](HOST_DEPLOYMENT.md)
 
-ภาพเป็น JPG ที่ render จาก PlantUML มาตรฐาน เปิดด้วย image viewer จาก terminal ได้
+ภาพเป็น JPG ที่ render จาก PlantUML มาตรฐาน (ไฟล์ `.puml` อัปเดตเป็น Go backend แล้ว แต่ JPG ยังเป็นภาพก่อน rewrite จนกว่าจะรัน `render.py` ใหม่) เปิดด้วย image viewer จาก terminal ได้
 เช่น `kitten icat docs/diagrams/application-architecture.jpg` เมื่อใช้ Kitty
 หรือ `chafa docs/diagrams/application-architecture.jpg` หากติดตั้ง chafa แล้ว
 ต้นฉบับ: [application-architecture.puml](diagrams/application-architecture.puml)
@@ -52,10 +33,7 @@ render PNG แล้วแปลง format เป็น JPG โดยไม่�
 - [Scheduler และ recurring calls](../SCHEDULER_SETUP.md)
 - [API documentation](API_DOCUMENTATION.md)
 
-`BACKEND_SETUP.md`, `DEPLOYMENT_HANDOFF.md` และ `TEST_REPORT.md` เป็นเอกสารจาก
+`BACKEND_SETUP.md` และ `TEST_REPORT.md` เป็นเอกสารจาก
 แอปเดิม บางข้อความยังอ้าง shared Voice Bot account, repository เก่า หรือระบุว่า
 scheduler ยังไม่มี ซึ่งไม่ตรงกับ source ปัจจุบันทั้งหมด ไม่ใช่หลักฐานว่า
 environment ของ `event-cf` ได้ตั้งค่า Supabase หรือ deploy แอปแล้ว
-
-- [Workspace operations update](plans/WORKSPACE_OPERATIONS_UPDATE.md) — team roles, charts, settings, event knowledge/category templates, lang_code, retry limits and Swagger.
-- [Machine-readable JSON plan](plans/WORKSPACE_OPERATIONS_UPDATE.json).

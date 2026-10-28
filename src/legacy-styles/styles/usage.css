@@ -1,7 +1,0 @@
-
-.usage-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-.usage-controls { display: flex; gap: 16px; flex-wrap: wrap; }
-.usage-controls label { display: flex; flex-direction: column; gap: 8px; color: var(--color-body); font-size: 14px; }
-.usage-controls select { min-width: 190px; padding: 12px 16px; border: 1px solid var(--color-border-light); border-radius: 12px; background: var(--color-white); color: var(--color-heading); font: inherit; }
-.usage-toolbar > .button { width: auto; }
-.usage-controls select:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }

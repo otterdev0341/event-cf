@@ -1,3 +1,0 @@
-
-.mic-control { position: relative; isolation: isolate; }
-.mic-control::before, .mic-control::after { content: ''; position: absolute; inset: -12px; border: 1px solid #7c5cff55; border-radius: 50%; opacity: 0; pointer-events: none; }

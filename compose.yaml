@@ -6,22 +6,25 @@ services:
     labels:
       ci.project: event-confirm
       ci.purpose: runtime
+    # Server-only secrets (Supabase service role, encryption key, callback secret). Kept outside the repo.
+    env_file: ${EVENT_CONFIRM_ENV_FILE:?Set EVENT_CONFIRM_ENV_FILE to the server-only env file}
+    environment:
+      GOMEMLIMIT: 100MiB
     ports:
-      - "127.0.0.1:18346:80"
-      - "172.17.0.1:18346:80"
+      - "127.0.0.1:18346:8080"
+      - "172.17.0.1:18346:8080"
     cpus: 0.25
-    mem_limit: 64m
-    memswap_limit: 64m
+    # ponytail: campaign reads decode up to 32 MiB of JSON into memory; 64m could OOM on large accounts.
+    mem_limit: 128m
+    memswap_limit: 128m
     pids_limit: 64
     read_only: true
     tmpfs:
-      - /var/cache/nginx:size=8m
-      - /var/run:size=1m
       - /tmp:size=4m
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/event-confirm/healthz"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/event-confirm/healthz"]
       interval: 15s
       timeout: 3s
       retries: 3
@@ -30,77 +33,3 @@ services:
       options:
         max-size: "5m"
         max-file: "2"
-  db:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: event_confirm
-      POSTGRES_USER: event_confirm
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Runtime database password required}
-    volumes: ["database:/var/lib/postgresql/data"]
-    command: ["postgres", "-c", "max_connections=20", "-c", "shared_buffers=64MB", "-c", "statement_timeout=5000", "-c", "idle_in_transaction_session_timeout=10000"]
-    cpus: 0.5
-    mem_limit: 384m
-    memswap_limit: 384m
-    pids_limit: 100
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U event_confirm -d event_confirm"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-    labels: {ci.project: event-confirm, ci.purpose: runtime}
-    logging:
-      driver: json-file
-      options: {max-size: "5m", max-file: "2"}
-  api: &api
-    image: event-confirm/api:${IMAGE_TAG:?Immutable build tag required}
-    restart: unless-stopped
-    env_file: ${EVENT_CONFIRM_ENV_FILE:?Runtime environment file required}
-    environment:
-      RECORDING_PROVIDER_URL: http://simulated-provider:8080
-    read_only: true
-    tmpfs: ["/tmp:size=8m"]
-    cpus: 0.5
-    mem_limit: 256m
-    memswap_limit: 256m
-    pids_limit: 64
-    stop_grace_period: 45s
-    security_opt: ["no-new-privileges:true"]
-    depends_on:
-      db: {condition: service_healthy}
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "--max-time", "3", "http://127.0.0.1:8080/healthz"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-    labels: {ci.project: event-confirm, ci.purpose: runtime}
-    logging:
-      driver: json-file
-      options: {max-size: "5m", max-file: "2"}
-  worker:
-    <<: *api
-    command: ["worker"]
-    healthcheck: {disable: true}
-    depends_on:
-      api: {condition: service_healthy}
-      simulated-provider: {condition: service_started}
-  simulated-provider:
-    image: event-confirm/provider:${IMAGE_TAG:?Immutable build tag required}
-    restart: unless-stopped
-    environment:
-      PROVIDER_TOKEN: ${PROVIDER_TOKEN:?Simulation token required}
-    volumes: ["simulation-journal:/data"]
-    read_only: true
-    tmpfs: ["/tmp:size=4m"]
-    cpus: 0.25
-    mem_limit: 64m
-    memswap_limit: 64m
-    pids_limit: 64
-    security_opt: ["no-new-privileges:true"]
-    labels: {ci.project: event-confirm, ci.purpose: runtime}
-    logging:
-      driver: json-file
-      options: {max-size: "5m", max-file: "2"}
-volumes:
-  database:
-  simulation-journal:

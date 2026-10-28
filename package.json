@@ -5,28 +5,36 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:backend": "node scripts/dev-backend.mjs",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
     "preview": "vite preview",
-    "test": "node scripts/test-local.mjs && node scripts/test-backend.mjs && node scripts/test-database.mjs && node scripts/test-campaign-queue.mjs && node scripts/test-call-results.mjs && node scripts/test-result-callback.mjs && node scripts/test-agent-setup.mjs && node scripts/test-voice-connection.mjs",
+    "test": "node scripts/test-local.mjs && node scripts/test-database.mjs && node scripts/test-campaign-queue.mjs && node scripts/test-call-results.mjs && node scripts/test-scheduler.mjs && node scripts/test-recording-repair.mjs && npm run test:go",
     "test:integration": "node scripts/run-all-tests.mjs",
     "test:readiness": "node scripts/check-readiness.mjs",
-    "test:inbound": "node scripts/test-inbound-events.mjs",
-    "test:general": "node scripts/test-general-events.mjs",
-    "test:audio": "node scripts/test-audio-library.mjs && node scripts/test-recording-repair.mjs && node scripts/test-recording-callback.mjs"
+    "test:go": "cd backend && go test ./..."
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.6",
     "@fontsource/noto-sans-thai": "^5.2.6",
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "@hugeicons/react": "^1.1.10",
     "@supabase/supabase-js": "^2.117.2",
+    "clsx": "^2.1.1",
+    "motion": "^14.6.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "react-use-measure": "^2.1.7",
+    "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.20.5",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.4",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "vite": "^7.1.7"
   }

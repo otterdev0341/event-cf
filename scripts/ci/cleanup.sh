@@ -14,8 +14,8 @@ mounts=
 if [[ -n "$containers" ]]; then
   mounts=$(docker inspect --format '{{range .Mounts}}{{println .Source}}{{end}}' $containers)
 fi
-# Only this project's regenerable build outputs. No tracked lib/libs or shared caches.
-for relative in node_modules dist coverage .npm   frontend/node_modules frontend/dist frontend/test-results frontend/playwright-report frontend/coverage frontend/reports backend/target backend/reports tests/api/build tests/api/.gradle .cargo-ci .gradle-ci; do
+# Only this project's regenerable Node outputs. No tracked lib/libs or shared caches.
+for relative in node_modules dist coverage .npm; do
   target="$root/$relative"
   [[ -e "$target" || -L "$target" ]] || continue
   if [[ -L "$target" || "$(realpath "$target")" != "$target" ||
@@ -47,11 +47,7 @@ images=$(docker image ls -q --filter label=ci.project=event-confirm | sort -u)
 for image in $images; do
   id=$(docker image inspect --format '{{.Id}}' "$image")
   tags=$(docker image inspect --format '{{json .RepoTags}}' "$image")
-  protected_tag=false
-  for component in web api provider; do
-    if [[ "$tags" == *"event-confirm/$component:deployed\""* || "$tags" == *"event-confirm/$component:rollback\""* ]]; then protected_tag=true; fi
-  done
-  "$protected_tag" && continue
+  [[ "$tags" != *'event-confirm/web:deployed"'* && "$tags" != *'event-confirm/web:rollback"'* ]] || continue
   created=$(docker image inspect --format '{{.Created}}' "$image")
   (( $(date +%s) - $(date -d "$created" +%s) > 604800 )) || continue
   containers=$(docker ps -aq)
@@ -64,7 +60,7 @@ for image in $images; do
     mapfile -t refs < <(docker image inspect --format '{{range .RepoTags}}{{println .}}{{end}}' "$id" | sed '/^$/d')
     owned=true
     for ref in "${refs[@]}"; do
-      [[ "$ref" =~ ^event-confirm/(web|api|provider):jenkins-[0-9]+$ ]] || owned=false
+      [[ "$ref" == event-confirm/web:jenkins-* ]] || owned=false
     done
     if ! "$owned"; then echo "PROTECTED unexpected tag: $tags"; continue; fi
     if ((${#refs[@]})); then docker image rm "${refs[@]}"; else docker image rm "$id"; fi

@@ -7,15 +7,4 @@ vercel-preview-figma-ui/
 
 .env.*
 !.env.example
-
-# Refactor build/test outputs
-**/target/
-frontend/test-results/
-frontend/playwright-report/
-frontend/coverage/
-frontend/reports/
-tests/api/.gradle/
-tests/api/build/
-backend/reports/
-.cargo-ci/
-.gradle-ci/
+backend/*.exe

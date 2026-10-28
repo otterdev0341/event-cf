@@ -1,6 +1,0 @@
-
-.csv-preview { overflow: auto; background: white; border: 1px solid var(--color-border-light); border-radius: 14px; margin-block: 20px; }
-.csv-preview table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
-.csv-preview caption { text-align: left; padding: 16px; font-weight: 600; }
-.csv-preview th, .csv-preview td { padding: 12px 16px; border-top: 1px solid var(--color-border-light); white-space: nowrap; }
-.csv-preview th { background: #f5f3ff; }

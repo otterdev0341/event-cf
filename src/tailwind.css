@@ -1,0 +1,30 @@
+/* Tailwind for shadcn components in src/components/ui. Preflight is left out on purpose:
+   the rest of the app is styled by the hand-written CSS files and must not be reset. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+}
+
+/* shadcn tokens mapped onto the Voice Confirm palette. */
+:root {
+  --background: #f6f6f9;
+  --foreground: #111115;
+  --popover: #ffffff;
+  --popover-foreground: #111115;
+  --muted: #f0ebfc;
+  --muted-foreground: #52525b;
+  --border: #e6e6ee;
+  --primary: #7151df;
+  --primary-foreground: #ffffff;
+}

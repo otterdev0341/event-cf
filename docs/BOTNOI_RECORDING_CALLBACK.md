@@ -6,7 +6,7 @@ Callback ด้านล่างเป็นทางเลือกสำห�
 
 ## จุดรับข้อมูล
 
-`POST https://voice-confirm-two.vercel.app/api/voice-recording`
+`POST https://otterdev.xyz/event-confirm/api/voice-recording`
 
 Headers:
 

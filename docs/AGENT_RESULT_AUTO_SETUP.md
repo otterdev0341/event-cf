@@ -8,7 +8,7 @@
 
 - ติดตั้ง `supabase/migrations/202610120001_agent_result_setup.sql` ใน Supabase เดียวกัน
 - ติดตั้ง `202610120002_voice_connections.sql` และตั้ง `VOICE_CONNECTION_ENCRYPTION_KEY` ตาม `PERSONAL_VOICE_BOT_CONNECTION.md`
-- `VOICE_RESULT_CALLBACK_URL`: URL แบบ HTTPS ของ receiver เช่น `https://voice-confirm-two.vercel.app/api/voice-result`
+- `VOICE_RESULT_CALLBACK_URL`: URL แบบ HTTPS ของ receiver เช่น `https://otterdev.xyz/event-confirm/api/voice-result`
 - ใช้ JWT ที่แต่ละผู้ใช้เชื่อมในหน้าตั้งค่า พร้อม `SUPABASE_SERVICE_ROLE_KEY`, `VOICE_RESULT_CALLBACK_SECRET` และ Supabase URL เดิม
 - ค่าทั้งหมดนี้อยู่เฉพาะเซิร์ฟเวอร์ ห้ามใส่คีย์ลับในตัวแปร `VITE_`
 
@@ -24,4 +24,4 @@
 - Prompt, เสียง, การโอนสาย และ Tool อื่นถูกเก็บไว้ เพิ่มเฉพาะคำสั่งส่งผลและ Tool รับผล
 - ค่า “เชื่อมแล้ว” ยืนยันการตั้งค่าเท่านั้น ต้องทดสอบสายจริงสำหรับ Agent ใหม่ หากผู้รับวางสายก่อน Tool ทำงานอาจไม่มีผลตอบรับ
 
-GET/POST `/api/voice?path=/workspace/agents/<agent_id>/result-setup` รับเฉพาะ `confirm` และ `expected_revision` ไม่รับ URL, key, prompt หรือ config ตามที่ browser ส่งมา
+GET/POST `/event-confirm/api/voice?path=/workspace/agents/<agent_id>/result-setup` รับเฉพาะ `confirm` และ `expected_revision` ไม่รับ URL, key, prompt หรือ config ตามที่ browser ส่งมา

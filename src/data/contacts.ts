@@ -1,4 +1,4 @@
-import { getCampaigns, getDraft } from '../lib/campaigns';
+import { getCampaigns, getDraft, nameColumn } from '../lib/campaigns';
 export interface ImportedContact {
   id: string; name: string; phone: string; campaign: string; fileName: string;
   row: number; fields: Array<{ name: string; value: string }>;
@@ -10,7 +10,7 @@ export function getImportedContacts(): ImportedContact[] {
   if (draft) campaigns.set(draft.id, draft);
   return [...campaigns.values()].flatMap(campaign => {
     const phoneIndex = campaign.csv.headers.findIndex(header => campaign.mapping[header] === 'phone');
-    const nameIndex = campaign.csv.headers.findIndex(header => campaign.mapping[header] === 'guest_name');
+    const nameIndex = nameColumn(campaign);
     return campaign.csv.rows.map((row, index) => ({
       id: `${campaign.id}:${index}`, name: nameIndex >= 0 ? row[nameIndex] : '', phone: phoneIndex >= 0 ? row[phoneIndex] : '',
       campaign: campaign.name, fileName: campaign.fileName, row: index + 1,

@@ -2,15 +2,15 @@
 
 ## สถานะ
 
-โค้ดฝั่งรับผลพร้อมทดสอบ: `POST /api/voice-result` ใช้ได้ทั้ง Vercel Function และ Vite middleware ไม่มีการเปลี่ยน Agent หรือ deploy จากการเพิ่มไฟล์นี้
+โค้ดฝั่งรับผลพร้อมทดสอบ: `POST /event-confirm/api/voice-result` ให้บริการโดย Go backend (`backend/`) ไม่มีการเปลี่ยน Agent หรือ deploy จากการเพิ่มไฟล์นี้
 
-ยังต้องมี URL ของ **Voice Confirm บน Vercel** เช่น `https://<your-project>.vercel.app` ลิงก์ `https://voicebot-stg.botnoigroup.com/home` คือฝั่งผู้ส่ง ไม่ใช่ปลายทางรับผล
+URL ของ Voice Confirm คือ `https://otterdev.xyz/event-confirm/` ลิงก์ `https://voicebot-stg.botnoigroup.com/home` คือฝั่งผู้ส่ง ไม่ใช่ปลายทางรับผล
 
-## 1. ตั้งค่าที่ Vercel และ deploy
+## 1. ตั้งค่า server และ deploy
 
 เพิ่ม Environment Variables เฉพาะฝั่ง server:
 
-- `SUPABASE_SERVICE_ROLE_KEY`: service_role ของโปรเจกต์ Supabase เดียวกับข้อมูลแคมเปญ เก็บใน Vercel เท่านั้น ห้ามใส่ใน Agent, Git, หน้าเว็บ หรือชื่อที่ขึ้นต้น `VITE_`
+- `SUPABASE_SERVICE_ROLE_KEY`: service_role ของโปรเจกต์ Supabase เดียวกับข้อมูลแคมเปญ เก็บใน env file ของ server เท่านั้น (ดู [HOST_DEPLOYMENT.md](HOST_DEPLOYMENT.md)) ห้ามใส่ใน Agent, Git, หน้าเว็บ หรือชื่อที่ขึ้นต้น `VITE_`
 - `VOICE_RESULT_CALLBACK_SECRET`: สุ่มรหัสลับอย่างน้อย 32 ตัวอักษร (แนะนำ random 32 bytes แปลงเป็น hex) ใช้ร่วมกันเฉพาะ receiver กับ HTTP Tool
 - ใช้ Supabase URL และ Voice Bot access token เดิม
 
@@ -21,7 +21,7 @@ Receiver ปิดด้วย HTTP 503 หากตั้งค่าไม่�
 สร้าง Tool ชื่อ `save_voice_confirm_result` แล้วผูกให้ Agent ที่จะใช้งานจริง:
 
 - Method: `POST`
-- Endpoint: `https://<VOICE_CONFIRM_DOMAIN>/api/voice-result`
+- Endpoint: `https://otterdev.xyz/event-confirm/api/voice-result`
 - Header: `Content-Type: application/json`
 - Header: `Authorization: Bearer <VOICE_RESULT_CALLBACK_SECRET>` (เก็บในช่อง credential ของ Tool ห้ามเขียน secret ลง Prompt)
 - Body: JSON object แบนตาม schema ใน `voice-result-tool-schema.json` ห้ามมี wrapper `arguments`/`parameters` และห้ามส่งฟิลด์อื่น
@@ -54,7 +54,7 @@ Receiver ปิดด้วย HTTP 503 หากตั้งค่าไม่�
 ใช้สายทดสอบใหม่จาก Voice Confirm และผู้รับที่ยินยอม จากนั้นตรวจ:
 
 1. Agent ได้รับ `vc_call_reference` ที่เป็น UUID จริง (ไม่ใช่ข้อความ placeholder)
-2. Tool ส่ง JSON ตาม schema พร้อม auth ไปยัง Vercel แล้วได้รับ HTTP 200 `{"received":true}`
+2. Tool ส่ง JSON ตาม schema พร้อม auth ไปยัง Voice Confirm แล้วได้รับ HTTP 200 `{"received":true}`
 3. แถวสายโทรแสดงผลพร้อมแหล่งที่มา **Agent ส่งผลผ่าน Tool** และข้อความประกอบ
 4. ดาวน์โหลด CSV มีผล/source/evidence ตรงกับคำตอบจริง
 5. ส่ง payload เดิมซ้ำได้ผล duplicate โดยไม่มีข้อมูลซ้ำ ผลสุดท้ายที่ต่างจากเดิมถูกปฏิเสธเพื่อให้ผู้ใช้ตรวจแก้ในเว็บ

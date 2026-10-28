@@ -3,7 +3,7 @@ interface CampaignStepIndicatorProps {
   transparent?: boolean;
 }
 
-const steps = ["ตั้งค่าแคมเปญ", "เลือก Agent", "จับคู่ข้อมูล", "สรุปแคมเปญ"];
+const steps = ["ข้อมูลแคมเปญ", "เลือก Agent", "จับคู่ข้อมูล", "สรุปแคมเปญ"];
 
 export function CampaignStepIndicator({
   activeStep = 1,
@@ -27,25 +27,18 @@ export function CampaignStepIndicator({
             key={label}
             aria-current={isActive ? "step" : undefined}
           >
-            {index > 0 ? (
-              <img
-                className="campaign-steps__line"
-                src="/assets/create-campaign/step-line.svg"
-                width="40"
-                height="2"
-                alt=""
-                aria-hidden="true"
-              />
-            ) : null}
             <span className="campaign-steps__group">
               <span className="campaign-steps__number">
                 {isCompleted ? (
-                  <img src="/assets/data-mapping/check.svg" width="14" height="14" alt="" />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
                 ) : (
                   step
                 )}
               </span>
-              <span className="campaign-steps__label">{label}</span>
+              <span className="campaign-steps__text">
+                <small>ขั้นตอน {step}</small>
+                <span className="campaign-steps__label">{label}</span>
+              </span>
             </span>
           </li>
         );

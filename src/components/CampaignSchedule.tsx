@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from './Button';
+import { SmoothSelect } from './ui/smooth-select';
+import { DatePicker, TimePicker } from './Pickers';
 import { botnoiFetch } from '../services/botnoi/client';
 import { activeSchedule, firstScheduleTime, scheduleLabel } from '../../shared/campaign-schedule.mjs';
 import './CampaignSchedule.css';
@@ -57,11 +59,11 @@ export function CampaignSchedule({campaignId,onActive,configure=false,version,ro
         <fieldset className="schedule-frequency"><legend>ความถี่</legend><div>{([['once','ครั้งเดียว'],['daily','ทุกวัน'],['weekly','เลือกวัน']] as const).map(([value,label])=><label key={value} className={recurrence===value?'is-selected':''}><input type="radio" name="schedule-frequency" value={value} checked={recurrence===value} disabled={busy} onChange={()=>{setRecurrence(value);setConsent(false);}}/>{label}</label>)}</div></fieldset>
         <div className="schedule-time-block">
           <svg className="schedule-clock-face" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path className="schedule-clock-ticks" d="M50 10v5 M90 50h-5 M50 90v-5 M10 50h5"/><line className="schedule-hour-hand" x1="50" y1="50" x2="50" y2="28" transform={`rotate(${((hour||0)%12)*30+(minute||0)/2} 50 50)`}/><line className="schedule-minute-hand" x1="50" y1="50" x2="50" y2="17" transform={`rotate(${(minute||0)*6} 50 50)`}/><circle className="schedule-clock-pin" cx="50" cy="50" r="3"/></svg>
-          <label><span>เวลาโทร</span><input type="time" aria-label="เวลาโทร (เวลาไทย)" required value={time} disabled={busy} onChange={e=>{setTime(e.target.value);setConsent(false);}}/><small>เวลาไทย (24 ชั่วโมง)</small></label>
+          <div className="schedule-time-field"><span>เวลาโทร</span><TimePicker label="เวลาโทร (เวลาไทย)" value={time} disabled={busy} onChange={v=>{setTime(v);setConsent(false);}}/><small>เวลาไทย (24 ชั่วโมง)</small></div>
         </div>
-        <label className="schedule-date"><span>{recurrence==='once'?'วันที่โทร':'เริ่มตั้งแต่วันที่'}</span><input type="date" required value={date} disabled={busy} onChange={e=>{setDate(e.target.value);setConsent(false);}}/></label>
+        <div className="schedule-date"><span>{recurrence==='once'?'วันที่โทร':'เริ่มตั้งแต่วันที่'}</span><DatePicker label="วันที่โทร" value={date} disabled={busy} onChange={v=>{setDate(v);setConsent(false);}}/></div>
         {recurrence==='weekly'&&<fieldset className="schedule-weekdays"><legend>วันที่โทรซ้ำ</legend><div>{days.map(day=><button type="button" key={day.id} aria-label={day.name} aria-pressed={weekdays.includes(day.id)} disabled={busy} onClick={()=>{setWeekdays(old=>old.includes(day.id)?old.filter(v=>v!==day.id):[...old,day.id]);setConsent(false);}}>{day.label}</button>)}</div></fieldset>}
-        <label className="schedule-target"><span>รายชื่อที่จะโทร · {count} คน{rows!==null?'ที่เลือกไว้':''}</span><select value={redial?'all':'pending'} disabled={busy} onChange={e=>{setRedial(e.target.value==='all');setConsent(false);}}><option value="pending">เฉพาะรายชื่อที่ยังไม่จบการโทร</option><option value="all">โทรทุกคนในแต่ละรอบ รวมคนที่เคยจบสาย</option></select></label>
+        <label className="schedule-target"><span>รายชื่อที่จะโทร · {count} คน{rows!==null?'ที่เลือกไว้':''}</span><SmoothSelect value={redial?'all':'pending'} disabled={busy} onChange={v=>{setRedial(v==='all');setConsent(false);}} options={[{value:'pending',label:'เฉพาะรายชื่อที่ยังไม่จบการโทร'},{value:'all',label:'โทรทุกคนในแต่ละรอบ รวมคนที่เคยจบสาย'}]}/></label>
         {!count&&<p className="workspace-note">ไม่มีรายชื่อที่ยังไม่จบการโทร หากต้องการโทรซ้ำ ให้เลือก “โทรทุกคนในแต่ละรอบ”</p>}
         <div className="schedule-next" role="status"><span>เริ่มรอบถัดไป</span><strong>{next?`${scheduleLabel(next)} น.`:'เลือกวันและเวลาในอนาคตให้ครบ'}</strong><small>ปิดเว็บหรือปิดคอมได้ · ระบบตรวจคิวทุกนาที</small></div>
         {redial&&<p className="workspace-alert">การตั้งค่านี้จะโทรออกใหม่ถึงคนที่เคยจบสายแล้ว{recurrence!=='once'?'ในทุกรอบที่ตั้งไว้':''}</p>}

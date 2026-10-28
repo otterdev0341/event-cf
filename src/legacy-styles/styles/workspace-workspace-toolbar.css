@@ -1,3 +1,0 @@
-
-.workspace-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin: 24px 0; }
-.workspace-search { padding: 12px 16px; border: 1px solid var(--color-border-light); border-radius: 10px; font: inherit; min-width: 0; width: min(100%, 360px); }

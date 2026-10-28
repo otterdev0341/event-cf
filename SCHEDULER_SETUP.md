@@ -16,10 +16,14 @@ completed contacts are only redialed when the saved alarm explicitly allows it.
 
 1. Apply `supabase/migrations/202610170001_campaign_jobs.sql` and then
    `supabase/migrations/202610170002_optional_recurring_schedules.sql` as project owner.
-2. Deploy `/api/voice-scheduler` with the existing connection encryption,
+2. Deploy `/event-confirm/api/voice-scheduler` with the existing connection encryption,
    service role, and callback secret environment variables.
-3. Enable Supabase `pg_cron` and `pg_net`. Store `schedulerSecret(env)` from
-   `server/scheduler.mjs` in Vault as `voice_campaign_scheduler_token`.
+3. Enable Supabase `pg_cron` and `pg_net`. Store the scheduler token in Vault as
+   `voice_campaign_scheduler_token`. The token is the hex HMAC-SHA256 of the text
+   `voice-campaign-scheduler-v1` keyed with `VOICE_RESULT_CALLBACK_SECRET`
+   (`schedulerSecret` in `backend/scheduler.go`), for example
+   `printf %s voice-campaign-scheduler-v1 | openssl dgst -sha256 -hmac "$VOICE_RESULT_CALLBACK_SECRET" -r | cut -d' ' -f1`.
+   Recompute it whenever the callback secret changes.
 4. Schedule the SQL below every minute. It includes only a Vault reference, never
    a credential literal. Keep credential-bearing pg_net request tables inaccessible
    to public, anon, and authenticated roles.
@@ -27,7 +31,7 @@ completed contacts are only redialed when the saved alarm explicitly allows it.
 ```sql
 select cron.schedule('voice-confirm-campaign-worker', '* * * * *', $$
   select net.http_post(
-    url := 'https://voice-confirm-two.vercel.app/api/voice-scheduler',
+    url := 'https://otterdev.xyz/event-confirm/api/voice-scheduler',
     headers := jsonb_build_object('Content-Type', 'application/json',
       'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets
         where name = 'voice_campaign_scheduler_token')),
@@ -53,8 +57,8 @@ cancellation state, campaign version, account, and rate limit transactionally.
 The existing deterministic request ID and unique database key prevent duplicate
 dispatch after a crash. Editing/deleting a campaign invalidates/cascades its job.
 
-Validation: `node scripts/test-scheduler.mjs`, `node scripts/test-backend.mjs`,
-and `npm run build`. Tests use fixtures and a disposable PostgreSQL engine.
+Validation: `node scripts/test-scheduler.mjs`, `go test` in `backend/`
+(`TestCampaignWorker`, `TestCampaignAlarm`, `TestSchedulerEndpoint`), and `npm run build`. Tests use fixtures and a disposable PostgreSQL engine.
 
 References: https://supabase.com/docs/guides/functions/schedule-functions
 and https://supabase.com/docs/guides/database/extensions/pg_net

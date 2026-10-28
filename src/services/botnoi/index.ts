@@ -8,7 +8,7 @@ import * as did from "./did";
 import * as catalog from "./catalog";
 import * as exp from "./export";
 import * as tools from "./tools";
-import { botnoiFetch, botnoiFetchBlob, BotnoiApiError, getBotnoiConfig } from "./client";
+import { botnoiFetch, botnoiFetchBlob, getBotnoiConfig } from "./client";
 
 export * from "./types";
 export * from "./client";

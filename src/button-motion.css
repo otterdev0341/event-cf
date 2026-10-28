@@ -1,0 +1,29 @@
+/* Gentle press on every button. Uses the `scale` property so existing transforms keep working. */
+@media (prefers-reduced-motion: no-preference) {
+  :is(button, .button, [role="button"], .schedule-frequency label):not(:disabled):not([aria-disabled="true"]) {
+    transition: all .2s ease, scale .18s cubic-bezier(.2, .8, .2, 1);
+    scale: 1;
+  }
+  :is(button, .button, [role="button"], .schedule-frequency label):not(:disabled):not([aria-disabled="true"]):active { scale: .99; transition-duration: .1s, .08s; }
+}
+
+/* Sliding hover pill across button groups; position set by InterfaceMotion. */
+:is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub, .result-view-switch, .schedule-frequency > div) { position: relative; }
+:is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub, .result-view-switch, .schedule-frequency > div) > :is(a, button, label) { position: relative; z-index: 1; }
+:is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub, .result-view-switch, .schedule-frequency > div)::before {
+  content: ""; position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; opacity: 0;
+  width: var(--sl-w, 0); height: var(--sl-h, 0); border-radius: 10px;
+  background: #5a3cc41f; transform: translate(var(--sl-x, 0), var(--sl-y, 0));
+}
+.app-nav::before { background: #ffffff1f; }
+:is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub, .result-view-switch, .schedule-frequency > div)[data-slide="on"]::before { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  :is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub, .result-view-switch, .schedule-frequency > div)::before { transition: opacity .15s; }
+  :is(.app-nav, .primary-nav, .rd-segment, .rd-tabs, .rd-subnav, .auth-tabs, .pk-grid, .pk-col, .pk-sub, .result-view-switch, .schedule-frequency > div)[data-slide="on"]::before {
+    transition: opacity .15s, transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.2, .8, .2, 1), height .3s ease;
+  }
+}
+.pk-grid::before, .pk-col::before, .pk-sub::before { border-radius: 9px; }
+.pk-grid button:hover, .pk-col button:hover, .pk-sub button:hover { background: transparent; }
+.pk-grid button[aria-pressed="true"], .pk-col button[aria-selected="true"] { z-index: 2; }
+.pk-cal .pk-sub { position: absolute; }
