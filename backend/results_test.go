@@ -329,6 +329,32 @@ func TestCallResults(t *testing.T) {
 		check(t, res.status == 200 && r.patch["status"] == "completed", "= %d %v", res.status, r.patch)
 		check(t, get(res.data, "response", "followup", "outcome", "source") == "unavailable" && get(res.data, "response", "followup", "log_state") == "not_available", "followup %v", get(res.data, "response", "followup"))
 	})
+	run("Only a recipient-side no-answer becomes NO_ANSWER; unanswered calls skip logs and are final", func(t *testing.T, _ *resultsFixture) {
+		for _, c := range []struct {
+			call obj
+			want string
+		}{
+			{obj{"status": "failed", "reason": "no-answer"}, "NO_ANSWER"},
+			{obj{"status": "busy"}, "NO_ANSWER"},
+			{obj{"status": "failed", "reason": "unreachable"}, "UNDETERMINED"},
+			{obj{"status": "cancelled"}, "UNDETERMINED"},
+		} {
+			r := newResultsFixture(t)
+			r.callExtra = with(obj{"answered_at": nil, "completed_at": nil}, c.call)
+			followup := get(r.refresh().data, "response", "followup")
+			check(t, get(followup, "outcome", "call_result") == c.want && get(followup, "final") == true, "%v followup %v", c.call, followup)
+			reads := r.count(func(req call) bool {
+				return strings.HasPrefix(req.Path, "/logs/") || strings.HasPrefix(req.Path, "/analytics/")
+			})
+			check(t, reads == 0, "unanswered call read logs")
+		}
+	})
+	run("An answered call without a result keeps refreshing until the analysis window closes", func(t *testing.T, r *resultsFixture) {
+		r.callExtra = obj{"completed_at": nowISO()}
+		check(t, get(r.refresh().data, "response", "followup", "final") == nil, "recent call marked final")
+		old := newResultsFixture(t)
+		check(t, get(old.refresh().data, "response", "followup", "final") == true, "old call not final")
+	})
 	run("Exact linked transcript and structured outputs are retrieved", func(t *testing.T, r *resultsFixture) {
 		r.files = []any{"logs/oc_fixture.txt"}
 		r.log = obj{"text": "user: yes", "outputs": obj{"call_result": "CONFIRMED", "needs_agent": false}}

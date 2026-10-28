@@ -309,4 +309,34 @@ func TestSchedulerEndpoint(t *testing.T) {
 		r := serveHTTP(newApp(s.fixture, schedEnv), "POST", "/event-confirm/api/voice-scheduler", map[string]string{"Authorization": "Bearer " + secret}, "{}")
 		check(t, r.status == 200 && r.data["processed"] == float64(1) && len(s.dials) == 1 && s.update["status"] == "running", "= %d %v dials %v", r.status, r.data, s.dials)
 	})
+	t.Run("A tick refreshes an unresolved call as its owner without dialing", func(t *testing.T) {
+		const request = "44444444-4444-4444-8444-444444444444"
+		s := newSchedFixture(t, map[string]any{"status": "no-answer"})
+		inner := s.serve
+		var saved obj
+		s.serve = func(c call) reply {
+			switch {
+			case c.Path == "/rest/v1/voice_scheduler_health":
+				return status(201, nil)
+			case c.Path == "/rest/v1/rpc/claim_voice_campaign_job":
+				return ok([]any{})
+			case c.Path == "/rest/v1/voice_call_requests" && c.Query.Get("call_id") == "not.is.null":
+				check(t, c.Query.Get("response->followup->>final") == "is.null", "final calls not skipped")
+				return ok([]any{obj{"id": request, "owner_id": schedOwner}})
+			case c.Path == "/rest/v1/voice_call_requests" && c.Query.Get("id") == "eq."+request:
+				check(t, c.Query.Get("owner_id") == "eq."+schedOwner, "refresh not owner scoped")
+				if c.Method == "PATCH" {
+					saved = c.Body.(obj)
+					return ok([]any{obj{"id": request}})
+				}
+				return ok(obj{"id": request, "owner_id": schedOwner, "call_id": "oc_done", "agent_id": "agt_fixture", "status": "ringing",
+					"metadata": obj{"voice_account_id": "account"}, "created_at": nowISO()})
+			}
+			return inner(c)
+		}
+		secret, _ := schedulerSecret(schedEnv["VOICE_RESULT_CALLBACK_SECRET"])
+		r := serveHTTP(newApp(s.fixture, schedEnv), "POST", "/event-confirm/api/voice-scheduler", map[string]string{"Authorization": "Bearer " + secret}, "{}")
+		check(t, r.status == 200 && r.data["refreshed"] == float64(1) && len(s.dials) == 0, "= %d %v dials %v", r.status, r.data, s.dials)
+		check(t, saved["status"] == "no-answer" && get(saved, "response", "followup", "outcome", "call_result") == "NO_ANSWER", "saved %v", saved)
+	})
 }

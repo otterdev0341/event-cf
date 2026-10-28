@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -51,9 +52,48 @@ func (a *App) invoke(ctx context.Context, store *db, user, job obj, path string,
 	a.handleVoice(rec, nil, path, &worker{db: store, user: user, job: job}, ctx, body)
 	result, _ := decodeJSON(rec.Body.Bytes())
 	if rec.Code != 200 || truthy(get(result, "persistence_warning")) {
-		return nil, errors.New(jsString(firstTruthy(get(result, "error"), get(result, "persistence_warning"), "ตรวจบริการโทรไม่สำเร็จ")))
+		status := rec.Code
+		if status == 200 {
+			status = 502
+		}
+		return nil, &httpError{status: status, msg: jsString(firstTruthy(get(result, "error"), get(result, "persistence_warning"), "ตรวจบริการโทรไม่สำเร็จ"))}
 	}
 	return result, nil
+}
+
+// refreshCallResults finishes recent calls in the background (status, transcript, analysis result, NO_ANSWER),
+// so results appear even when nobody keeps the campaign page open. Each refresh runs as the call's owner.
+// ponytail: at most 5 random rows per tick; each costs several Voice Bot calls and a 429 would fail campaign jobs.
+func (a *App) refreshCallResults(ctx context.Context, store *db) int {
+	rows, err := store.Select("voice_call_requests", "id,owner_id", q{"call_id", "not.is.null"}, isNull("response->followup->>final"),
+		q{"created_at", "gte." + jsISO(nowMS()-48*3600000)}, order("created_at.desc"), limit(100))
+	if err != nil {
+		return 0
+	}
+	rand.Shuffle(len(rows), func(i, j int) { rows[i], rows[j] = rows[j], rows[i] })
+	users := map[string]obj{}
+	refreshed := 0
+	for _, row := range rows[:min(5, len(rows))] {
+		if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < 15*time.Second {
+			break
+		}
+		owner := jsString(row["owner_id"])
+		if users[owner] == nil {
+			user, err := store.AdminUser(owner)
+			if err != nil {
+				continue
+			}
+			users[owner] = user
+		}
+		_, err := a.invoke(ctx, store, users[owner], nil, "/workspace/calls/"+jsString(row["id"])+"/result", nil)
+		if he, ok := asHTTPError(err); ok && he.status == 429 {
+			break
+		}
+		if err == nil {
+			refreshed++
+		}
+	}
+	return refreshed
 }
 
 func sameInstant(a, b any) bool {
@@ -403,5 +443,5 @@ func (a *App) handleScheduler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	send(w, 200, obj{"ok": true, "processed": len(jobs)})
+	send(w, 200, obj{"ok": true, "processed": len(jobs), "refreshed": a.refreshCallResults(ctx, store)})
 }
