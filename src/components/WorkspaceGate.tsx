@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { clearWorkspace, loadCampaignWorkspace } from '../lib/campaigns';
@@ -14,7 +14,9 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState('');
   const [readyOwner, setReadyOwner] = useState('');
   const [revision, setRevision] = useState(0);
-  const needsDatabase = currentPath() === routes.dashboard || currentPath().startsWith(routes.campaigns) || currentPath().startsWith(routes.contacts);
+  // Owner whose campaigns are already in memory; in-app navigation keeps them instead of reloading.
+  const loadedFor = useRef('');
+  const needsDatabase = currentPath() === routes.dashboard || currentPath().startsWith(routes.campaigns) || currentPath().startsWith(routes.contacts) || currentPath() === routes.outbound || currentPath() === routes.inbound;
   useEffect(() => {
     if (!supabase) { setError('ยังไม่ได้ตั้งค่า Supabase'); setLoading(false); return; }
     let active = true;
@@ -25,10 +27,11 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     let active = true;
-    setReadyOwner(''); if (supabase) setError('');
-    if (!session) { clearWorkspace(); return; }
-    if (!needsDatabase) { setReadyOwner(session.user.id); return; }
-    void loadCampaignWorkspace(session.user.id).then(() => { if (active) setReadyOwner(session.user.id); }).catch(err => { if (active) setError(err.message); });
+    if (supabase) setError('');
+    if (!session) { loadedFor.current = ''; setReadyOwner(''); clearWorkspace(); return; }
+    if (!needsDatabase || loadedFor.current === session.user.id) { setReadyOwner(session.user.id); return; }
+    setReadyOwner('');
+    void loadCampaignWorkspace(session.user.id).then(() => { if (active) { loadedFor.current = session.user.id; setReadyOwner(session.user.id); } }).catch(err => { if (active) setError(err.message); });
     return () => { active = false; };
   }, [session?.user.id, needsDatabase, revision]);
   // Signed out: go straight to the login page instead of showing a dead-end screen.

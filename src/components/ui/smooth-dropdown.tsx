@@ -15,7 +15,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { supabase } from "@/lib/supabase";
 import { clearWorkspace } from "@/lib/campaigns";
-import { currentPath, routes } from "@/routes";
+import { currentPath, navigate, routes } from "@/routes";
 import { useIsDev } from "@/components/WorkspaceGate";
 
 // Change Here
@@ -50,7 +50,7 @@ async function logout() {
 function runItem(item: (typeof menuItems)[number]) {
   if (item.id === "logout") { void logout(); return; }
   if (!item.href) return;
-  window.location.assign(item.href);
+  navigate(item.href);
 }
 
 export function TwentyTwelveOne() {

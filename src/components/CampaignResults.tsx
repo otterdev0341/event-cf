@@ -9,6 +9,8 @@ import { effectiveOutcome, outcomeLabels, resultsCsv, latestContactCalls, type O
 import { callResultDisplay, talkSeconds, talkDuration } from '../../shared/call-display.mjs';
 import { terminalCall } from '../../shared/campaign-queue.mjs';
 
+// Voice Bot call logs tag each bot line with its turn id; readers only need who said what.
+const readableLog=(text:string)=>text.replace(/\[turn=[^\]]*\]\s*/g,'');
 type Followup={checked_at:string;answered_at:string|null;completed_at:string|null;ended_by:string|null;outcome:Outcome;transcript?:string};
 type Attempt={id:string;call_id:string|null;destination:string;status:string;created_at:string;metadata:{campaign_version?:string;contact_row?:number;variables?:Record<string,string>;record_conversation?:boolean};response:{review?:Outcome;callback?:{outcome:Outcome;received_at:string};followup?:Followup;transcript?:{text:string;source:string;received_at:string;call_id:string}}|null;warning?:string};
 const statusLabels:Record<string,string>={completed:'จบสาย',queued:'เข้าคิว',ringing:'กำลังเรียกสาย','in-progress':'กำลังสนทนา',failed:'โทรไม่สำเร็จ',busy:'สายไม่ว่าง','no-answer':'ไม่รับสาย',cancelled:'ยกเลิก',canceled:'ยกเลิก',unknown:'รอตรวจสอบ',submitting:'กำลังส่งคำขอ'};
@@ -41,12 +43,14 @@ export function CampaignResults({campaign,queueRunning,revision,onStatus}:{campa
   },[campaign.id]);
   async function refresh(list:Attempt[],quiet=false){
     if(syncingRef.current || queueRunning || saving)return;syncingRef.current=true;stopSync.current=false;setSyncing(true);if(!quiet){setError('');setNotice('');}let failed=0,done=0;
-    try{for(const item of list){if(!alive.current || stopSync.current)break;if(!item.call_id)continue;try{replace(await botnoiFetch<Attempt>(`/workspace/calls/${item.id}/result`));done++;}catch{failed++;}}
+    // Each check fans out to several Voice Bot requests; run a few at once instead of one after another.
+    const queue=list.filter(item=>item.call_id);const worker=async()=>{for(let item=queue.shift();item;item=queue.shift()){if(!alive.current || stopSync.current)break;try{replace(await botnoiFetch<Attempt>(`/workspace/calls/${item.id}/result`));done++;}catch{failed++;}}};
+    try{await Promise.all(Array.from({length:4},worker));
       if(alive.current){if(failed)setError(`ตรวจผลไม่ได้ ${failed} สาย ข้อมูลเดิมยังอยู่ กดรีเฟรชเพื่อลองใหม่`);else setError('');if(!quiet)setNotice(`อัปเดตแล้ว ${done} สาย${stopSync.current?' · หยุดการรีเฟรชแล้ว':''}`);}
     } finally{syncingRef.current=false;if(alive.current)setSyncing(false);}
   }
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;stopSync.current=true;};},[]);
-  useEffect(()=>{let active=true;setLoading(true);void load().then(data=>{if(active && data && !queueRunning)void refresh(data.slice(0,25),true);}).catch(e=>{if(active){setError(e.message);setLoading(false);}});return()=>{active=false;};},[load,revision,queueRunning]);
+  useEffect(()=>{let active=true;setLoading(true);void load().then(data=>{if(active && data && !queueRunning)void refresh(data.filter(a=>!terminalCall(a.status) || effectiveOutcome(a.response).source==='unavailable').slice(0,25),true);}).catch(e=>{if(active){setError(e.message);setLoading(false);}});return()=>{active=false;};},[load,revision,queueRunning]);
   const current=latestContactCalls(items,campaign.updatedAt,campaign.csv.rows.length);
   const visible=(view==='latest'?current:items).filter(a=>filter==='all' || callResultDisplay(a).key===filter);
   const pageItems=visible.slice(page*25,page*25+25);
@@ -96,7 +100,7 @@ export function CampaignResults({campaign,queueRunning,revision,onStatus}:{campa
       <dl className="result-times"><div><dt>ระยะเวลาคุย</dt><dd>{talkDuration(target)}</dd></div><div><dt>รับสาย</dt><dd>{date(target.response?.followup?.answered_at)}</dd></div><div><dt>จบสาย</dt><dd>{date(target.response?.followup?.completed_at)}</dd></div><div><dt>ตรวจล่าสุด</dt><dd>{date(target.response?.followup?.checked_at)}</dd></div></dl>
       {target.response?.callback && <div className="workspace-notice"><strong>Agent ส่งผลผ่าน Tool</strong><p>{outcomeLabels[target.response.callback.outcome.call_result]} · {target.response.callback.outcome.needs_agent===null?'ยังไม่ทราบว่าต้องการเจ้าหน้าที่':target.response.callback.outcome.needs_agent?'ต้องการเจ้าหน้าที่':'ไม่ต้องการเจ้าหน้าที่'}</p><p>{target.response.callback.outcome.evidence}</p><small>รับผลเมื่อ {date(target.response.callback.received_at)}</small></div>}
       {target.response?.followup?.outcome.source==='provider' && <p>ผลจากบริการ: {outcomeLabels[target.response.followup.outcome.call_result]} · ต้องการเจ้าหน้าที่: {String(target.response.followup.outcome.needs_agent ?? 'ยังไม่ทราบ')}</p>}
-      {(target.metadata.record_conversation === true || target.response?.followup?.transcript) && <section className="saved-call-conversation"><h4>บทสนทนา</h4>{target.response?.transcript ? <><small>บอทส่งกลับเมื่อ {date(target.response.transcript.received_at)} · สายนี้เท่านั้น</small><p className="saved-call-conversation__text">{target.response.transcript.text}</p></> : target.response?.followup?.transcript ? <><small>จากบันทึกการโทรของ Voice Bot · ตรวจเมื่อ {date(target.response.followup.checked_at)}</small><p className="saved-call-conversation__text">{target.response.followup.transcript}</p></> : <p className="workspace-note">ยังไม่ได้รับข้อความสนทนาของสายนี้{terminalCall(target.status) ? ' · กดรีเฟรชผลอีกครั้งในอีกสักครู่' : ' · รอจบสาย'}</p>}</section>}
+      {(target.metadata.record_conversation === true || target.response?.followup?.transcript) && <section className="saved-call-conversation"><h4>บทสนทนา</h4>{target.response?.transcript ? <><small>บอทส่งกลับเมื่อ {date(target.response.transcript.received_at)} · สายนี้เท่านั้น</small><p className="saved-call-conversation__text">{target.response.transcript.text}</p></> : target.response?.followup?.transcript ? <><small>จากบันทึกการโทรของ Voice Bot · ตรวจเมื่อ {date(target.response.followup.checked_at)}</small><p className="saved-call-conversation__text">{readableLog(target.response.followup.transcript)}</p></> : <p className="workspace-note">ยังไม่ได้รับข้อความสนทนาของสายนี้{terminalCall(target.status) ? ' · กดรีเฟรชผลอีกครั้งในอีกสักครู่' : ' · รอจบสาย'}</p>}</section>}
       <h4>บันทึกผลที่ตรวจสอบด้วยตนเอง</h4><p className="workspace-note">ใช้เมื่อคุณได้ยินคำตอบหรือมีหลักฐานยืนยัน ผลนี้จะแสดงว่า “ผู้ใช้ตรวจและบันทึก” และเก็บแยกจากผลของบริการ</p>
       <div className="review-fields"><label>ผลตอบรับ<SmoothSelect value={reviewResult} onChange={setReviewResult} options={Object.entries(outcomeLabels).map(([key,label])=>({value:key,label}))}/></label><label>ต้องการเจ้าหน้าที่<SmoothSelect value={needs} onChange={setNeeds} options={[{value:'unknown',label:'ยังไม่ทราบ'},{value:'true',label:'ต้องการ'},{value:'false',label:'ไม่ต้องการ'}]}/></label></div>
       {target.response?.review && <p className="workspace-note">บันทึกเมื่อ {date(target.response.review.updated_at)}</p>}
