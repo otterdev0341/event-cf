@@ -355,6 +355,18 @@ func TestCallResults(t *testing.T) {
 		old := newResultsFixture(t)
 		check(t, get(old.refresh().data, "response", "followup", "final") == true, "old call not final")
 	})
+	run("A recent result without its conversation keeps refreshing until the log arrives", func(t *testing.T, r *resultsFixture) {
+		r.callExtra = obj{"completed_at": nowISO()}
+		r.files = []any{"logs/oc_fixture.txt"}
+		r.log = obj{"outputs": obj{"call_result": "CONFIRMED", "needs_agent": false}}
+		followup := get(r.refresh().data, "response", "followup")
+		check(t, get(followup, "outcome", "source") == "provider" && get(followup, "final") == nil, "result without log marked final %v", followup)
+		withLog := newResultsFixture(t)
+		withLog.callExtra = obj{"completed_at": nowISO()}
+		withLog.files = []any{"logs/oc_fixture.txt"}
+		withLog.log = obj{"text": "user: yes", "outputs": obj{"call_result": "CONFIRMED", "needs_agent": false}}
+		check(t, get(withLog.refresh().data, "response", "followup", "final") == true, "result with log not final")
+	})
 	run("Exact linked transcript and structured outputs are retrieved", func(t *testing.T, r *resultsFixture) {
 		r.files = []any{"logs/oc_fixture.txt"}
 		r.log = obj{"text": "user: yes", "outputs": obj{"call_result": "CONFIRMED", "needs_agent": false}}

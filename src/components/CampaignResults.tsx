@@ -11,7 +11,9 @@ import { terminalCall } from '../../shared/campaign-queue.mjs';
 
 // Voice Bot call logs tag each bot line with its turn id; readers only need who said what.
 const readableLog=(text:string)=>text.replace(/\[turn=[^\]]*\]\s*/g,'');
-type Followup={checked_at:string;answered_at:string|null;completed_at:string|null;ended_by:string|null;outcome:Outcome;transcript?:string};
+type Followup={checked_at:string;answered_at:string|null;completed_at:string|null;ended_by:string|null;outcome:Outcome;transcript?:string;final?:boolean};
+// The backend sets followup.final once nothing more will arrive (result and conversation log, or the 30-minute window closed).
+const needsCheck=(a:{call_id:string|null;status:string;created_at:string;response:{followup?:Followup}|null})=>!!a.call_id && (!terminalCall(a.status) || (!a.response?.followup?.final && Date.now()-Date.parse(a.created_at)<60*60000));
 type Attempt={id:string;call_id:string|null;destination:string;status:string;created_at:string;metadata:{campaign_version?:string;contact_row?:number;variables?:Record<string,string>;record_conversation?:boolean};response:{review?:Outcome;callback?:{outcome:Outcome;received_at:string};followup?:Followup;transcript?:{text:string;source:string;received_at:string;call_id:string}}|null;warning?:string};
 const statusLabels:Record<string,string>={completed:'จบสาย',queued:'เข้าคิว',ringing:'กำลังเรียกสาย','in-progress':'กำลังสนทนา',failed:'โทรไม่สำเร็จ',busy:'สายไม่ว่าง','no-answer':'ไม่รับสาย',cancelled:'ยกเลิก',canceled:'ยกเลิก',unknown:'รอตรวจสอบ',submitting:'กำลังส่งคำขอ'};
 const date=(v?:string|null)=>v && Number.isFinite(Date.parse(v))?new Date(v).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'}):'—';
@@ -50,7 +52,7 @@ export function CampaignResults({campaign,queueRunning,revision,onStatus}:{campa
     } finally{syncingRef.current=false;if(alive.current)setSyncing(false);}
   }
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;stopSync.current=true;};},[]);
-  useEffect(()=>{let active=true;setLoading(true);void load().then(data=>{if(active && data && !queueRunning)void refresh(data.filter(a=>!terminalCall(a.status) || effectiveOutcome(a.response).source==='unavailable').slice(0,25),true);}).catch(e=>{if(active){setError(e.message);setLoading(false);}});return()=>{active=false;};},[load,revision,queueRunning]);
+  useEffect(()=>{let active=true;setLoading(true);void load().then(data=>{if(active && data && !queueRunning)void refresh(data.filter(needsCheck).slice(0,25),true);}).catch(e=>{if(active){setError(e.message);setLoading(false);}});return()=>{active=false;};},[load,revision,queueRunning]);
   const current=latestContactCalls(items,campaign.updatedAt,campaign.csv.rows.length);
   const visible=(view==='latest'?current:items).filter(a=>filter==='all' || callResultDisplay(a).key===filter);
   const pageItems=visible.slice(page*25,page*25+25);
@@ -59,8 +61,8 @@ export function CampaignResults({campaign,queueRunning,revision,onStatus}:{campa
   useEffect(()=>{setPage(p=>Math.min(p,Math.max(0,Math.ceil(visible.length/25)-1)));},[visible.length]);
   useEffect(()=>{setHistoryPage(p=>Math.min(p,Math.max(0,Math.ceil(contactItems.length/10)-1)));},[contactItems.length]);
   useEffect(()=>{if(queueRunning)return;const timer=window.setInterval(()=>{
-    // Botnoi's post-call analysis lands a little after the call ends; keep checking answered calls for 15 minutes.
-    const rows=itemsRef.current.filter(a=>a.call_id && (!terminalCall(a.status) || (a.status==='completed' && effectiveOutcome(a.response).source==='unavailable' && Date.now()-Date.parse(a.created_at)<15*60000))).slice(0,25);
+    // Botnoi's analysis and call log land a little after the call ends; keep checking calls the backend has not finished.
+    const rows=itemsRef.current.filter(needsCheck).slice(0,25);
     if(document.hidden || syncingRef.current || saving)return;
     // Callback results may arrive after the phone status is terminal.
     void load().then(()=>{if(rows.length)void refresh(rows,true);}).catch(()=>setError('โหลดผลล่าสุดไม่ได้ กรุณากดรีเฟรช'));

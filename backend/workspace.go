@@ -153,9 +153,12 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 			followup["log_state"] = "cached"
 		}
 		// Nothing more will arrive, so the scheduler's background refresh skips this call.
-		// An answered call without a result waits 30 minutes for Botnoi's post-call analysis.
+		// An answered call waits up to 30 minutes for Botnoi's post-call analysis and its conversation log,
+		// which can land after the analysis result.
 		ended, _ := jsDateParse(firstTruthy(get(call, "completed_at"), record["created_at"]))
-		if terminalCall(status) && (get(chosen, "source") == "provider" || truthy(get(response, "callback")) || !answered || nowMS()-ended > 30*60000) {
+		hasResult := get(chosen, "source") == "provider" || truthy(get(response, "callback"))
+		hasConversation := truthy(followup["transcript"]) || truthy(get(response, "transcript"))
+		if terminalCall(status) && (!answered || (hasResult && hasConversation) || nowMS()-ended > 30*60000) {
 			followup["final"] = true
 		}
 		response["followup"] = followup
