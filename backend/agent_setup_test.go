@@ -85,6 +85,17 @@ func (s *setupFixture) serve(c call) reply {
 			saved["execution"].(obj)["auth"] = obj{"type": "bearer", "has_api_key": true}
 			s.tools = append(s.tools, saved)
 			return ok(saved)
+		case strings.HasPrefix(c.Path, "/platform-config/tools/") && c.Method == "PUT":
+			for i, t := range s.tools {
+				if get(t, "tool_id") == strings.TrimPrefix(c.Path, "/platform-config/tools/") {
+					saved := clone(c.Body).(obj)
+					saved["tool_id"] = get(t, "tool_id")
+					saved["execution"].(obj)["auth"] = obj{"type": "bearer", "has_api_key": true}
+					s.tools[i] = saved
+					return ok(saved)
+				}
+			}
+			return status(404, obj{"message": "fixture"})
 		case c.Path == "/agent/create_update_agent" && c.Method == "PUT":
 			if s.options["updateFail"] {
 				return networkFailure
@@ -242,6 +253,21 @@ func TestAgentSetup(t *testing.T) {
 		s.tools = []any{obj{"name": "vc_result_v2_fixture", "tool_id": "unrelated", "execution": obj{"endpoint": "https://unrelated.invalid"}}}
 		check(t, s.invoke(setupCall{}).status == 409, "conflict not 409")
 		check(t, s.writes() == 0, "writes")
+	})
+	run("Own Tool left on an old callback URL is updated in place, not duplicated", func(t *testing.T, s *setupFixture) {
+		for _, transcript := range []bool{false, true} {
+			s.invoke(setupCall{transcript: transcript})
+			last := s.tools[len(s.tools)-1].(obj)
+			last["execution"].(obj)["endpoint"] = "https://old-tunnel.invalid/event-confirm/api/voice-result"
+			count := len(s.tools)
+			s.reset()
+			r := s.invoke(setupCall{transcript: transcript})
+			check(t, r.status == 200 && r.data["connected"] == true, "repair (transcript=%v) = %d %v", transcript, r.status, r.data)
+			path := "/platform-config/tools/" + jsString(last["tool_id"])
+			put := s.count(func(c call) bool { return c.Path == path && c.Method == "PUT" })
+			post := s.count(func(c call) bool { return c.Path == "/platform-config/tools" && c.Method == "POST" })
+			check(t, put == 1 && post == 0 && len(s.tools) == count, "tool not repaired in place: put=%d post=%d tools=%d", put, post, len(s.tools))
+		}
 	})
 	run("Concurrent edit after creating Tool prevents Agent overwrite", func(t *testing.T, s *setupFixture) {
 		s.options["changeAfterCreate"] = true
