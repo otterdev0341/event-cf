@@ -1,5 +1,5 @@
 // Only explicit provider output fields are accepted. Never classify CSV inputs or transcript keywords.
-export const outcomeLabels = { CONFIRMED:'ตอบตกลง', DECLINED:'ปฏิเสธ', CALLBACK_REQUESTED:'ขอให้โทรกลับ', REQUEST_AGENT:'ขอคุยเจ้าหน้าที่', WRONG_PERSON:'ผิดคน', NO_ANSWER:'ไม่รับสาย', UNDETERMINED:'รอตรวจสอบ' };
+export const outcomeLabels = { CONFIRMED:'มางาน', DECLINED:'ไม่มา', CALLBACK_REQUESTED:'ขอให้โทรกลับ', REQUEST_AGENT:'ขอคุยเจ้าหน้าที่', WRONG_PERSON:'ผิดคน', NO_ANSWER:'ไม่รับสาย', UNDETERMINED:'รอตรวจสอบ' };
 export function providerOutcome(call, log) {
   for (const source of [log?.outputs, log?.result, log, call?.outputs, call?.result, call]) {
     if (!source || typeof source !== 'object') continue;
