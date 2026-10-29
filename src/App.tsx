@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useSyncExternalStore } from "react";
 import { currentPath, navigate, routes } from "./routes";
 import { WorkspaceGate, useIsDev } from './components/WorkspaceGate';
 import { LoadingScreen } from './components/LoadingScreen';
+import { getCampaigns } from './lib/campaigns';
 
 // Each page ships as its own chunk and loads the first time it is opened.
 const CampaignCallPage = lazy(() => import("./pages/CampaignCallPage").then(m => ({ default: m.CampaignCallPage })));
@@ -19,7 +20,6 @@ const ContactListPage = lazy(() => import("./pages/ContactListPage").then(m => (
 const ContactDetailPage = lazy(() => import("./pages/ContactDetailPage").then(m => ({ default: m.ContactDetailPage })));
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage").then(m => ({ default: m.AnalyticsPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
-const OutboundPage = lazy(() => import("./pages/OutboundPage").then(m => ({ default: m.OutboundPage })));
 const ApiDocsPage = lazy(() => import("./pages/ApiDocsPage").then(m => ({ default: m.ApiDocsPage })));
 const subscribe = (onChange: () => void) => { window.addEventListener("popstate", onChange); return () => window.removeEventListener("popstate", onChange); };
 const locationKey = () => window.location.pathname + window.location.search;
@@ -56,11 +56,15 @@ function AppRoutes() {
   const path = currentPath();
   const isDev = useIsDev();
 
-  if (path === routes.inbound) {
-    window.history.replaceState(null, '', routes.outbound + window.location.search + window.location.hash);
-    return <OutboundPage />;
+  // The old outbound board is now the campaign screen; keep its links (?campaign, ?row, ?status) working.
+  if (path === routes.outbound || path === routes.inbound) {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('campaign') || getCampaigns().find(c => c.agentId)?.id;
+    if (!id) { window.history.replaceState(null, '', routes.campaigns); return <CampaignsPage />; }
+    params.set('campaign', id);
+    window.history.replaceState(null, '', `${routes.apiTest}?${params}`);
+    return <CampaignCallPage />;
   }
-  if (path === routes.outbound) return <OutboundPage />;
   if (path === routes.apiDocs) return isDev ? <ApiDocsPage /> : <DashboardOverviewPage />;
 
   if (path === routes.login) {

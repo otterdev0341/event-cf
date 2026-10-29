@@ -19,7 +19,7 @@ body { color: var(--color-heading); -webkit-font-smoothing: antialiased; }
 [hidden] { display: none !important; }
 .skip-to-content { position: fixed; top: -100px; left: 16px; z-index: 200; background: #fff; color: #4925b1; padding: 12px 20px; border: 2px solid #6747ce; border-radius: 10px; }
 .skip-to-content:focus { top: 12px; }
-:where(button,a,input,select,textarea,summary):focus-visible { outline: 3px solid #a08be5; outline-offset: 3px; }
+:where(button,a,input,select,textarea,summary):focus-visible { outline: 3px solid var(--color-primary, #7151df); outline-offset: 3px; }
 main { min-width: 0; }
 main :is(section,article,header,footer,form,fieldset) { min-width: 0; }
 main p { line-height: 1.75; }
@@ -175,10 +175,7 @@ main .campaign-form__control input,main .campaign-form__field > input { height: 
 .call-page-nav a { padding-block: 10px; }
 .call-selection-count { padding: 16px; background: #f7f6fc; }
 .call-workspace .wizard-summary-confirm { border: 1px solid #dfd5f5; background: #fcfbff; }
-.results-counts { border-radius: 10px; background: #f8f9fb; }
-.results-counts > div { padding: 18px 16px; }
 .result-detail,.result-history { border-radius: 12px; padding: 22px; }
-.result-view-switch { border-radius: 9px; background: #f0f1f6; }
 .preview-page { --preview-ink: var(--color-heading); --preview-muted: var(--color-muted); }
 .preview-heading { margin-bottom: 0; }
 .preview-page > div:not(.bot-test-layout) { min-width: 0; }

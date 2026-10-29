@@ -134,11 +134,26 @@ export function nameColumn(campaign: Pick<CampaignDraft, 'csv' | 'mapping'>) {
   return byHeader >= 0 ? byHeader : headers.findIndex(h => NAME_KEYS.test(campaign.mapping[h] || ''));
 }
 export function getCampaigns(): CampaignDraft[] { return records.filter(r => r.state === 'saved').map(asDraft); }
-// "งาน 14 พ.ย. 2569 · 18:00 น." for headers that frame call progress around the event; empty when no date is set.
+// "14 พ.ย. · 18:00 น." beside the countdown on screens framed around the event; empty when no date is set.
 export function eventLabel(campaign: Pick<CampaignDraft, 'eventDate' | 'eventTime'>) {
   const day = Date.parse(`${campaign.eventDate}T00:00:00+07:00`);
   if (!Number.isFinite(day)) return '';
-  return `งาน ${new Date(day).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'medium' })}${campaign.eventTime ? ` · ${campaign.eventTime} น.` : ''}`;
+  return `${new Date(day).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })}${campaign.eventTime ? ` · ${campaign.eventTime} น.` : ''}`;
+}
+// Days to the event in Thai calendar days: "อีก 16 วันถึงงาน", "พรุ่งนี้วันงาน", "วันนี้วันงาน" or "งานผ่านไปแล้ว 3 วัน".
+export function eventCountdown(campaign: Pick<CampaignDraft, 'eventDate'>, now = Date.now()) {
+  const day = Date.parse(`${campaign.eventDate}T00:00:00+07:00`);
+  if (!Number.isFinite(day)) return '';
+  const today = Date.parse(`${new Date(now).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })}T00:00:00+07:00`);
+  const days = Math.round((day - today) / 86400000);
+  return days > 1 ? `อีก ${days} วันถึงงาน` : days === 1 ? 'พรุ่งนี้วันงาน' : days === 0 ? 'วันนี้วันงาน' : `งานผ่านไปแล้ว ${-days} วัน`;
+}
+// When a call happened, with the year only when it is not this year: "29 ต.ค. 18:30".
+export function callTime(value?: string | null) {
+  const time = Date.parse(value || '');
+  if (!Number.isFinite(time)) return '—';
+  const year = (t: number) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }).slice(0, 4);
+  return new Date(time).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', ...(year(time) === year(Date.now()) ? {} : { year: 'numeric' }) });
 }
 async function persistCampaign(draft: CampaignDraft, state: 'editing' | 'saved') {
   if (!isDraft(draft)) throw new Error('ข้อมูลแคมเปญไม่ถูกต้อง');
