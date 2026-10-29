@@ -134,6 +134,12 @@ export function nameColumn(campaign: Pick<CampaignDraft, 'csv' | 'mapping'>) {
   return byHeader >= 0 ? byHeader : headers.findIndex(h => NAME_KEYS.test(campaign.mapping[h] || ''));
 }
 export function getCampaigns(): CampaignDraft[] { return records.filter(r => r.state === 'saved').map(asDraft); }
+// "งาน 14 พ.ย. 2569 · 18:00 น." for headers that frame call progress around the event; empty when no date is set.
+export function eventLabel(campaign: Pick<CampaignDraft, 'eventDate' | 'eventTime'>) {
+  const day = Date.parse(`${campaign.eventDate}T00:00:00+07:00`);
+  if (!Number.isFinite(day)) return '';
+  return `งาน ${new Date(day).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'medium' })}${campaign.eventTime ? ` · ${campaign.eventTime} น.` : ''}`;
+}
 async function persistCampaign(draft: CampaignDraft, state: 'editing' | 'saved') {
   if (!isDraft(draft)) throw new Error('ข้อมูลแคมเปญไม่ถูกต้อง');
   const db = await client();

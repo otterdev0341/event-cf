@@ -13,6 +13,16 @@
   --color-danger: #b42318;
   --color-warning: #7a5200;
   --vc-radius: 16px;
+  /* One colour per call result, shared by chips, bars, legends and board columns.
+     Confirmed is the good news of an event, so it is the only solid one. */
+  --result-confirmed: #0b7a55;
+  --result-declined: #e5484d;
+  --result-callback_requested: #e0a100;
+  --result-request_agent: #7151df;
+  --result-wrong_person: #5873a5;
+  --result-no_answer: #a1a1aa;
+  --result-ended_without_result: #c4c4cc;
+  --result-undetermined: #dcdce4;
 }
 body { background: var(--color-page); color: var(--color-heading); }
 ::selection { background: #e4def8; color: #3d2496; }
@@ -129,7 +139,13 @@ main :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,te
 .rd-chip--bad, .result-badge[data-result="DECLINED"], .status-badge--danger { background: #fdecec; color: #b42318; }
 .rd-chip--warn, .result-badge[data-result="CALLBACK_REQUESTED"], .status-badge--warning { background: #fff4d1; color: #7a5200; }
 .rd-chip--info, .result-badge[data-result="REQUEST_AGENT"], .status-badge--primary, .status-badge--info { background: #f0ebfc; color: #5a3cc4; }
-.result-badge[data-result="UNDETERMINED"], .result-badge[data-result="NO_ANSWER"], .result-badge[data-result="WRONG_PERSON"], .status-badge--neutral { background: #f1f1f5; color: #52525b; }
+.result-badge[data-result="UNDETERMINED"], .result-badge[data-result="NO_ANSWER"], .result-badge[data-result="WRONG_PERSON"], .result-badge[data-result="ENDED_WITHOUT_RESULT"], .status-badge--neutral { background: #f1f1f5; color: #52525b; }
+.result-badge[data-result="CONFIRMED"], .rd-chip--confirmed { background: var(--result-confirmed); color: #fff; }
+.result-badge[data-result="DECLINED"]::before { background: var(--result-declined); }
+.result-badge[data-result="CALLBACK_REQUESTED"]::before { background: var(--result-callback_requested); }
+.result-badge[data-result="WRONG_PERSON"]::before { background: var(--result-wrong_person); }
+.result-badge[data-result="NO_ANSWER"]::before { background: var(--result-no_answer); }
+.result-badge[data-result="ENDED_WITHOUT_RESULT"]::before, .result-badge[data-result="UNDETERMINED"]::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--result-no_answer); }
 
 .rd-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 main .rd-filters select, main .rd-table-card__head select { width: auto !important; flex: 0 1 260px; min-width: 180px; }
@@ -150,7 +166,7 @@ main .rd-search input { padding-left: 40px !important; }
 .rd-stat__note { margin: 0; font-size: 12px; line-height: 1.6; color: var(--color-muted); }
 .rd-bar { height: 6px; border-radius: 6px; background: #f1f1f5; overflow: hidden; display: flex; }
 .rd-bar > span { display: block; height: 100%; background: var(--color-primary); }
-.rd-bar--ok > span { background: #10b981; } .rd-bar--bad > span { background: #ef4444; } .rd-bar--warn > span { background: #ffc300; }
+.rd-bar--ok > span { background: var(--result-confirmed); } .rd-bar--bad > span { background: var(--result-declined); } .rd-bar--warn > span { background: var(--result-callback_requested); }
 .rd-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--color-body); }
 .rd-legend li { display: inline-flex; align-items: center; gap: 6px; }
 .rd-legend i { width: 8px; height: 8px; border-radius: 2px; }
@@ -160,6 +176,18 @@ main .rd-search input { padding-left: 40px !important; }
 .rd-banner__icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; border-radius: 11px; background: var(--color-primary-tint); color: #5a3cc4; }
 .rd-banner__body p { margin: 0; line-height: 1.6; }
 .rd-banner__body small { display: block; color: var(--color-muted); font-size: 12px; }
+.rd-filters__end { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-left: auto; }
+.rd-filters--split { justify-content: space-between; margin-top: 8px; }
+
+/* Guest headline: how many guests said yes, before anything about calls. */
+.guest-summary { display: flex; flex-direction: column; gap: 10px; }
+.guest-summary p { margin: 0; }
+.guest-summary__count { font-size: 20px; font-weight: 500; color: var(--color-muted); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.guest-summary__count strong { font-size: 52px; font-weight: 600; letter-spacing: -.02em; color: var(--result-confirmed); }
+.guest-summary__label { font-size: 15px; font-weight: 600; color: var(--color-heading); }
+.guest-summary__bar { height: 10px; gap: 2px; margin-top: 6px; }
+.guest-summary__links { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; padding: 0; list-style: none; }
+.guest-summary__links .rd-link { display: inline-flex; align-items: center; min-height: 44px; }
 
 .rd-table-card { padding: 0 !important; overflow: hidden; }
 .rd-table-card__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 20px; }
@@ -406,10 +434,10 @@ label > .smooth-select-wrap { margin-top: 2px; }
 /* Outbound page (components/CampaignBoard.tsx): control card, status tiles, list or board */
 .ob-tone--pending { background: #d4d4dc; }
 .ob-tone--calling { background: #8b6cf0; }
-.ob-tone--confirmed { background: #12a36b; }
-.ob-tone--declined { background: #e5484d; }
-.ob-tone--followup { background: #e0a100; }
-.ob-tone--noresult { background: #a1a1aa; }
+.ob-tone--confirmed { background: var(--result-confirmed); }
+.ob-tone--declined { background: var(--result-declined); }
+.ob-tone--followup { background: var(--result-callback_requested); }
+.ob-tone--noresult { background: var(--result-no_answer); }
 .ob-dot { display: inline-block; width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; }
 .ob-control { display: flex; flex-direction: column; gap: 18px; padding: 22px 24px !important; }
 .ob-control__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px 20px; }
@@ -423,6 +451,7 @@ label > .smooth-select-wrap { margin-top: 2px; }
 .ob-progress__bar span { height: 100%; transition: width .4s cubic-bezier(.23,1,.32,1); }
 .ob-progress .rd-muted { font-size: 13px; }
 .ob-progress strong { color: var(--color-heading); font-variant-numeric: tabular-nums; }
+.ob-progress .ob-progress__yes { color: var(--result-confirmed); font-size: 15px; }
 .ob-next { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 14px 16px; border-radius: 14px; background: #f7f6fb; }
 .ob-next p { flex: 1 1 260px; display: flex; flex-direction: column; gap: 4px; margin: 0; min-width: 0; }
 .ob-next strong { font-size: 15px; color: var(--color-heading); }
@@ -485,11 +514,19 @@ label > .smooth-select-wrap { margin-top: 2px; }
 .kb-drawer__close:hover { border-color: var(--color-primary); color: #5a3cc4; }
 .kb-drawer__body { flex: 1; overflow-y: auto; padding: 18px 22px 28px; display: flex; flex-direction: column; gap: 22px; }
 .kb-drawer__body h3 { margin: 0; font-size: 14px; color: var(--color-muted); font-weight: 600; }
-.kb-review { display: flex; flex-wrap: wrap; gap: 8px; }
-.kb-review__btn { border: 1px solid transparent; padding: 8px 12px; font-size: 13px; cursor: pointer; }
-.kb-review__btn::before { display: none; }
-.kb-review__btn[aria-pressed="true"] { border-color: currentColor; cursor: default; }
-.kb-review__btn:disabled:not([aria-pressed="true"]) { opacity: .5; cursor: not-allowed; }
+/* Manual result: a radio grid, a required note, then save. Options are real controls, not status chips. */
+.kb-review { gap: 10px; }
+.kb-review__options { margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.kb-review__option { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 1px solid var(--color-border-light); border-radius: 10px; background: #fff; font-size: 14px; color: var(--color-heading); cursor: pointer; }
+.kb-review__option:hover { border-color: #cfc6f3; }
+.kb-review__option:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-tint); color: #3d2496; font-weight: 600; }
+.kb-review__option input { margin: 0; accent-color: var(--color-primary); }
+.kb-review__options:disabled .kb-review__option { opacity: .6; cursor: not-allowed; }
+.kb-review__note { display: grid; gap: 6px; font-size: 13px; color: var(--color-body); }
+.kb-review__note small { color: var(--color-muted); font-weight: 400; }
+.kb-review__note textarea { width: 100%; min-height: 64px; padding: 10px 12px; border: 1px solid var(--color-border-light); border-radius: 10px; font: inherit; font-size: 14px; color: var(--color-heading); resize: vertical; }
+.kb-review__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.kb-review__saved { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; }
 .kb-transcript { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--color-page); font-size: 13px; line-height: 1.7; white-space: pre-wrap; max-height: 240px; overflow-y: auto; }
 @keyframes kb-fade { from { opacity: 0; } }
 @keyframes kb-slide { from { transform: translateX(40px); opacity: 0; } }
@@ -555,4 +592,23 @@ label > .smooth-select-wrap { margin-top: 2px; }
   .ob-tile { flex: 0 0 auto; min-width: 104px; padding: 10px 12px; scroll-snap-align: start; }
   .ob-tile strong { font-size: 20px; }
   .ob-search { max-width: none; }
+}
+
+/* Below 600px a table row becomes a stacked card; data-label puts the column name back on each cell. */
+@media (max-width: 600px) {
+  .rd-table--cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .rd-table--cards, .rd-table--cards tbody { display: block; }
+  .rd-table--cards tr { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 14px 16px; border-bottom: 1px solid #efeff4; }
+  .rd-table--cards tbody tr:last-child { border-bottom: 0; }
+  /* Cards fit the screen, so they drop the sideways-scroll width and no-wrap set for phone tables above. */
+  .rd-table-wrap > .rd-table--cards { min-width: 0; }
+  .rd-table--cards td { flex: 1 1 100%; min-width: 0; padding: 0 !important; border: 0 !important; text-align: left !important; white-space: normal; }
+  .rd-table--cards td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 11px; font-weight: 600; color: var(--color-muted); }
+  .rd-table--cards .rd-cell--half { flex-basis: calc(50% - 6px); }
+  .rd-table--cards .rd-cell--auto { flex: 0 0 auto; }
+  .rd-table--cards .rd-cell--grow { flex: 1 1 0; }
+  .rd-table--cards .rd-cell--auto[data-label]::before { display: inline; margin: 0 4px 0 0; }
+  .rd-table--cards .rd-cell--hide { display: none; }
+  .rd-table--cards .rd-cell--later { order: 1; }
+  .rd-table--cards .ob-open, .rd-table--cards .rd-link { display: inline-flex; align-items: center; min-height: 44px; }
 }

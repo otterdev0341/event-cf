@@ -3,7 +3,7 @@ import { CampaignSchedule } from '../components/CampaignSchedule';
 import { CampaignResults } from '../components/CampaignResults';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
-import { getCampaigns, saveDraft } from '../lib/campaigns';
+import { eventLabel, getCampaigns, saveDraft } from '../lib/campaigns';
 import { supabase } from '../lib/supabase';
 import { botnoiApi } from '../services/botnoi';
 import { useAgentDetail } from '../hooks/useBotnoiData';
@@ -11,9 +11,13 @@ import { prepareCampaignRows } from '../../shared/campaign-inputs.mjs';
 import { checkCampaignReady } from '../lib/campaign-calls';
 import { runCampaignQueue, planCampaignCalls, unansweredRows, campaignRequestId, terminalCall, shownStatus, type CampaignAttempt } from '../../shared/campaign-queue.mjs';
 import { routes, warnBeforeLeave } from '../routes';
+import { latestContactCalls, type Outcome } from '../../shared/call-results.mjs';
+import { callResultDisplay } from '../../shared/call-display.mjs';
 
 type RowState = {status:string; message:string; callId?:string};
 const stateTone = (status?:string) => status==='completed'?'ok':['failed','error'].includes(status||'')?'bad':['no-answer','busy','cancelled','canceled','unknown'].includes(status||'')?'warn':['submitting','queued','ringing','in-progress'].includes(status||'')?'info':'';
+// The results table's display rule, from the flat result columns that attempts() selects.
+const rowResult=(a:CampaignAttempt)=>{const outcome=(call_result:string)=>({call_result} as Outcome);return callResultDisplay({status:a.status,response:{review:a.review?outcome(a.review):undefined,callback:a.callback?{outcome:outcome(a.callback)}:undefined,followup:a.followup?{outcome:outcome(a.followup)}:undefined}});};
 const labels: Record<string,string> = {waiting:'รอส่ง',submitting:'กำลังส่งคำขอ',queued:'เข้าคิวแล้ว',ringing:'กำลังเรียกสาย','in-progress':'กำลังสนทนา',completed:'จบสาย',failed:'โทรไม่สำเร็จ',busy:'สายไม่ว่าง','no-answer':'ไม่รับสาย',cancelled:'ยกเลิก',canceled:'ยกเลิก',unknown:'รอตรวจสอบ'};
 export function CampaignCallPage() {
   const [campaign] = useState(() => getCampaigns().find(c => c.id === new URLSearchParams(window.location.search).get('campaign')));
@@ -31,7 +35,8 @@ export function CampaignCallPage() {
   const [message,setMessage] = useState('');
   const [page,setPage] = useState(0);
   const [history,setHistory]=useState<CampaignAttempt[]>([]);
-  const [scope,setScope]=useState<'pending'|'unanswered'|'selected'>('pending');
+  // The dashboard's follow-up link opens this page on the redial scope.
+  const [scope,setScope]=useState<'pending'|'unanswered'|'selected'>(()=>new URLSearchParams(window.location.search).get('scope')==='unanswered'?'unanswered':'pending');
   const [selectedRows,setSelectedRows]=useState<number[]>([]);
   const [redial,setRedial]=useState(false);
   const wasScheduled = useRef(false);
@@ -60,7 +65,7 @@ export function CampaignCallPage() {
   useEffect(() => { mounted.current=true; return () => { mounted.current=false; stopped.current=true; }; },[]);
   useEffect(() => {
     let active=true; setHistoryReady(false);
-    void attempts().then(data => { if (!active) return; setHistory(data);setStates(Object.fromEntries(data.filter(a=>Number.isInteger(a.metadata.contact_row)).map(a=>[a.metadata.contact_row!,{status:shownStatus(a.status,a.reason),message:'คำขอที่บันทึกไว้ · ดูผลล่าสุดในส่วนผลตอบรับด้านล่าง',callId:a.call_id || undefined}]))); setHistoryReady(true); }).catch(e=>{if(active)setError(e.message);});
+    void attempts().then(data => { if (!active) return; setHistory(data);setStates(Object.fromEntries(data.filter(a=>Number.isInteger(a.metadata.contact_row)).map(a=>[a.metadata.contact_row!,{status:shownStatus(a.status,a.reason),message:'',callId:a.call_id || undefined}]))); setHistoryReady(true); }).catch(e=>{if(active)setError(e.message);});
     return()=>{active=false;};
   },[historyRevision]);
   useEffect(() => {
@@ -99,23 +104,26 @@ export function CampaignCallPage() {
   }
   if(!campaign) return <div><AppHeader /><main className="page-shell real-data-page call-workspace"><h1>ไม่พบแคมเปญในบัญชีนี้</h1><Button href={routes.campaigns}>กลับไปแคมเปญ</Button></main></div>;
   const total=prepared.rows.length;
-  const tally=(names:string[])=>prepared.rows.filter(r=>names.includes(states[r.index]?.status)).length;
-  const done=tally(['completed']), failed=tally(['failed']), missed=tally(['no-answer','busy','cancelled','canceled']);
+  // Guest results from each contact's latest call; follow-up is the redial scope itself.
+  const latest=new Map(latestContactCalls(history,campaign.updatedAt,total).map(a=>[a.metadata.contact_row!,a]));
+  const resultOf=(index:number)=>{const a=latest.get(index);return a&&terminalCall(states[index]?.status)?rowResult(a):null;};
+  const tally=(key:string)=>prepared.rows.filter(r=>resultOf(r.index)?.key===key).length;
+  const confirmed=tally('CONFIRMED'), declined=tally('DECLINED'), followUp=historyReady?unansweredRows(prepared.rows,history).length:0;
   const ended=prepared.rows.filter(r=>terminalCall(states[r.index]?.status)).length;
   const pct=(n:number)=>total?`${n/total*100}%`:'0%';
   return <div><AppHeader /><main className="page-shell real-data-page call-workspace">
-    <header className="rd-head"><div><a className="rd-back" href={routes.campaigns}>← กลับไปแคมเปญ</a><div className="rd-filters"><h1>{campaign.name}</h1>{running?<span className="rd-chip rd-chip--info">กำลังโทร</span>:scheduledActive?<span className="rd-chip rd-chip--info">ตั้งเวลาไว้</span>:null}</div><p>{detail.agent?.bot_name || campaign.agentId} · {total.toLocaleString()} รายชื่อ · {campaign.fileName}</p></div></header>
-    <nav className="rd-tabs" aria-label="ส่วนต่าง ๆ ของแคมเปญ"><a href="#call-preflight">เตรียมข้อมูล</a><a href="#call-contacts" aria-current="true">รายชื่อและสถานะการโทร</a><a href="#call-results">ดูผลการโทร</a></nav>
-    <section className="rd-card rd-pad rd-queue" aria-label="ความคืบหน้าคิว">
+    <header className="rd-head"><div><a className="rd-back" href={routes.campaigns}>← กลับไปแคมเปญ</a><div className="rd-filters"><h1>{campaign.name}</h1>{running?<span className="rd-chip rd-chip--info">กำลังโทร</span>:scheduledActive?<span className="rd-chip rd-chip--info">ตั้งเวลาไว้</span>:null}</div><p>{eventLabel(campaign)?`${eventLabel(campaign)} · `:''}{detail.agent?.bot_name || campaign.agentId} · {total.toLocaleString()} แขก · {campaign.fileName}</p></div></header>
+    <nav className="rd-tabs" aria-label="ส่วนต่าง ๆ ของแคมเปญ"><a href="#call-preflight">เตรียมข้อมูล</a><a href="#call-contacts">รายชื่อและสถานะการโทร</a><a href="#call-results">ดูผลการโทร</a></nav>
+    <section className="rd-card rd-pad rd-queue" aria-label="ผลตอบรับของแขก" aria-busy={!historyReady}>
       <div className="rd-queue__body">
-        <div className="rd-progress__label" style={{fontSize:14}}><span>ความคืบหน้าคิว</span><strong>{historyReady?`${ended.toLocaleString()} / ${total.toLocaleString()} สาย`:'…'}</strong></div>
-        <div className="rd-bar" style={{height:8,gap:2}} role="img" aria-label={`จบสาย ${done} ไม่สำเร็จ ${failed} ไม่รับสาย สายไม่ว่าง หรือยกเลิก ${missed} จาก ${total}`}><span style={{width:pct(done),background:'#10b981'}}/><span style={{width:pct(missed),background:'#ffc300'}}/><span style={{width:pct(failed),background:'#ef4444'}}/></div>
-        <ul className="rd-legend"><li><i style={{background:'#10b981'}}/>จบสาย {done}</li><li><i style={{background:'#ffc300'}}/>ไม่รับสาย / สายไม่ว่าง / ยกเลิก {missed}</li><li><i style={{background:'#ef4444'}}/>โทรไม่สำเร็จ {failed}</li></ul>
+        <p className="guest-summary__count"><strong>{historyReady?confirmed.toLocaleString():'—'}</strong> / {total.toLocaleString()} แขก</p>
+        <p className="guest-summary__label">ยืนยันมางานแล้ว <span className="rd-muted">· จบสายแล้ว {historyReady?ended.toLocaleString():'…'} คน</span></p>
+        <div className="rd-bar guest-summary__bar" role="img" aria-label={`ตอบตกลง ${confirmed} ปฏิเสธ ${declined} ต้องโทรตาม ${followUp} จาก ${total} แขก`}><span style={{width:pct(confirmed),background:'var(--result-confirmed)'}}/><span style={{width:pct(declined),background:'var(--result-declined)'}}/><span style={{width:pct(followUp),background:'var(--result-callback_requested)'}}/></div>
+        <ul className="rd-legend"><li><i style={{background:'var(--result-confirmed)'}}/>ตอบตกลง {confirmed}</li><li><i style={{background:'var(--result-declined)'}}/>ปฏิเสธ {declined}</li><li><i style={{background:'var(--result-callback_requested)'}}/>ต้องโทรตาม {followUp}</li><li><i style={{background:'var(--result-undetermined)'}}/>ยังไม่โทรหรือผลอื่น {total-confirmed-declined-followUp}</li></ul>
       </div>
-      <div className="rd-head__actions">{running ? <Button variant="secondary" onClick={()=>{stopped.current=true;setConsent(false);setMessage('กำลังหยุดส่งรายชื่อถัดไป สายที่ส่งแล้วจะไม่ถูกยกเลิก');}}>หยุดคิว</Button> : <Button href="#call-selection">เลือกรายชื่อที่จะโทร</Button>}</div>
+      <div className="rd-head__actions">{running ? <Button variant="secondary" onClick={()=>{stopped.current=true;setConsent(false);setMessage('กำลังหยุดส่งรายชื่อถัดไป สายที่ส่งแล้วจะไม่ถูกยกเลิก');}}>หยุดคิว</Button> : followUp>0 ? <Button variant="secondary" disabled={!historyReady} onClick={()=>{setScope('unanswered');setRedial(false);setConsent(false);document.getElementById('call-selection')?.scrollIntoView();}}>โทรตาม {followUp} คน</Button> : null}</div>
     </section>
-    {message && <p className="workspace-notice" role="status">{message}</p>}{error && <p className="workspace-alert" role="alert">{error}</p>}
-    <CampaignSchedule campaignId={campaign.id} onActive={setScheduledActive} configure version={campaign.updatedAt} rows={scopeRows(history)} total={prepared.rows.length} pendingCount={redialing?planCampaignCalls(prepared.rows,history,scopeRows(history),false).length:planned.length} disabled={running || editing || !historyReady || detail.loading || !!detail.error} />
+    <div id="call-schedule"><CampaignSchedule campaignId={campaign.id} onActive={setScheduledActive} configure version={campaign.updatedAt} rows={scopeRows(history)} total={prepared.rows.length} pendingCount={redialing?planCampaignCalls(prepared.rows,history,scopeRows(history),false).length:planned.length} disabled={running || editing || !historyReady || detail.loading || !!detail.error} /></div>
     <section className="rd-card rd-pad rd-stack call-preflight" id="call-preflight">
       <div className="rd-filters" style={{justifyContent:'space-between'}}><div className="rd-panel-head"><h2>ตรวจความพร้อมก่อนเริ่ม</h2><span className="rd-muted">{campaign.fileName} · หนึ่งแถวต่อหนึ่งผู้ติดต่อ · ใช้ข้อมูลของแถวนั้นในการโทร</span></div><span role="status" className={`rd-chip ${detail.loading?'':invalid.length||prepared.errors.length?'rd-chip--warn':'rd-chip--ok'}`}>{detail.loading?"กำลังอ่าน Agent…":`ข้อมูลครบ ${prepared.errors.length?0:total-invalid.length} / ${total} รายชื่อ`}</span></div>
       <details><summary className="rd-link">ดูการจับคู่ตัวแปรและคอลัมน์ CSV</summary><div className="rd-codes" style={{marginTop:10}}>{detail.variables.map(v=><code key={v}>{v} ← {prepared.bindings[v]?.source==='output'?'ผลลัพธ์หลังโทร':(prepared.bindings[v] as {column?:string})?.column || 'ยังไม่เลือกคอลัมน์'}</code>)}</div></details>
@@ -134,16 +142,19 @@ export function CampaignCallPage() {
       <div className="rd-summary rd-card--tint" style={{borderRadius:12,padding:'14px 16px'}} role="status"><span>รายชื่อที่จะดำเนินการ{scope==='selected'?` · เลือกไว้ ${selectedRows.length} คน`:''}{repeatCount?` · โทรซ้ำ ${repeatCount} คน`:''}</span><strong>{historyReady?planned.length:'…'}</strong></div>
       {scope==='selected'&&!redial&&selectedRows.some(index=>terminalCall(states[index]?.status))&&<p className="rd-stat__note">รายชื่อที่จบสายแล้วจะถูกข้าม เปิดตัวเลือกโทรซ้ำหากต้องการโทรอีกครั้ง</p>}
       {repeatCount>0&&<p className="workspace-alert">จะโทรออกใหม่ {repeatCount} คนที่เคยจบสายแล้ว ประวัติและผลสายเดิมยังอยู่</p>}
-      <label className="rd-toggle-row"><input type="checkbox" checked={consent} disabled={running || !valid || !historyReady} onChange={e=>setConsent(e.target.checked)}/><span><small>ฉันตรวจรายชื่อและยืนยันดำเนินการ {planned.length} คน{repeatCount?` รวมโทรซ้ำ ${repeatCount} คน`:''}</small></span></label>
+      {scheduledActive&&!running&&<p className="workspace-note" role="status">แคมเปญนี้มีการตั้งเวลาโทรอยู่ ระบบจะโทรเองตามเวลา <a className="rd-link" href="#call-schedule">ยกเลิกการตั้งเวลาด้านบน</a> ก่อนจึงจะเริ่มโทรเองได้</p>}
+      <label className="rd-toggle-row"><input type="checkbox" checked={consent} disabled={running || scheduledActive || !valid || !historyReady} onChange={e=>setConsent(e.target.checked)}/><span><small>ฉันตรวจรายชื่อและยืนยันดำเนินการ {planned.length} คน{repeatCount?` รวมโทรซ้ำ ${repeatCount} คน`:''}</small></span></label>
       <div className="rd-head__actions"><Button disabled={running || scheduledActive || editing || !valid || !historyReady || !consent || !navigator.locks} onClick={start}>เริ่ม / ดำเนินคิวที่เลือก {planned.length} คน</Button>{running && <Button variant="secondary" onClick={()=>{stopped.current=true;setConsent(false);setMessage('กำลังหยุดส่งรายชื่อถัดไป สายที่ส่งแล้วจะไม่ถูกยกเลิก');}}>หยุดคิว</Button>}</div>
+      {/* Queue progress and errors appear next to the button that started them. */}
+      {message && <p className="workspace-notice" role="status">{message}</p>}{error && <p className="workspace-alert" role="alert">{error}</p>}
       <p className="rd-stat__note">สายที่ยังทำงานจะตรวจต่อโดยไม่ส่งซ้ำ หากปิดหน้าหรือเครื่องพัก คิวจะหยุดส่งรายชื่อถัดไป</p>{!navigator.locks && <p className="workspace-alert" role="alert">เบราว์เซอร์นี้ไม่รองรับการล็อกคิว กรุณาใช้ Chrome หรือ Edge รุ่นปัจจุบัน</p>}
     </section>
-    <section className="rd-card rd-table-card" id="call-contacts"><div className="rd-table-card__head"><h2>รายชื่อและสถานะการโทร</h2><span className="rd-muted">“จบสาย” คือสถานะสายจากบริการ ไม่ได้แปลว่าผู้ติดต่อตอบรับ</span></div><div className="rd-table-wrap"><table className="rd-table"><thead><tr><th style={{width:48}}><span className="sr-only">เลือก</span></th><th>แถว</th><th>เบอร์โทร</th><th>ข้อมูลจาก CSV</th><th>สถานะ / สิ่งที่ต้องแก้</th></tr></thead><tbody>{pageRows.map(row=>{
-      const bad=row.errors.length||prepared.errors.length, s=states[row.index];
-      return <tr key={row.index} className={scope==='selected'&&selectedRows.includes(row.index)?'call-row-selected':''}><td><input type="checkbox" aria-label={`เลือกโทรแถว ${row.index+1} เบอร์ ${row.destination}`} checked={scope==='selected'?selectedRows.includes(row.index):planned.some(p=>p.index===row.index)} disabled={running||!historyReady||scope!=='selected'||!!row.errors.length||!!prepared.errors.length} onChange={()=>changeSelection(row.index)}/></td><td className="rd-muted">{row.index+1}</td><td>{row.destination || '—'}</td><td className="rd-vars">{Object.entries(row.variables).map(([key,value])=><div key={key}><span>{key}</span> {value}</div>)}</td><td><span className={`rd-chip rd-chip--${bad?'bad':stateTone(s?.status)}`} style={{whiteSpace:'normal'}}>{row.errors.length?row.errors.join(' · '):prepared.errors.length?'ต้องแก้การจับคู่ข้อมูล':labels[s?.status] || s?.status || 'ยังไม่ส่ง'}</span>{s?.message && <span className="rd-table__sub">{s.message}</span>}{s?.callId && <span className="rd-table__sub">Call ID: {s.callId}</span>}</td></tr>;
+    <section className="rd-card rd-table-card" id="call-contacts"><div className="rd-table-card__head"><h2>รายชื่อและสถานะการโทร</h2><span className="rd-muted">“จบสาย” คือสถานะสายจากบริการ ไม่ได้แปลว่าผู้ติดต่อตอบรับ</span></div><div className="rd-table-wrap"><table className="rd-table rd-table--cards"><thead><tr><th style={{width:48}}><span className="sr-only">เลือก</span></th><th>แถว</th><th>เบอร์โทร</th><th>ข้อมูลจาก CSV</th><th>ผลตอบรับ / สถานะ</th></tr></thead><tbody>{pageRows.map(row=>{
+      const bad=row.errors.length||prepared.errors.length, s=states[row.index], result=bad?null:resultOf(row.index);
+      return <tr key={row.index} className={scope==='selected'&&selectedRows.includes(row.index)?'call-row-selected':''}><td className="rd-cell--auto"><input type="checkbox" aria-label={`เลือกโทรแถว ${row.index+1} เบอร์ ${row.destination}`} checked={scope==='selected'?selectedRows.includes(row.index):planned.some(p=>p.index===row.index)} disabled={running||!historyReady||scope!=='selected'||!!row.errors.length||!!prepared.errors.length} onChange={()=>changeSelection(row.index)}/></td><td className="rd-muted rd-cell--auto" data-label="แถว">{row.index+1}</td><td className="rd-cell--auto"><strong>{row.destination || '—'}</strong></td><td className="rd-vars">{Object.entries(row.variables).map(([key,value])=><div key={key}><span>{key}</span> {value}</div>)}</td><td>{result?<><span className="result-badge" data-result={result.key}>{result.label}</span><span className="rd-table__sub">{labels[s?.status||''] || s?.status}</span></>:<span className={`rd-chip rd-chip--${bad?'bad':stateTone(s?.status)}`} style={{whiteSpace:'normal'}}>{row.errors.length?row.errors.join(' · '):prepared.errors.length?'ต้องแก้การจับคู่ข้อมูล':labels[s?.status] || s?.status || 'ยังไม่ส่ง'}</span>}{s?.message && <span className="rd-table__sub">{s.message}</span>}</td></tr>;
     })}</tbody></table></div><div className="rd-table-foot"><span>แถว {total?page*25+1:0}–{Math.min(total,(page+1)*25)} จาก {total.toLocaleString()}</span><div><Button variant="secondary" size="compact" disabled={page===0} onClick={()=>setPage(p=>p-1)}>ก่อนหน้า</Button><span>หน้า {page+1} / {Math.max(1,Math.ceil(total/25))}</span><Button variant="secondary" size="compact" disabled={(page+1)*25>=total} onClick={()=>setPage(p=>p+1)}>ถัดไป</Button></div></div></section>
     <p className="rd-stat__note">คิวอัตโนมัติทำงานบนเซิร์ฟเวอร์ ส่วนการเลือกโทรเองด้านบนต้องเปิดหน้านี้ไว้</p>
-    <CampaignResults campaign={campaign} queueRunning={running} revision={resultsRevision+historyRevision} onStatus={(row,status,callId)=>{setStates(prev=>({...prev,[row]:{status,callId,message:'อัปเดตจากบริการแล้ว'}}));setHistory(prev=>prev.map(a=>a.call_id===callId?{...a,status}:a));}} />
+    <CampaignResults campaign={campaign} queueRunning={running} revision={resultsRevision+historyRevision} onStatus={(row,status,callId)=>{setStates(prev=>({...prev,[row]:{status,callId,message:''}}));setHistory(prev=>prev.map(a=>a.call_id===callId?{...a,status}:a));}} />
     {!running && <Button href={routes.campaigns} variant="secondary">กลับไปแคมเปญ</Button>}
   </main></div>;
 }

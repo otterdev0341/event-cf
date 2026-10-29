@@ -31,7 +31,8 @@ export function CampaignSchedule({campaignId,onActive,configure=false,version,ro
   const repeatLabel=job?.recurrence==='daily'?'ทุกวัน':job?.recurrence==='weekly'?`ทุก${days.filter(d=>job.weekdays?.includes(d.id)).map(d=>d.label).join(' / ')}`:'ครั้งเดียว';
   function showSettings(){
     if(disabled || activeSchedule(job))return;
-    const [day,hour]=initialTime();setDate(day);setTime(job?.local_time || hour);setRecurrence(job?.recurrence || 'once');setWeekdays(job?.weekdays?.length?job.weekdays:[1,2,3,4,5]);setRedial(false);setConsent(false);setRequestId(crypto.randomUUID());setFormError('');setOpen(true);
+    // A redial scope has nobody left uncalled, so the only useful target is calling the chosen people again.
+    const [day,hour]=initialTime();setDate(day);setTime(job?.local_time || hour);setRecurrence(job?.recurrence || 'once');setWeekdays(job?.weekdays?.length?job.weekdays:[1,2,3,4,5]);setRedial(rows!==null&&!pendingCount&&rows.length>0);setConsent(false);setRequestId(crypto.randomUUID());setFormError('');setOpen(true);
   }
   async function cancel() {
     if(!job)return;setBusy(true);setError('');
@@ -65,9 +66,10 @@ export function CampaignSchedule({campaignId,onActive,configure=false,version,ro
         </div>
         <div className="schedule-date"><span>{recurrence==='once'?'วันที่โทร':'เริ่มตั้งแต่วันที่'}</span><DatePicker label="วันที่โทร" value={date} disabled={busy} onChange={v=>{setDate(v);setConsent(false);}}/></div>
         {recurrence==='weekly'&&<fieldset className="schedule-weekdays"><legend>วันที่โทรซ้ำ</legend><div>{days.map(day=><button type="button" key={day.id} aria-label={day.name} aria-pressed={weekdays.includes(day.id)} disabled={busy} onClick={()=>{setWeekdays(old=>old.includes(day.id)?old.filter(v=>v!==day.id):[...old,day.id]);setConsent(false);}}>{day.label}</button>)}</div></fieldset>}
-        <label className="schedule-target"><span>รายชื่อที่จะโทร · {count} คน{rows!==null?'ที่เลือกไว้':''}</span><SmoothSelect value={redial?'all':'pending'} disabled={busy} onChange={v=>{setRedial(v==='all');setConsent(false);}} options={[{value:'pending',label:'เฉพาะรายชื่อที่ยังไม่จบการโทร'},{value:'all',label:'โทรทุกคนในแต่ละรอบ รวมคนที่เคยจบสาย'}]}/></label>
-        {!count&&<p className="workspace-note">ไม่มีรายชื่อที่ยังไม่จบการโทร หากต้องการโทรซ้ำ ให้เลือก “โทรทุกคนในแต่ละรอบ”</p>}
-        <div className="schedule-next" role="status"><span>เริ่มรอบถัดไป</span><strong>{next?`${scheduleLabel(next)} น.`:'เลือกวันและเวลาในอนาคตให้ครบ'}</strong><small>ปิดเว็บหรือปิดคอมได้ · ระบบตรวจคิวทุกนาที</small></div>
+        <label className="schedule-target"><span>รายชื่อที่จะโทร · {count} คน</span><SmoothSelect value={redial?'all':'pending'} disabled={busy} onChange={v=>{setRedial(v==='all');setConsent(false);}} options={[{value:'pending',label:`${rows===null?'':'คนที่เลือกไว้ '}เฉพาะที่ยังไม่จบการโทร (${pendingCount} คน)`},{value:'all',label:rows===null?`ทุกคนในแคมเปญ ${total} คน รวมคนที่จบสายแล้ว`:`ทุกคนที่เลือกไว้ ${rows.length} คน รวมคนที่จบสายแล้ว`}]}/></label>
+        {!count&&<p className="workspace-note">ไม่มีรายชื่อที่ยังไม่จบการโทร หากต้องการโทรอีกครั้ง ให้เลือกตัวเลือกที่รวมคนที่จบสายแล้ว</p>}
+        {/* Retry rules live in backend/scheduler.go (retryKind); 3 attempts is the max_attempts default in 202610280001_campaign_retries.sql. */}
+        <div className="schedule-next" role="status"><span>เริ่มรอบถัดไป</span><strong>{next?`${scheduleLabel(next)} น.`:'เลือกวันและเวลาในอนาคตให้ครบ'}</strong><small>ปิดเว็บหรือปิดคอมได้ · ในแต่ละรอบ ระบบโทรซ้ำคนที่ไม่รับสาย ติดต่อไม่ได้ ขอให้โทรกลับ หรือวางสายก่อนตอบ สูงสุด 3 ครั้งต่อคน เฉพาะ 09:00–20:00 น.</small></div>
         {redial&&<p className="workspace-alert">การตั้งค่านี้จะโทรออกใหม่ถึงคนที่เคยจบสายแล้ว{recurrence!=='once'?'ในทุกรอบที่ตั้งไว้':''}</p>}
         <label className="schedule-consent"><input type="checkbox" checked={consent} disabled={busy} onChange={e=>setConsent(e.target.checked)}/><span>ยืนยันให้โทรตามรายชื่อและเวลาที่ตั้งไว้{recurrence!=='once'?'ซ้ำจนกว่าจะยกเลิก':''}</span></label>
         {!ready&&<p className="workspace-alert" role="alert">ระบบตั้งเวลายังไม่พร้อม กรุณาลองใหม่ภายหลัง คุณยังกดโทรเองได้</p>}

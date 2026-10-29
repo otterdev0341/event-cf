@@ -14,3 +14,5 @@
 @keyframes schedule-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:480px){.schedule-dialog-content{padding:20px;gap:16px}.schedule-time-block{gap:16px;padding:16px}.schedule-clock-face{width:76px;height:76px}.schedule-time-block .ov-dd__trigger{font-size:32px}.campaign-schedule-bar{padding:16px;gap:12px}}
 @media(prefers-reduced-motion:reduce){.schedule-dialog[open]{animation:none}}
+/* .real-data-page label{display:grid} (ui-refinement.css) outranks the single class and stacks the checkbox above its text. */
+.schedule-dialog .schedule-consent{display:flex}
