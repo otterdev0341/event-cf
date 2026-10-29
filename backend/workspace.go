@@ -31,7 +31,13 @@ func (v *voiceRequest) handleCallResult(id string, body any, accountID *string) 
 	original := record["response"]
 	response := objOr(original)
 	status := record["status"]
-	if v.method == "POST" {
+	if v.method == "POST" && get(body, "clear") == true {
+		// Clearing a manual review hands the result back to the Agent or the provider.
+		if !jsSame(get(body, "expected_review_at"), get(response, "review", "updated_at")) {
+			return fail(409, "ผลถูกแก้ไขแล้ว กรุณารีเฟรชก่อนบันทึก")
+		}
+		delete(response, "review")
+	} else if v.method == "POST" {
 		evidence, hasEvidence := get(body, "evidence"), has(body, "evidence")
 		evidenceText, isString := evidence.(string)
 		if !truthy(body) || !isOutcome(get(body, "call_result")) || !isNullableBool(get(body, "needs_agent"), has(body, "needs_agent")) ||
