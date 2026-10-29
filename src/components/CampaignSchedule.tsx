@@ -13,7 +13,7 @@ export function CampaignSchedule({campaignId,onActive,configure=false,version,ro
   const [job,setJob]=useState<Job|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[ready,setReady]=useState(false);
   const [open,setOpen]=useState(false),[recurrence,setRecurrence]=useState<'once'|'daily'|'weekly'>('once');
   const [date,setDate]=useState(()=>initialTime()[0]),[time,setTime]=useState(()=>initialTime()[1]);
-  const [weekdays,setWeekdays]=useState<number[]>([1,2,3,4,5]),[redial,setRedial]=useState(false),[consent,setConsent]=useState(false);
+  const [weekdays,setWeekdays]=useState<number[]>([1,2,3,4,5]),[redial,setRedial]=useState(false);
   const [requestId,setRequestId]=useState(''),[formError,setFormError]=useState('');
   const dialog=useRef<HTMLDialogElement>(null);
   useEffect(()=>{
@@ -32,7 +32,7 @@ export function CampaignSchedule({campaignId,onActive,configure=false,version,ro
   function showSettings(){
     if(disabled || activeSchedule(job))return;
     // A redial scope has nobody left uncalled, so the only useful target is calling the chosen people again.
-    const [day,hour]=initialTime();setDate(day);setTime(job?.local_time || hour);setRecurrence(job?.recurrence || 'once');setWeekdays(job?.weekdays?.length?job.weekdays:[1,2,3,4,5]);setRedial(rows!==null&&!pendingCount&&rows.length>0);setConsent(false);setRequestId(crypto.randomUUID());setFormError('');setOpen(true);
+    const [day,hour]=initialTime();setDate(day);setTime(job?.local_time || hour);setRecurrence(job?.recurrence || 'once');setWeekdays(job?.weekdays?.length?job.weekdays:[1,2,3,4,5]);setRedial(rows!==null&&!pendingCount&&rows.length>0);setRequestId(crypto.randomUUID());setFormError('');setOpen(true);
   }
   async function cancel() {
     if(!job)return;setBusy(true);setError('');
@@ -40,7 +40,7 @@ export function CampaignSchedule({campaignId,onActive,configure=false,version,ro
     catch(e){setError((e as Error).message);}finally{setBusy(false);}
   }
   async function save() {
-    if(!next || !consent || !ready || !version || !count || busy)return;
+    if(!next || !ready || !version || !count || busy)return;
     setBusy(true);setFormError('');
     try {
       const result=await botnoiFetch<{job:Job}>(`/workspace/campaigns/${campaignId}/schedule`,{method:'POST',body:{action:'configure',request_id:requestId,consent:true,campaign_version:version,contact_rows:rows,schedule:{date,time,recurrence,weekdays,redial}}});
@@ -49,32 +49,35 @@ export function CampaignSchedule({campaignId,onActive,configure=false,version,ro
   }
   if(!configure && !job)return error?<p className="workspace-alert">{error}</p>:null;
   const [hour,minute]=time.split(':').map(Number);
+  const active=activeSchedule(job);
+  // Idle on the campaign screen this is one button; the bar appears once a schedule exists (or failed).
+  const bar=active || job?.status==='failed' || (!configure && job);
+  const often=recurrence==='daily'?' ทุกวัน':recurrence==='weekly'?' ตามวันที่เลือก':'';
   return <>
-    <section className="campaign-schedule-bar" aria-label="ตั้งเวลาโทร">
+    {bar&&job?<section className="campaign-schedule-bar" aria-label="ตั้งเวลาโทร">
       <span className="campaign-schedule-icon">{clockIcon}</span>
-      <div className="campaign-schedule-copy"><strong>{retryAt?'รอโทรซ้ำ':job?labels[job.status]:'ตั้งเวลาโทร'}</strong><p>{retryAt?`โทรซ้ำรายชื่อที่ยังไม่ได้คำตอบประมาณ ${scheduleLabel(retryAt)} น. · สูงสุด ${job?.max_attempts??1} ครั้งต่อคน`:activeSchedule(job)&&job?`${repeatLabel} · ${scheduleLabel(job.run_at)} น. · เวลาไทย`:'ตั้งเวลาได้ตามต้องการ หรือกดเริ่มโทรเองด้านล่าง'}</p>{job?.status==='failed'&&<p role="alert">{job.last_error}</p>}</div>
-      {activeSchedule(job)?<Button size="compact" variant="secondary" disabled={busy} onClick={cancel}>{busy?'กำลังยกเลิก…':'ยกเลิกการตั้งเวลา'}</Button>:configure?<Button size="compact" variant="secondary" disabled={disabled || busy} onClick={showSettings}>{clockIcon} ตั้งเวลาโทร</Button>:null}
-      {error&&<p className="workspace-alert" role="alert">{error}</p>}
-    </section>
+      <div className="campaign-schedule-copy"><strong>{retryAt?'รอโทรซ้ำ':labels[job.status]}</strong>{(retryAt||active)&&<p>{retryAt?`รอบถัดไปประมาณ ${scheduleLabel(retryAt)} น.`:`${repeatLabel} · ${scheduleLabel(job.run_at)} น.`}</p>}{job.status==='failed'&&<p role="alert">{job.last_error}</p>}</div>
+      {active?<Button size="compact" variant="secondary" disabled={busy} onClick={cancel}>{busy?'กำลังยกเลิก…':'ยกเลิกการตั้งเวลา'}</Button>:configure?<Button size="compact" variant="secondary" disabled={disabled || busy} onClick={showSettings}>{clockIcon} ตั้งเวลาใหม่</Button>:null}
+    </section>:configure?<Button variant="secondary" disabled={disabled || busy} onClick={showSettings}>{clockIcon} ตั้งเวลาโทร</Button>:null}
+    {error&&<p className="workspace-alert" role="alert">{error}</p>}
     {configure&&<dialog ref={dialog} className="schedule-dialog" aria-labelledby="schedule-title" onCancel={e=>{e.preventDefault();if(!busy)setOpen(false);}} onClick={e=>{if(e.target===e.currentTarget&&!busy)setOpen(false);}}>
       <div className="schedule-dialog-content">
-        <header><div><span className="schedule-eyebrow">โทรตามเวลาที่คุณเลือก</span><h2 id="schedule-title">ตั้งเวลาโทร</h2></div><button className="schedule-close" type="button" aria-label="ปิดการตั้งเวลา" disabled={busy} onClick={()=>setOpen(false)}>×</button></header>
-        <fieldset className="schedule-frequency"><legend>ความถี่</legend><div>{([['once','ครั้งเดียว'],['daily','ทุกวัน'],['weekly','เลือกวัน']] as const).map(([value,label])=><label key={value} className={recurrence===value?'is-selected':''}><input type="radio" name="schedule-frequency" value={value} checked={recurrence===value} disabled={busy} onChange={()=>{setRecurrence(value);setConsent(false);}}/>{label}</label>)}</div></fieldset>
+        <header><h2 id="schedule-title">ตั้งเวลาโทร</h2><button className="schedule-close" type="button" aria-label="ปิดการตั้งเวลา" disabled={busy} onClick={()=>setOpen(false)}>×</button></header>
+        <fieldset className="schedule-frequency"><legend>ความถี่</legend><div>{([['once','ครั้งเดียว'],['daily','ทุกวัน'],['weekly','เลือกวัน']] as const).map(([value,label])=><label key={value} className={recurrence===value?'is-selected':''}><input type="radio" name="schedule-frequency" value={value} checked={recurrence===value} disabled={busy} onChange={()=>{setRecurrence(value);}}/>{label}</label>)}</div></fieldset>
         <div className="schedule-time-block">
           <svg className="schedule-clock-face" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path className="schedule-clock-ticks" d="M50 10v5 M90 50h-5 M50 90v-5 M10 50h5"/><line className="schedule-hour-hand" x1="50" y1="50" x2="50" y2="28" transform={`rotate(${((hour||0)%12)*30+(minute||0)/2} 50 50)`}/><line className="schedule-minute-hand" x1="50" y1="50" x2="50" y2="17" transform={`rotate(${(minute||0)*6} 50 50)`}/><circle className="schedule-clock-pin" cx="50" cy="50" r="3"/></svg>
-          <div className="schedule-time-field"><span>เวลาโทร</span><TimePicker label="เวลาโทร (เวลาไทย)" value={time} disabled={busy} onChange={v=>{setTime(v);setConsent(false);}}/><small>เวลาไทย (24 ชั่วโมง)</small></div>
+          <div className="schedule-time-field"><span>เวลาโทร</span><TimePicker label="เวลาโทร (เวลาไทย)" value={time} disabled={busy} onChange={v=>{setTime(v);}}/></div>
         </div>
-        <div className="schedule-date"><span>{recurrence==='once'?'วันที่โทร':'เริ่มตั้งแต่วันที่'}</span><DatePicker label="วันที่โทร" value={date} disabled={busy} onChange={v=>{setDate(v);setConsent(false);}}/></div>
-        {recurrence==='weekly'&&<fieldset className="schedule-weekdays"><legend>วันที่โทรซ้ำ</legend><div>{days.map(day=><button type="button" key={day.id} aria-label={day.name} aria-pressed={weekdays.includes(day.id)} disabled={busy} onClick={()=>{setWeekdays(old=>old.includes(day.id)?old.filter(v=>v!==day.id):[...old,day.id]);setConsent(false);}}>{day.label}</button>)}</div></fieldset>}
-        <label className="schedule-target"><span>รายชื่อที่จะโทร · {count} คน</span><SmoothSelect value={redial?'all':'pending'} disabled={busy} onChange={v=>{setRedial(v==='all');setConsent(false);}} options={[{value:'pending',label:`${rows===null?'':'คนที่เลือกไว้ '}เฉพาะที่ยังไม่จบการโทร (${pendingCount} คน)`},{value:'all',label:rows===null?`ทุกคนในแคมเปญ ${total} คน รวมคนที่จบสายแล้ว`:`ทุกคนที่เลือกไว้ ${rows.length} คน รวมคนที่จบสายแล้ว`}]}/></label>
-        {!count&&<p className="workspace-note">ไม่มีรายชื่อที่ยังไม่จบการโทร หากต้องการโทรอีกครั้ง ให้เลือกตัวเลือกที่รวมคนที่จบสายแล้ว</p>}
+        <div className="schedule-date"><span>{recurrence==='once'?'วันที่โทร':'เริ่มตั้งแต่วันที่'}</span><DatePicker label="วันที่โทร" value={date} disabled={busy} onChange={v=>{setDate(v);}}/></div>
+        {recurrence==='weekly'&&<fieldset className="schedule-weekdays"><legend>วันที่โทรซ้ำ</legend><div>{days.map(day=><button type="button" key={day.id} aria-label={day.name} aria-pressed={weekdays.includes(day.id)} disabled={busy} onClick={()=>{setWeekdays(old=>old.includes(day.id)?old.filter(v=>v!==day.id):[...old,day.id]);}}>{day.label}</button>)}</div></fieldset>}
+        <label className="schedule-target"><span>โทรใคร</span><SmoothSelect value={redial?'all':'pending'} disabled={busy} onChange={v=>{setRedial(v==='all');}} options={[{value:'pending',label:`${rows===null?'คน':'คนที่เลือกและ'}ที่ยังไม่โทร (${pendingCount})`},{value:'all',label:rows===null?`ทุกคน รวมคนที่โทรแล้ว (${total})`:`ทุกคนที่เลือก รวมคนที่โทรแล้ว (${rows.length})`}]}/></label>
+        {!count&&<p className="workspace-note">ไม่มีคนที่ยังไม่โทร เลือก “รวมคนที่โทรแล้ว” ถ้าจะโทรอีกครั้ง</p>}
         {/* Retry rules live in backend/scheduler.go (retryKind); 3 attempts is the max_attempts default in 202610280001_campaign_retries.sql. */}
-        <div className="schedule-next" role="status"><span>เริ่มรอบถัดไป</span><strong>{next?`${scheduleLabel(next)} น.`:'เลือกวันและเวลาในอนาคตให้ครบ'}</strong><small>ปิดเว็บหรือปิดคอมได้ · ในแต่ละรอบ ระบบโทรซ้ำคนที่ไม่รับสาย ติดต่อไม่ได้ ขอให้โทรกลับ หรือวางสายก่อนตอบ สูงสุด 3 ครั้งต่อคน เฉพาะ 09:00–20:00 น.</small></div>
-        {redial&&<p className="workspace-alert">การตั้งค่านี้จะโทรออกใหม่ถึงคนที่เคยจบสายแล้ว{recurrence!=='once'?'ในทุกรอบที่ตั้งไว้':''}</p>}
-        <label className="schedule-consent"><input type="checkbox" checked={consent} disabled={busy} onChange={e=>setConsent(e.target.checked)}/><span>ยืนยันให้โทรตามรายชื่อและเวลาที่ตั้งไว้{recurrence!=='once'?'ซ้ำจนกว่าจะยกเลิก':''}</span></label>
-        {!ready&&<p className="workspace-alert" role="alert">ระบบตั้งเวลายังไม่พร้อม กรุณาลองใหม่ภายหลัง คุณยังกดโทรเองได้</p>}
+        <div className="schedule-next" role="status"><span>รอบแรก</span><strong>{next?`${scheduleLabel(next)} น.`:'เลือกวันและเวลาในอนาคต'}</strong><details><summary>กติกาการโทรซ้ำ</summary><small>ปิดเว็บได้ ระบบโทรซ้ำคนที่ไม่รับสาย ติดต่อไม่ได้ ขอให้โทรกลับ หรือวางสายก่อนตอบ สูงสุด 3 ครั้งต่อคน เฉพาะ 09:00–20:00 น.</small></details></div>
+        {redial&&<p className="workspace-alert">จะโทรหาคนที่โทรแล้วอีกครั้ง{recurrence!=='once'?'ทุกรอบ':''}</p>}
+        {!ready&&<p className="workspace-alert" role="alert">ระบบตั้งเวลายังไม่พร้อม ยังกดโทรเองได้</p>}
         {formError&&<p className="workspace-alert" role="alert">{formError}</p>}
-        <footer><Button size="compact" variant="secondary" disabled={busy} onClick={()=>setOpen(false)}>ยกเลิก</Button><Button size="compact" disabled={busy||!consent||!next||!ready||!count} onClick={save}>{busy?'กำลังบันทึก…':'บันทึกการตั้งเวลา'}</Button></footer>
+        <footer><Button size="compact" variant="secondary" disabled={busy} onClick={()=>setOpen(false)}>ยกเลิก</Button><Button size="compact" disabled={busy||!next||!ready||!count} onClick={save}>{busy?'กำลังบันทึก…':`ตั้งเวลาโทร ${count} คน${often}`}</Button></footer>
       </div>
     </dialog>}
   </>;

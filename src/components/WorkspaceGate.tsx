@@ -16,7 +16,7 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
   const [revision, setRevision] = useState(0);
   // Owner whose campaigns are already in memory; in-app navigation keeps them instead of reloading.
   const loadedFor = useRef('');
-  const needsDatabase = currentPath() === routes.dashboard || currentPath().startsWith(routes.campaigns) || currentPath().startsWith(routes.contacts) || currentPath() === routes.outbound || currentPath() === routes.inbound;
+  const needsDatabase = currentPath() === routes.dashboard || currentPath().startsWith(routes.campaigns) || currentPath().startsWith(routes.contacts) || currentPath() === routes.outbound || currentPath() === routes.inbound || currentPath() === routes.analytics;
   useEffect(() => {
     if (!supabase) { setError('ยังไม่ได้ตั้งค่า Supabase'); setLoading(false); return; }
     let active = true;

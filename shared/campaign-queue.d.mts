@@ -1,5 +1,5 @@
 import type { PreparedContact } from './campaign-inputs.mjs';
-export interface CampaignAttempt { id: string; call_id: string | null; status: string; created_at: string; metadata: { contact_row?: number; campaign_id?: string; campaign_version?: string }; review?: string | null; callback?: string | null; followup?: string | null; reason?: string | null }
+export interface CampaignAttempt { id: string; call_id: string | null; status: string; created_at: string; metadata: { contact_row?: number; campaign_id?: string; campaign_version?: string }; review?: string | null; callback?: string | null; followup?: string | null; reason?: string | null; final?: boolean | null }
 export const finalResults: string[];
 export function terminalCall(status: string): boolean;
 export function shownStatus(status: string, reason?: string | null): string;

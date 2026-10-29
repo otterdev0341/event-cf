@@ -6,8 +6,8 @@ export const routes = {
   login: `${base}/login`,
   dashboard: `${base}/dashboard`,
   liveAgent: `${base}/live-agent`,
+  // Old addresses of the outbound board; App redirects both to the campaign screen.
   outbound: `${base}/outbound`,
-  // Old address of the outbound page; App redirects it to `outbound`.
   inbound: `${base}/inbound`,
   campaigns: `${base}/campaigns`,
   createCampaign: `${base}/campaigns/new`,

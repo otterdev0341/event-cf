@@ -5,4 +5,11 @@ export function callResultDisplay(attempt:DisplayAttempt):{key:string;label:stri
 export function talkSeconds(attempt:DisplayAttempt):number|null;
 export function talkDuration(attempt:DisplayAttempt):string;
 export function needsFollowUp(attempt:DisplayAttempt):boolean;
+export type GuestBucket='pending'|'calling'|'awaiting'|'confirmed'|'declined'|'staff'|'redial';
+export const bucketLabels:Record<GuestBucket,string>;
+export function guestBucket(attempt:(DisplayAttempt&{created_at:string})|null|undefined,now?:number):GuestBucket;
+export function callChoices<R extends {index:number}>(rows:R[],attempts:(DisplayAttempt&{id:string;created_at:string;metadata?:{contact_row?:number}})[],now?:number):{fresh:(R&{redialOf?:string})[];redial:(R&{redialOf?:string})[];next:(R&{redialOf?:string})[]};
+export function readableTranscript(text:string|null|undefined):string;
+export function displayPhone(phone:string|null|undefined):string;
+export function liveBucket(attempt:(DisplayAttempt&{created_at:string})|null|undefined,liveStatus?:string,now?:number):GuestBucket;
 export function awaitingResult(attempt:DisplayAttempt&{created_at:string},now?:number):boolean;
