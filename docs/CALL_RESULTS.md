@@ -11,7 +11,7 @@ Campaign screen now includes persisted call status, per-call outcome/source, pro
 ## Outcome evidence
 - A completed phone call does NOT mean acceptance.
 - Only explicit call_result/needs_agent fields at result/output/top-level are accepted. CSV metadata inputs and transcript keywords are never interpreted as outcomes.
-- Manual review requires a note, records user and timestamp, and stays distinct from provider results.
+- Manual review requires a note, records user and timestamp, and stays distinct from provider results. Sending `{clear: true, expected_review_at}` removes the review so the Agent or provider result shows again (used for undo).
 - Missing needs_agent remains null, not false. Missing result remains UNDETERMINED.
 - Conversation file must be an exact Call ID filename/path segment, or an explicit transcript_file_path/log_file_path from the call response that appears in the Agent file listing. No time/name/phone-only matching.
 - Provider output and log response shapes remain undocumented (OpenAPI says unknown); optional adapters require confirmation with live evidence before claiming support for another shape.

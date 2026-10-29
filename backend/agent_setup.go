@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -53,6 +54,15 @@ func compatibleTool(tool any, agentID any, endpoint, accountID string) bool {
 		get(types, "request_id", "type") == "string" && get(types, "agent_id", "type") == "string" &&
 		(restriction == nil || arrayLen(restriction) == 1 && jsSame(restriction.([]any)[0], agentID)) &&
 		get(types, "call_result", "type") == "string" && get(types, "needs_agent", "type") == "boolean" && get(types, "evidence", "type") == "string"
+}
+
+// ownTool reports a tool that this account's setup made for this agent: its description starts with the
+// account marker of the desired tool and it is restricted to the agent. Anything else is never overwritten.
+func ownTool(tool any, desired obj, agentID, accountID string) bool {
+	marker, _, _ := strings.Cut(jsString(desired["description"]), ". ")
+	enum := get(tool, "parameters", "properties", "agent_id", "enum")
+	return accountID != "" && strings.HasPrefix(jsString(get(tool, "description")), marker+".") &&
+		arrayLen(enum) == 1 && jsSame(enum.([]any)[0], agentID)
 }
 
 func connectedTool(agent, tools any, endpoint, accountID string) obj {
@@ -296,17 +306,23 @@ func (v *voiceRequest) handleAgentSetup(id string, body any, cfg Config, transcr
 				named = append(named, t)
 			}
 		}
-		if len(named) > 1 || len(named) == 1 && !kind.compatible(named[0]) {
+		stale := len(named) == 1 && !kind.compatible(named[0])
+		if len(named) > 1 || stale && !ownTool(named[0], desired, id, accountID) {
 			return nil, fail(409, "ชื่อ Tool สำหรับ Agent นี้มีการตั้งค่าอื่นอยู่ กรุณาตรวจใน Voice Bot")
 		}
-		if len(named) == 1 {
+		if len(named) == 1 && !stale {
 			tool = objOr(named[0])
-		} else {
+		} else if !stale {
 			tool = findTool(tools, kind.compatible)
 		}
 		if tool == nil {
-			// No blind retry on an uncertain creation; the next request rechecks the stored tools.
-			if _, err := v.upstream("/platform-config/tools", desired, "POST"); err != nil {
+			// No blind retry on an uncertain write; the next request rechecks the stored tools.
+			route, method := "/platform-config/tools", "POST"
+			if stale {
+				// Our own tool left on an earlier callback URL: update it in place rather than add a second one.
+				route, method = route+"/"+url.PathEscape(jsString(get(named[0], "tool_id"))), "PUT"
+			}
+			if _, err := v.upstream(route, desired, method); err != nil {
 				return nil, err
 			}
 			if tools, err = v.get("/platform-config/tools"); err != nil {

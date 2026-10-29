@@ -417,6 +417,13 @@ func TestCallResults(t *testing.T) {
 		r.opt["conflict"] = true
 		check(t, r.refresh().status == 409, "conflict hidden")
 	})
+	run("Clearing a manual review restores the provider result and checks for conflicts", func(t *testing.T, r *resultsFixture) {
+		response(r)["review"] = with(manualReview(), obj{"updated_at": "time"})
+		response(r)["followup"] = obj{"outcome": obj{"call_result": "DECLINED", "needs_agent": false, "source": "provider"}}
+		check(t, r.invoke(obj{"clear": true, "expected_review_at": "old"}, "", "").status == 409 && r.patch == nil, "stale clear accepted")
+		check(t, r.invoke(obj{"clear": true, "expected_review_at": "time"}, "", "").status == 200, "clear refused")
+		check(t, get(r.patch, "response", "review") == nil && get(r.patch, "response", "followup", "outcome", "call_result") == "DECLINED", "patch %v", r.patch)
+	})
 	run("Refresh retains manual review and previously fetched evidence", func(t *testing.T, r *resultsFixture) {
 		response(r)["review"] = with(manualReview(), obj{"updated_at": "time"})
 		response(r)["followup"] = obj{"transcript": "saved text", "outcome": obj{"call_result": "DECLINED", "needs_agent": false, "source": "provider"}}

@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './Button';
+import { CampaignSchedule } from './CampaignSchedule';
 import { supabase } from '../lib/supabase';
-import { nameColumn, type CampaignDraft } from '../lib/campaigns';
+import { eventLabel, nameColumn, type CampaignDraft } from '../lib/campaigns';
 import { checkCampaignReady } from '../lib/campaign-calls';
 import { botnoiApi } from '../services/botnoi';
 import { botnoiFetch } from '../services/botnoi/client';
 import { useAgentDetail } from '../hooks/useBotnoiData';
 import { prepareCampaignRows } from '../../shared/campaign-inputs.mjs';
 import { runCampaignQueue, planCampaignCalls, campaignRequestId, terminalCall, shownStatus, type CampaignAttempt } from '../../shared/campaign-queue.mjs';
-import { effectiveOutcome, latestContactCalls, type Outcome } from '../../shared/call-results.mjs';
-import { callResultDisplay } from '../../shared/call-display.mjs';
+import { effectiveOutcome, latestContactCalls, outcomeLabels, type Outcome } from '../../shared/call-results.mjs';
+import { callResultDisplay, awaitingResult } from '../../shared/call-display.mjs';
 import { activeSchedule } from '../../shared/campaign-schedule.mjs';
 import { routes, warnBeforeLeave } from '../routes';
 
@@ -24,13 +25,20 @@ type Attempt = CampaignAttempt & {
 type Live = { status: string; callId?: string };
 type ColumnId = 'pending' | 'calling' | 'confirmed' | 'declined' | 'followup' | 'noresult';
 
-const COLUMNS: { id: ColumnId; label: string; tone: string; review?: { call_result: string; needs_agent: boolean | null } }[] = [
+// `drop` marks a result column a card can be dropped on; its value is the result pre-selected in the drawer
+// ('' when the column holds several results and the user must choose).
+const COLUMNS: { id: ColumnId; label: string; tone: string; drop?: string }[] = [
   { id: 'pending', label: 'รอโทร', tone: '' },
-  { id: 'calling', label: 'กำลังโทร', tone: 'info' },
-  { id: 'confirmed', label: 'ตอบตกลง', tone: 'ok', review: { call_result: 'CONFIRMED', needs_agent: false } },
-  { id: 'declined', label: 'ปฏิเสธ', tone: 'bad', review: { call_result: 'DECLINED', needs_agent: false } },
-  { id: 'followup', label: 'ต้องติดตาม', tone: 'warn', review: { call_result: 'REQUEST_AGENT', needs_agent: true } },
-  { id: 'noresult', label: 'ไม่สำเร็จ', tone: '', review: { call_result: 'UNDETERMINED', needs_agent: null } },
+  { id: 'calling', label: 'กำลังโทร/รอผล', tone: 'info' },
+  { id: 'confirmed', label: 'ตอบตกลง', tone: 'confirmed', drop: 'CONFIRMED' },
+  { id: 'declined', label: 'ปฏิเสธ', tone: 'bad', drop: 'DECLINED' },
+  { id: 'followup', label: 'ต้องติดตาม', tone: 'warn', drop: '' },
+  { id: 'noresult', label: 'ไม่สำเร็จ', tone: '', drop: '' },
+];
+// Manual results the backend accepts, with whether the guest asked for staff (null when the call cannot tell).
+const REVIEW_OPTIONS: { key: string; needs: boolean | null }[] = [
+  { key: 'CONFIRMED', needs: false }, { key: 'DECLINED', needs: false }, { key: 'CALLBACK_REQUESTED', needs: null },
+  { key: 'REQUEST_AGENT', needs: true }, { key: 'WRONG_PERSON', needs: false }, { key: 'NO_ANSWER', needs: null },
 ];
 const STATUS_LABELS: Record<string, string> = { waiting: 'รอส่ง', submitting: 'กำลังส่งคำขอ', queued: 'เข้าคิวแล้ว', ringing: 'กำลังเรียกสาย', 'in-progress': 'กำลังสนทนา', completed: 'จบสาย', failed: 'โทรไม่สำเร็จ', busy: 'สายไม่ว่าง', 'no-answer': 'ไม่รับสาย', cancelled: 'ยกเลิก', canceled: 'ยกเลิก', unknown: 'รอตรวจสอบ' };
 const PAGE = 30, LIST_PAGE = 50;
@@ -40,8 +48,8 @@ const date = (v?: string) => v && Number.isFinite(Date.parse(v)) ? new Date(v).t
 function columnOf(attempt: Attempt | undefined, live: Live | undefined): ColumnId {
   const status = live?.status ?? attempt?.status;
   if (!status || status === 'waiting') return 'pending';
-  if (!terminalCall(status)) return 'calling';
-  if (!attempt || attempt.status !== status) return 'noresult';
+  // A call that just ended stays here until its saved result arrives, so it never counts as failed meanwhile.
+  if (!terminalCall(status) || !attempt || !terminalCall(attempt.status) || awaitingResult(attempt)) return 'calling';
   const key = callResultDisplay(attempt).key;
   if (key === 'CONFIRMED') return 'confirmed';
   if (key === 'DECLINED') return 'declined';
@@ -81,6 +89,12 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
   const [dragRow, setDragRow] = useState<number | null>(null);
   const [overColumn, setOverColumn] = useState<ColumnId | null>(null);
   const [saving, setSaving] = useState(false);
+  const [scheduled, setScheduled] = useState(false);
+  // Drawer correction form: the chosen result, the required note, the last save (for undo) and its error.
+  const [pick, setPick] = useState('');
+  const [note, setNote] = useState('');
+  const [saved, setSaved] = useState<{ attempt: Attempt; previous: Outcome | null } | null>(null);
+  const [drawerError, setDrawerError] = useState('');
   const stopped = useRef(false), mounted = useRef(true), busy = useRef(false);
 
   const reload = useCallback(async () => {
@@ -90,12 +104,11 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; stopped.current = true; }; }, []);
   useEffect(() => { setLoaded(false); setLive({}); setOpenRow(null); void reload(); }, [reload]);
-  // Results arrive from the Agent after a call ends, so keep the board fresh while idle.
+  // Results arrive from the Agent after a call ends, so keep the board fresh, also during a run (start() keeps its own history).
   useEffect(() => {
-    if (running) return;
     const timer = window.setInterval(() => { if (!document.hidden) void reload(); }, 15000);
     return () => window.clearInterval(timer);
-  }, [reload, running]);
+  }, [reload]);
   useEffect(() => {
     if (!running) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
@@ -113,7 +126,7 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
   const finished = prepared.rows.length - planned.length;
   // Variable names from "…: name" mapping errors, so the alert can list them compactly.
   const staleVariables = prepared.errors.map(e => e.match(/:\s*(.+)$/)?.[1]).filter((v): v is string => !!v);
-  const blocker = !loaded ? '' : versionMismatch ? 'มีคำขอจากเวอร์ชันก่อนหน้า' : prepared.errors.length ? 'ต้องจับคู่ข้อมูลใหม่ก่อน'
+  const blocker = !loaded ? '' : scheduled ? 'คิวตั้งเวลากำลังโทรแคมเปญนี้' : versionMismatch ? 'มีคำขอจากเวอร์ชันก่อนหน้า' : prepared.errors.length ? 'ต้องจับคู่ข้อมูลใหม่ก่อน'
     : detail.loading ? 'กำลังตรวจ Agent…' : detail.error ? 'ตรวจ Agent ไม่ได้' : !navigator.locks ? 'เบราว์เซอร์ไม่รองรับ' : !runnable ? 'โทรครบทุกคนแล้ว' : '';
 
   const nameOf = (index: number) => {
@@ -129,7 +142,8 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
   const detailOf = (card: typeof cards[number]) => {
     const status = card.state?.status ?? card.attempt?.status;
     if (!status) return 'ยังไม่เคยโทร';
-    const result = card.attempt && !card.state && terminalCall(card.attempt.status) ? callResultDisplay(card.attempt).label : null;
+    if (card.column === 'calling' && terminalCall(status)) return 'จบสาย · รอผล';
+    const result = card.attempt && terminalCall(card.attempt.status) && (!card.state || terminalCall(card.state.status)) ? callResultDisplay(card.attempt).label : null;
     return result || STATUS_LABELS[status] || status;
   };
   const needle = query.trim().toLowerCase();
@@ -159,6 +173,7 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
             if (!mounted.current) return;
             setLive(prev => ({ ...prev, [index]: { status, callId: callId || prev[index]?.callId } }));
             setMessage(`กำลังโทร ${nameOf(index)} · ${STATUS_LABELS[status] || status}`);
+            if (terminalCall(status)) void reload();
           },
         });
         if (mounted.current) setMessage(result === 'complete' ? `โทรครบ ${chosen.length} รายชื่อแล้ว ผลตอบรับจะเข้ามาเมื่อ Agent ส่งผล` : 'หยุดคิวแล้ว สายที่ส่งไปก่อนหน้ายังอาจกำลังสนทนาอยู่');
@@ -169,23 +184,39 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
 
   function stop() { stopped.current = true; setMessage('กำลังหยุด… จะไม่ส่งรายชื่อถัดไป สายที่กำลังคุยอยู่จะไม่ถูกตัด'); }
 
-  async function review(attempt: Attempt, target: ColumnId) {
-    const column = COLUMNS.find(c => c.id === target);
-    if (!column?.review || saving || running) return;
-    setSaving(true); setError('');
+  function openDrawer(index: number, preset = '') { setOpenRow(index); setPick(preset); setNote(''); setSaved(null); setDrawerError(''); }
+
+  // Every manual result carries a note (docs/CALL_RESULTS.md); the review it replaced is kept for undo.
+  async function writeReview(attempt: Attempt, body: Record<string, unknown>) {
+    if (saving || running) return;
+    setSaving(true); setDrawerError('');
     try {
-      const updated = await botnoiFetch<Attempt>(`/workspace/calls/${attempt.id}/result`, { method: 'POST', body: { ...column.review, expected_review_at: attempt.response?.review?.updated_at || null } });
+      const updated = await botnoiFetch<Attempt>(`/workspace/calls/${attempt.id}/result`, { method: 'POST', body: { ...body, expected_review_at: attempt.response?.review?.updated_at || null } });
       setItems(old => old.map(a => a.id === updated.id ? updated : a));
-      setMessage(`บันทึกผล “${column.label}” แล้ว`);
-    } catch (e) { setError((e as Error).message); }
+      return updated;
+    } catch (e) { setDrawerError((e as Error).message); }
     finally { setSaving(false); }
+  }
+  async function saveReview(attempt: Attempt) {
+    const option = REVIEW_OPTIONS.find(o => o.key === pick);
+    if (!option || !note.trim()) return;
+    const previous = attempt.response?.review ?? null;
+    const updated = await writeReview(attempt, { call_result: option.key, needs_agent: option.needs, evidence: note.trim() });
+    if (updated) { setSaved({ attempt: updated, previous }); setNote(''); }
+  }
+  // Undo restores the review that was replaced, or clears it so the bot's own result shows again.
+  async function restore(attempt: Attempt, previous: Outcome | null) {
+    const body = previous ? { call_result: previous.call_result, needs_agent: previous.needs_agent, evidence: previous.evidence || '' } : { clear: true };
+    if (await writeReview(attempt, body)) { setSaved(null); setPick(''); }
   }
 
   const canMove = (card: typeof cards[number]) => !running && !saving && !!card.attempt && terminalCall(card.attempt.status) && !card.state;
+  // Dropping opens the drawer with the column's result chosen; nothing is saved until the user adds a note.
   function onDrop(event: DragEvent, target: ColumnId) {
     event.preventDefault(); setOverColumn(null);
     const card = cards.find(c => c.row.index === dragRow); setDragRow(null);
-    if (card && card.attempt && canMove(card) && card.column !== target) void review(card.attempt, target);
+    const column = COLUMNS.find(c => c.id === target);
+    if (card && canMove(card) && card.column !== target && column?.drop !== undefined) openDrawer(card.row.index, column.drop);
   }
 
   const openCard = openRow === null ? null : cards.find(c => c.row.index === openRow) || null;
@@ -208,14 +239,14 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
       <div className="ob-control__head">
         <div className="ob-control__title">
           {title || <h2>{campaign.name}</h2>}
-          <span className="rd-muted">{detail.agent?.bot_name || campaign.agentId} · {total.toLocaleString()} รายชื่อ</span>
+          <span className="rd-muted">{eventLabel(campaign) ? `${eventLabel(campaign)} · ` : ''}{detail.agent?.bot_name || campaign.agentId} · {total.toLocaleString()} แขก</span>
         </div>
         <div className="ob-control__action">
           {running
             ? <Button className="kb-stop" onClick={stop}><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>หยุดโทร</Button>
             : confirming
               ? <><Button variant="secondary" onClick={() => setConfirming(false)}>ยกเลิก</Button><Button onClick={() => void start()}>{playIcon}ยืนยัน โทร {runnable.toLocaleString()} คน</Button></>
-              : <Button disabled={!ready || !runnable || !navigator.locks} onClick={() => setConfirming(true)}>{playIcon}เริ่มโทร</Button>}
+              : <Button disabled={!ready || !runnable || !navigator.locks || scheduled} onClick={() => setConfirming(true)}>{playIcon}เริ่มโทร</Button>}
         </div>
       </div>
 
@@ -223,8 +254,11 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
         <div className="ob-progress__bar" role="img" aria-label={`จบแล้ว ${finished.toLocaleString()} จาก ${total.toLocaleString()} รายชื่อ`}>
           {total > 0 && COLUMNS.filter(c => c.id !== 'pending' && counts[c.id]).map(c => <span key={c.id} className={`ob-tone--${c.id}`} style={{ width: `${counts[c.id] / total * 100}%` }} title={`${c.label} ${counts[c.id]}`} />)}
         </div>
-        <span className="rd-muted">จบแล้ว <strong>{finished.toLocaleString()}</strong> / {total.toLocaleString()} · เหลือ {runnable.toLocaleString()} คน</span>
+        <span className="rd-muted"><strong className="ob-progress__yes">ยืนยันแล้ว {counts.confirmed.toLocaleString()}</strong> จาก {total.toLocaleString()} แขก · จบสาย {finished.toLocaleString()} · เหลือโทร {runnable.toLocaleString()} คน</span>
       </div>
+
+      {/* The server schedule calls on its own, so its state and its cancel button belong next to Start. */}
+      <CampaignSchedule campaignId={campaign.id} onActive={setScheduled} />
 
       <div className={`ob-next${running ? ' ob-next--live' : loaded && blocker && runnable && !confirming ? ' ob-next--warn' : ''}`} role="status">
         {running ? <><span className="ob-pulse" aria-hidden="true" /><p><strong>{message || 'กำลังโทร…'}</strong><small>โทรทีละคน ต้องเปิดหน้านี้ไว้ กดหยุดได้ทุกเมื่อ สายที่คุยอยู่จะไม่ถูกตัด</small></p></>
@@ -232,6 +266,7 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
           : !loaded ? <p><strong>{loadError ? 'ยังอ่านประวัติการโทรไม่ได้' : 'กำลังโหลด…'}</strong></p>
           : blocker ? <>
             <p><strong>{prepared.errors.length && staleVariables.length ? `Agent เปลี่ยนตัวแปร ${staleVariables.length} ตัว ต้องจับคู่ข้อมูลใหม่ก่อนโทร` : blocker}</strong>
+              {scheduled && <small>ระบบโทรตามเวลาที่ตั้งไว้และโทรซ้ำคนที่ยังไม่ได้คำตอบเอง เริ่มโทรเองได้เมื่อคิวจบหรือยกเลิกการตั้งเวลา</small>}
               {prepared.errors.length > 0 && <details><summary>ดูรายละเอียด</summary>{staleVariables.length ? <span className="rd-codes">{staleVariables.map(v => <code key={v}>{v}</code>)}</span> : <small>{prepared.errors.join(' · ')}</small>}</details>}
               {versionMismatch && <small>บอร์ดแสดงเฉพาะเวอร์ชันปัจจุบัน หากต้องการโทรชุดใหม่ให้สร้างแคมเปญใหม่</small>}
               {!navigator.locks && <small>กรุณาใช้ Chrome หรือ Edge รุ่นปัจจุบัน</small>}
@@ -265,16 +300,16 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
           ? <div className="rd-empty"><strong style={{ display: 'block', color: 'var(--color-heading)', marginBottom: 4 }}>ยังแสดงรายชื่อไม่ได้</strong>ต้องอ่านประวัติการโทรก่อน จึงจะรู้ว่าใครโทรแล้ว<div style={{ marginTop: 12 }}><Button size="compact" variant="secondary" onClick={() => { setError(''); setLoadError(''); void reload(); }}>ลองใหม่</Button></div></div>
           : <p className="rd-empty" role="status">กำลังโหลดรายชื่อ…</p>)
       : view === 'list' ? <>
-        {shown.length ? <div className="rd-table-wrap"><table className="rd-table ob-list">
+        {shown.length ? <div className="rd-table-wrap"><table className="rd-table rd-table--cards ob-list">
           <thead><tr><th>#</th><th>รายชื่อ</th><th>สถานะ</th><th>โทรล่าสุด</th><th><span className="sr-only">ดู</span></th></tr></thead>
           <tbody>{shown.slice(0, listLimit).map(card => {
             const column = COLUMNS.find(c => c.id === card.column)!;
-            return <tr key={card.row.index} onClick={() => setOpenRow(card.row.index)}>
-              <td className="ob-list__num">{card.row.index + 1}</td>
-              <td><strong>{card.name}</strong><span className="rd-table__sub">{card.row.destination || 'ไม่มีเบอร์'}</span></td>
-              <td>{card.row.errors.length ? <span className="rd-chip rd-chip--bad">ต้องแก้ข้อมูล</span> : <span className={`rd-chip${column.tone ? ` rd-chip--${column.tone}` : ''}`}>{column.label}</span>}{detailOf(card) !== column.label && <span className="rd-table__sub">{detailOf(card)}</span>}</td>
-              <td className="rd-muted">{card.attempt ? date(card.attempt.created_at) : '—'}</td>
-              <td><button type="button" className="ob-open" aria-haspopup="dialog" aria-label={`ดูรายละเอียด ${card.name}`} onClick={e => { e.stopPropagation(); setOpenRow(card.row.index); }}>ดู ›</button></td>
+            return <tr key={card.row.index} onClick={() => openDrawer(card.row.index)}>
+              <td className="ob-list__num rd-cell--hide">{card.row.index + 1}</td>
+              <td className="rd-cell--grow"><strong>{card.name}</strong><span className="rd-table__sub">{card.row.destination || 'ไม่มีเบอร์'}</span></td>
+              <td className="rd-cell--half rd-cell--later">{card.row.errors.length ? <span className="rd-chip rd-chip--bad">ต้องแก้ข้อมูล</span> : <span className={`rd-chip${column.tone ? ` rd-chip--${column.tone}` : ''}`}>{column.label}</span>}{detailOf(card) !== column.label && <span className="rd-table__sub">{detailOf(card)}</span>}</td>
+              <td className="rd-muted rd-cell--half rd-cell--later" data-label="โทรล่าสุด">{card.attempt ? date(card.attempt.created_at) : '—'}</td>
+              <td className="rd-cell--auto"><button type="button" className="ob-open" aria-haspopup="dialog" aria-label={`ดูรายละเอียด ${card.name}`} onClick={e => { e.stopPropagation(); openDrawer(card.row.index); }}>ดู ›</button></td>
             </tr>;
           })}</tbody>
         </table></div> : <p className="rd-empty">{needle ? 'ไม่พบรายชื่อที่ค้นหา' : 'ไม่มีรายชื่อในสถานะนี้'}</p>}
@@ -284,7 +319,7 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
         <div className={`kb-board${filter === 'all' ? '' : ' kb-board--single'}`} role="list" aria-label="คอลัมน์สถานะ">
           {COLUMNS.filter(c => filter === 'all' || c.id === filter).map(column => {
             const list = visible.filter(c => c.column === column.id), limit = limits[column.id] || PAGE;
-            const droppable = !!column.review && dragRow !== null;
+            const droppable = column.drop !== undefined && dragRow !== null;
             return <section key={column.id} role="listitem" aria-label={`${column.label} ${list.length} รายชื่อ`}
               className={`kb-col${overColumn === column.id && droppable ? ' kb-col--over' : ''}`}
               onDragOver={e => { if (droppable) { e.preventDefault(); setOverColumn(column.id); } }}
@@ -294,18 +329,18 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
               <div className="kb-col__body">
                 {list.slice(0, limit).map(card => <button key={card.row.index} type="button" className={`kb-card${card.row.errors.length ? ' kb-card--invalid' : ''}${dragRow === card.row.index ? ' kb-card--drag' : ''}`}
                   draggable={canMove(card)} onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDragRow(card.row.index); }} onDragEnd={() => { setDragRow(null); setOverColumn(null); }}
-                  onClick={() => setOpenRow(card.row.index)} aria-haspopup="dialog">
+                  onClick={() => openDrawer(card.row.index)} aria-haspopup="dialog">
                   <span className="kb-card__top"><strong>{card.name}</strong><span className="kb-card__row">#{card.row.index + 1}</span></span>
                   <span className="kb-card__phone">{card.row.destination || 'ไม่มีเบอร์'}</span>
                   <span className={`kb-card__meta${card.row.errors.length ? ' ob-bad' : ''}`}>{card.row.errors.length ? 'ต้องแก้ข้อมูล' : detailOf(card)}{card.attempt && <span className="kb-card__time">{date(card.attempt.created_at)}</span>}</span>
                 </button>)}
                 {list.length > limit && <button type="button" className="kb-more" onClick={() => setLimits(l => ({ ...l, [column.id]: limit + PAGE }))}>แสดงอีก {Math.min(PAGE, list.length - limit)} จาก {list.length - limit}</button>}
-                {!list.length && <p className="kb-empty">{droppable ? 'วางการ์ดที่นี่เพื่อบันทึกผล' : 'ว่าง'}</p>}
+                {!list.length && <p className="kb-empty">{droppable ? 'วางการ์ดที่นี่เพื่อแก้ผล' : 'ว่าง'}</p>}
               </div>
             </section>;
           })}
         </div>
-        <p className="rd-stat__note">ลากการ์ดที่จบสายแล้วไปคอลัมน์ผลลัพธ์เพื่อแก้ผลเอง หรือกดการ์ดเพื่อเลือกผล · การบันทึกผลไม่เริ่มโทรใหม่</p>
+        <p className="rd-stat__note">กดการ์ดที่จบสายแล้ว หรือลากไปคอลัมน์ผลลัพธ์ เพื่อแก้ผลพร้อมบันทึกเหตุผล · การแก้ผลไม่เริ่มโทรใหม่</p>
       </div>}
     </div>
 
@@ -328,9 +363,19 @@ export function CampaignBoard({ campaign, title }: { campaign: CampaignDraft; ti
               </>}
             </> : <p className="rd-muted" style={{ margin: 0 }}>ยังไม่เคยโทรหารายชื่อนี้</p>}
           </section>
-          {openCard.attempt && canMove(openCard) && <section className="rd-stack" style={{ gap: 8 }}>
-            <h3>บันทึกผลด้วยตัวเอง</h3>
-            <div className="kb-review">{COLUMNS.filter(c => c.review).map(c => <button key={c.id} type="button" className={`rd-chip rd-chip--${c.tone} kb-review__btn`} aria-pressed={openCard.column === c.id} disabled={saving || openCard.column === c.id} onClick={() => void review(openCard.attempt!, c.id)}>{c.label}</button>)}</div>
+          {openCard.attempt && canMove(openCard) && <section className="rd-stack kb-review" aria-labelledby="kb-review-title">
+            <h3 id="kb-review-title">แก้ผลตอบรับ</h3>
+            <fieldset className="kb-review__options" disabled={saving}>
+              <legend className="sr-only">ผลตอบรับที่ถูกต้อง</legend>
+              {REVIEW_OPTIONS.map(o => <label key={o.key} className="kb-review__option"><input type="radio" name="kb-review" value={o.key} checked={pick === o.key} onChange={() => setPick(o.key)} /><span>{outcomeLabels[o.key]}</span></label>)}
+            </fieldset>
+            <label className="kb-review__note"><span>เหตุผลที่แก้ <small>(จำเป็น)</small></span><textarea rows={2} maxLength={2000} value={note} disabled={saving} placeholder="เช่น แขกโทรกลับมายืนยันทาง LINE" onChange={e => setNote(e.target.value)} /></label>
+            <div className="kb-review__actions">
+              <Button size="compact" disabled={saving || !pick || !note.trim()} onClick={() => void saveReview(openCard.attempt!)}>{saving ? 'กำลังบันทึก…' : 'บันทึกผล'}</Button>
+              {openCard.attempt.response?.review && !saved && <Button size="compact" variant="secondary" disabled={saving} onClick={() => void restore(openCard.attempt!, null)}>กลับไปใช้ผลจากบอท</Button>}
+            </div>
+            {saved && saved.attempt.id === openCard.attempt.id && <p className="workspace-notice kb-review__saved" role="status">บันทึกผล “{callResultDisplay(saved.attempt).label}” แล้ว<button type="button" className="rd-link" disabled={saving} onClick={() => void restore(saved.attempt, saved.previous)}>เลิกทำ</button></p>}
+            {drawerError && <p className="workspace-alert" role="alert">{drawerError}</p>}
           </section>}
           {openCard.attempt?.response?.transcript?.text && <section className="rd-stack" style={{ gap: 8 }}>
             <h3>บทสนทนา</h3><p className="kb-transcript">{openCard.attempt.response.transcript.text}</p>

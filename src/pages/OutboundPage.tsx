@@ -21,7 +21,7 @@ export function OutboundPage() {
     window.history.replaceState(null, '', url);
   }
   return <div className="inbound-page outbound-page"><AppHeader activeNav="outbound" /><main className="analytics-main page-shell real-data-page inbound-main">
-    <header className="rd-head"><div><span className="ui-kicker">OUTBOUND CALLS</span><h1>สายออก</h1><p>เลือกแคมเปญ กดเริ่มโทรเมื่อพร้อม แล้วติดตามผลของแต่ละคนได้ที่นี่ ระบบไม่โทรเองจนกว่าคุณจะกดเริ่ม</p></div></header>
+    <header className="rd-head"><div><h1>สายออก</h1><p>เลือกแคมเปญ กดเริ่มโทรเมื่อพร้อม แล้วติดตามผลของแต่ละคนได้ที่นี่ ถ้าตั้งเวลาโทรไว้ จะเห็นสถานะคิวในการ์ดด้านล่าง</p></div></header>
     {campaign ? <CampaignBoard key={campaign.id} campaign={campaign} title={campaigns.length > 1
       ? <SmoothSelect aria-label="เลือกแคมเปญ" className="outbound-title" value={campaignId} onChange={pick} options={campaigns.map(c => ({ value: c.id, label: c.name }))} />
       : undefined} />

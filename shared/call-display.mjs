@@ -1,4 +1,5 @@
 import { effectiveOutcome, outcomeLabels } from './call-results.mjs';
+import { terminalCall, finalResults } from './campaign-queue.mjs';
 
 export const displayLabels={...outcomeLabels,ENDED_WITHOUT_RESULT:'จบสายโดยไม่ได้คำตอบ'};
 
@@ -28,4 +29,17 @@ export function talkDuration(attempt) {
   if(callResultDisplay(attempt).key==='NO_ANSWER')return '-';
   const seconds=talkSeconds(attempt);
   return seconds===null?'ยังไม่มีข้อมูลเวลา':`${Math.floor(seconds/60)} นาที ${seconds%60} วินาที`;
+}
+
+// The guest still has to be reached: the call ended without a final answer.
+// Same precedence as unansweredRows and the scheduler's retryKind, so counts match the redial scope.
+export function needsFollowUp(attempt) {
+  const r=attempt.response;
+  const result=[r?.review?.call_result,r?.callback?.outcome?.call_result,r?.followup?.outcome?.call_result].find(v=>v&&v!=='UNDETERMINED');
+  return terminalCall(attempt.status)&&!finalResults.includes(result);
+}
+
+// A completed call whose result can still arrive: the backend sets followup.final once nothing more will come.
+export function awaitingResult(attempt,now=Date.now()) {
+  return attempt.status==='completed'&&effectiveOutcome(attempt.response).call_result==='UNDETERMINED'&&!attempt.response?.followup?.final&&now-Date.parse(attempt.created_at)<60*60000;
 }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {providerOutcome,matchingLogPath,effectiveOutcome,resultsCsv,latestContactCalls} from '../shared/call-results.mjs';
-import {callResultDisplay,talkSeconds,talkDuration} from '../shared/call-display.mjs';
+import {callResultDisplay,talkSeconds,talkDuration,needsFollowUp,awaitingResult} from '../shared/call-display.mjs';
+import {unansweredRows} from '../shared/campaign-queue.mjs';
 // Backend handler cases live in backend/results_test.go.
 let passed=0;
 async function test(name,fn){await fn();passed++;console.log('PASS '+name);}
@@ -15,4 +16,21 @@ await test('Only completed calls without outcomes display ended; failed calls di
 await test('Real outcomes override the ended display and late callbacks remain visible',()=>{const attempt={status:'completed',response:{}};assert.equal(callResultDisplay(attempt).key,'ENDED_WITHOUT_RESULT');attempt.response.callback={outcome:{call_result:'CONFIRMED',needs_agent:false,source:'agent_tool'}};assert.equal(callResultDisplay(attempt).label,'ตอบตกลง');attempt.response.review={call_result:'DECLINED',needs_agent:false,source:'manual'};assert.equal(callResultDisplay(attempt).key,'DECLINED');});
 await test('Talk duration excludes ringing and uses actual connected timestamps',()=>{const attempt={status:'completed',created_at:'2026-10-15T00:00:00Z',response:{followup:{answered_at:'2026-10-15T00:00:30Z',completed_at:'2026-10-15T00:02:35Z'}}};assert.equal(talkSeconds(attempt),125);assert.equal(talkDuration(attempt),'2 นาที 5 วินาที');for(const times of [{},{answered_at:null,completed_at:'2026-10-15T00:02:35Z'},{answered_at:'bad',completed_at:'bad'},{answered_at:'2026-10-15T00:03:00Z',completed_at:'2026-10-15T00:02:35Z'}])assert.equal(talkDuration({status:'completed',response:{followup:times}}),'ยังไม่มีข้อมูลเวลา');assert.equal(talkDuration({status:'completed',response:{followup:{answered_at:'2026-10-15T00:00:00Z',completed_at:'2026-10-15T00:00:00Z'}}}),'0 นาที 0 วินาที');});
 await test('Unanswered calls display a dash while numeric duration and known connected time remain available',()=>{for(const status of ['failed','no-answer','busy']){assert.equal(talkDuration({status,response:{followup:{answered_at:null,completed_at:null}}}),status==='busy'?'0 นาที 0 วินาที':'-');assert.equal(talkSeconds({status,response:{}}),null);assert.equal(talkSeconds({status,response:{followup:{answered_at:'invalid'}}}),null);}assert.equal(talkDuration({status:'completed',response:{followup:{answered_at:'2026-10-15T00:00:00Z',completed_at:'2026-10-15T00:00:20Z'}}}),'0 นาที 20 วินาที');});
+await test('Follow-up count uses the same rule as the redial scope',()=>{
+ const cases=[['failed',{}],['completed',{}],['completed',{followup:{outcome:{call_result:'CALLBACK_REQUESTED'}}}],['completed',{callback:{outcome:{call_result:'CONFIRMED'}}}],['completed',{review:{call_result:'UNDETERMINED'},callback:{outcome:{call_result:'DECLINED'}}}],['completed',{followup:{outcome:{call_result:'WRONG_PERSON'}}}],['in-progress',{}],['busy',{followup:{outcome:{call_result:'NO_ANSWER'}}}]];
+ const full=cases.map(([status,response],i)=>({id:'a'+i,status,created_at:'2026-10-01T00:00:00Z',metadata:{contact_row:i},response}));
+ const flat=full.map(a=>({...a,review:a.response.review?.call_result,callback:a.response.callback?.outcome?.call_result,followup:a.response.followup?.outcome?.call_result}));
+ const redial=unansweredRows(full.map((_,index)=>({index})),flat);
+ assert.deepEqual(full.filter(needsFollowUp).map(a=>a.metadata.contact_row),redial);
+ assert.deepEqual(redial,[0,1,2,7]);
+});
+await test('A completed call waits for its result until the backend marks it final or an hour passes',()=>{
+ const now=Date.parse('2026-10-01T01:00:00Z');
+ const call=(over)=>({status:'completed',created_at:'2026-10-01T00:30:00Z',response:{followup:{final:false}},...over});
+ assert.equal(awaitingResult(call(),now),true);
+ assert.equal(awaitingResult(call({response:{followup:{final:true}}}),now),false);
+ assert.equal(awaitingResult(call({created_at:'2026-09-30T23:00:00Z'}),now),false);
+ assert.equal(awaitingResult(call({response:{callback:{outcome:{call_result:'CONFIRMED'}}}}),now),false);
+ assert.equal(awaitingResult(call({status:'failed'}),now),false);
+});
 console.log(`${passed} call-result checks passed; no live calls or database writes.`);

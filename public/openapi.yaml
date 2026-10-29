@@ -327,7 +327,7 @@ paths:
         Allowed `path` values for POST:
         - `/v1/provisioning/tenants/{tenant_id}/calls` – start one outbound call (body below)
         - `/workspace/connection` – save or remove the user's Voice Bot JWT
-        - `/workspace/calls/{request_id}/result` – manual review with a note
+        - `/workspace/calls/{request_id}/result` – manual review with a note, or `{clear: true, expected_review_at}` to remove the review
         - `/workspace/agents/{agent_id}/result-setup`, `.../transcript-setup`, `.../general-setup` – body `{confirm, expected_revision}` only
         - `/workspace/agents/{agent_id}/preview-token`
         - `/workspace/campaigns/{campaign_id}/schedule`
