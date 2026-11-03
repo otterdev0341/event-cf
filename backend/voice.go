@@ -6,9 +6,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -333,6 +335,29 @@ func (a *App) handleVoice(w http.ResponseWriter, r *http.Request, endpoint strin
 			v.method = "POST"
 		}
 	}
+	// A panic would otherwise drop the connection and reach the browser as a bare edge 502.
+	defer func() {
+		if p := recover(); p != nil {
+			stack := debug.Stack()
+			log.Printf("panic serving /api/voice %q: %v\n%s", endpoint, p, stack)
+			if v.sent {
+				return
+			}
+			out := obj{"error": "เซิร์ฟเวอร์ทำงานผิดพลาด กรุณาตรวจประวัติก่อนลองใหม่", "code": "internal_panic"}
+			// The test room is dev-only and the host logs are out of reach, so devs see where it broke.
+			if isDev(v.user) {
+				frames := []string{fmt.Sprint(p)}
+				for line := range strings.SplitSeq(string(stack), "\n") {
+					// -trimpath builds name our files event-confirm/<file>.go (or a local path containing /backend/).
+					if l := strings.TrimSpace(line); strings.HasPrefix(l, "event-confirm/") || strings.Contains(l, "/backend/") {
+						frames = append(frames, l)
+					}
+				}
+				out["detail"] = strings.Join(frames, "\n")
+			}
+			send(w, 500, out)
+		}
+	}()
 	err := v.serve(endpoint)
 	if err == nil || v.sent {
 		return
