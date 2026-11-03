@@ -17,7 +17,9 @@ async function request(endpoint: string, options: BotnoiRequestOptions) {
   const response = await fetch(`${import.meta.env.BASE_URL}api/voice?path=${encodeURIComponent(endpoint)}`, { ...options, headers, body: body as BodyInit | null, signal: options.signal ?? AbortSignal.timeout(55000), cache: 'no-store' });
   if (!response.ok) {
     const data = await response.json().catch(() => null);
-    throw new BotnoiApiError(data?.error || `โหลดข้อมูลไม่สำเร็จ (${response.status})`, response.status);
+    const message = data?.error || `โหลดข้อมูลไม่สำเร็จ (${response.status})`;
+    // detail is the server panic trace, sent to dev accounts only.
+    throw new BotnoiApiError(data?.detail ? `${message}\n${String(data.detail).slice(0, 1000)}` : message, response.status);
   }
   return response;
 }
