@@ -119,6 +119,12 @@ func (v *voiceRequest) upstream(route string, body any, method string) (any, err
 			method = "POST"
 		}
 	}
+	// Every agent list (display and ownership checks) passes here, so a hidden agent cannot be used either.
+	if listPath, _, _ := strings.Cut(route, "?"); listPath == "/agents" && method == "GET" {
+		if ids := splitList(v.app.cfg.AllowedAgentIDs); len(ids) > 0 {
+			return v.allowedAgentList(ids)
+		}
+	}
 	target, err := resolve(v.base, route)
 	if err != nil {
 		return nil, err
@@ -145,27 +151,45 @@ func (v *voiceRequest) upstream(route string, body any, method string) (any, err
 		}
 		return nil, fail(status, fmt.Sprintf("บริการ Voice Bot ตอบกลับ HTTP %d", res.StatusCode))
 	}
-	result, err := readJSON(res)
-	// Every agent list (display and ownership checks) passes here, so a hidden agent cannot be used either.
-	if listPath, _, _ := strings.Cut(route, "?"); listPath == "/agents" && err == nil {
-		result = allowedAgents(result, splitList(v.app.cfg.AllowedAgentIDs))
-	}
-	return result, err
+	return readJSON(res)
 }
 
-// allowedAgents keeps only the agents listed in VOICE_ALLOWED_AGENT_IDS; an empty list keeps every agent.
-func allowedAgents(agents any, ids []string) any {
-	if len(ids) == 0 {
-		return agents
-	}
-	list, _ := agents.([]any)
+// allowedAgentList builds the agent list from each VOICE_ALLOWED_AGENT_IDS entry's own detail page.
+// Botnoi's GET /agents can report a stale agent_id (seen on staging, 2026-11), while
+// GET /agents/{id} is authoritative and access-checked, so an agent counts only if its page opens.
+func (v *voiceRequest) allowedAgentList(ids []string) (any, error) {
 	out := []any{}
-	for _, agent := range list {
-		if id, ok := get(agent, "agent_id").(string); ok && slices.Contains(ids, id) {
-			out = append(out, agent)
+	for _, id := range ids {
+		target, err := resolve(v.base, "/agents/"+escapeComponent(id))
+		if err != nil {
+			return nil, err
+		}
+		res, err := v.app.request(v.ctx, 20*time.Second, "GET", target, strOr(v.conn["token"]), nil)
+		if err != nil {
+			return nil, err
+		}
+		if res.StatusCode == 401 {
+			res.Body.Close()
+			return nil, fail(428, "Voice Bot ไม่รับสิทธิ์ของ Token นี้ ไปที่ตั้งค่าเพื่อเชื่อม Session JWT ใหม่")
+		}
+		if res.StatusCode == 403 || res.StatusCode == 404 {
+			res.Body.Close() // not this account's agent
+			continue
+		}
+		if res.StatusCode < 200 || res.StatusCode > 299 {
+			res.Body.Close()
+			return nil, fail(502, fmt.Sprintf("บริการ Voice Bot ตอบกลับ HTTP %d", res.StatusCode))
+		}
+		detail, err := readJSON(res)
+		res.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+		if get(detail, "agent_id") == id {
+			out = append(out, obj{"agent_id": id, "name": get(detail, "bot_name")})
 		}
 	}
-	return out
+	return out, nil
 }
 
 func (v *voiceRequest) get(route string) (any, error) { return v.upstream(route, nil, "") }

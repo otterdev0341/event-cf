@@ -125,7 +125,12 @@ func (b *backendFixture) reply(c call) reply {
 			if b.on("extraAgent") {
 				agents = append(agents, obj{"agent_id": "agt_other", "name": "Other"})
 			}
+			if b.on("staleAgentList") {
+				agents = []any{obj{"agent_id": "agt_stale", "name": "Fixture"}}
+			}
 			return ok(agents)
+		case c.Path == "/agents/agt_stale" || c.Path == "/agents/agt_other":
+			return status(403, obj{"code": "AGENTS_FORBIDDEN"})
 		case c.Path == "/platform-config/tools":
 			tools := []any{}
 			if b.on("connectedReceiver") {
@@ -327,6 +332,15 @@ func TestVoiceAPI(t *testing.T) {
 		check(t, ids(b.invoke("/agents?limit=5", nil, only)) == "agt_fixture", "hidden agent listed")
 		check(t, b.invoke("/agents/agt_other", nil, only).status == 403, "hidden agent readable")
 		check(t, b.invoke(callPath, with(callPayload(), obj{"agent_id": "agt_other"}), only).status == 400 && len(b.dials()) == 0, "hidden agent dialed")
+	})
+	run("Allowed agents come from their own pages, not Botnoi's stale list", func(t *testing.T, b *backendFixture) {
+		b.opt["staleAgentList"] = true
+		env := voiceCall{env: map[string]string{"VOICE_ALLOWED_AGENT_IDS": "agt_fixture,agt_other"}}
+		r := b.invoke("/agents", nil, env)
+		list, _ := decodeJSON(r.raw)
+		check(t, r.status == 200 && canon(list) == `[{"agent_id":"agt_fixture","name":"Fixture"}]`, "= %d %s", r.status, r.raw)
+		check(t, b.invoke("/agents/agt_fixture", nil, env).status == 200, "real agent refused")
+		check(t, b.invoke("/agents/agt_other", nil, env).status == 403, "forbidden agent readable")
 	})
 	run("Query tokens are rejected; log limit capped", func(t *testing.T, b *backendFixture) {
 		check(t, b.invoke("/me?token=foo", nil).status == 400, "token query accepted")
